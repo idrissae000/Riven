@@ -13,8 +13,8 @@ interface Result {
   note: string | null;
 }
 
-async function fetchMarket(rivenId: string, refresh: boolean): Promise<Result> {
-  const res = await fetch(`/api/rivens/${rivenId}/market${refresh ? "?refresh=1" : ""}`);
+async function fetchMarket(endpoint: string, refresh: boolean): Promise<Result> {
+  const res = await fetch(refresh ? `${endpoint}${endpoint.includes("?") ? "&" : "?"}refresh=1` : endpoint);
   const json = await res.json();
   if (!res.ok) throw new Error(json.error ?? "Market lookup failed");
   return json;
@@ -22,24 +22,25 @@ async function fetchMarket(rivenId: string, refresh: boolean): Promise<Result> {
 
 const statusColor: Record<string, string> = { ingame: "bg-ok", online: "bg-teal", offline: "bg-dim/50" };
 
-export function MarketEstimate({ rivenId, attrs }: { rivenId: string; attrs: Record<string, { name: string; unit: string | null }> }) {
+/** `endpoint` returns the market result: /api/rivens/<id>/market (saved) or /api/market/riven?r=… (unsaved). */
+export function MarketEstimate({ endpoint, attrs }: { endpoint: string; attrs: Record<string, { name: string; unit: string | null }> }) {
   const [data, setData] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
-    fetchMarket(rivenId, false)
+    fetchMarket(endpoint, false)
       .then((d) => alive && setData(d))
       .catch((e) => alive && setError(e instanceof Error ? e.message : "Market lookup failed"))
       .finally(() => alive && setLoading(false));
     return () => { alive = false; };
-  }, [rivenId]);
+  }, [endpoint]);
 
   function refresh() {
     setLoading(true);
     setError(null);
-    fetchMarket(rivenId, true)
+    fetchMarket(endpoint, true)
       .then(setData)
       .catch((e) => setError(e instanceof Error ? e.message : "Market lookup failed"))
       .finally(() => setLoading(false));

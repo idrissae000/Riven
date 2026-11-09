@@ -2,10 +2,17 @@
 
 Price, grade and manage Warframe riven mods; look up arcanes. Next.js (App Router, TS, Tailwind) + Supabase, deployable to Vercel. One responsive codebase: bottom tabs on phones, sidebar on desktop.
 
+## Accounts are optional
+
+- **No account:** check a riven (per-stat grades + market estimate — it lives in the URL, nothing is stored) and browse arcanes with live prices.
+- **With an account:** save and edit rivens, list them on Warframe Market, and scan screenshots (scanning needs an account because it spends your Anthropic credits).
+- Game reference tables (weapons, stats, grade ranges, arcanes) are publicly readable (migration 0007); user data and token tables are not.
+- The public market endpoint (`/api/market/riven`) uses the same throttle + cache as everything else, but it is open to anyone — add rate limiting before sharing the URL widely.
+
 ## Setup
 
 1. `npm install`
-2. Create a Supabase project, run `supabase/migrations/0001…0005` in order (SQL editor or `supabase db push`).
+2. Create a Supabase project, run `supabase/migrations/0001…0007` in order (SQL editor or `supabase db push`).
 3. `cp .env.example .env.local` and fill it in (Supabase URL/keys; `WFM_TOKEN_ENCRYPTION_KEY` via `openssl rand -base64 32`; optional `ANTHROPIC_API_KEY` for screenshot scanning).
 4. Load reference data (re-runnable any time):
    ```bash

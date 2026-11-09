@@ -1,14 +1,16 @@
 import { RivenForm } from "@/components/riven-form";
-import { getReferenceData } from "@/lib/data";
+import { currentUserId, getReferenceData } from "@/lib/data";
 
-export const metadata = { title: "New riven" };
+export const metadata = { title: "Check a riven" };
 
 export default async function NewRivenPage() {
-  const { weapons, attributes } = await getReferenceData();
+  const [{ weapons, attributes }, userId] = await Promise.all([getReferenceData(), currentUserId()]);
+  const signedIn = !!userId;
   return (
     <div className="space-y-5">
-      <h1 className="h-display text-3xl">New riven</h1>
-      <RivenForm weapons={weapons} attributes={attributes} />
+      <h1 className="h-display text-3xl">{signedIn ? "New riven" : "Check a riven"}</h1>
+      {!signedIn && <p className="text-sm text-dim">Enter the stats to see a per-stat grade and a market estimate — no account needed, nothing is saved. <a className="text-teal hover:underline" href="/login">Sign in</a> if you want to save rivens.</p>}
+      <RivenForm weapons={weapons} attributes={attributes} signedIn={signedIn} />
     </div>
   );
 }

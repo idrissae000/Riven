@@ -6,6 +6,7 @@ import { checkRivenSigns } from "@/lib/riven-validate";
 
 export async function GET() {
   const sb = await createClient();
+  if (!(await sb.auth.getUser()).data.user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   const { data, error } = await sb.from("rivens").select("*").order("created_at", { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ rivens: data });

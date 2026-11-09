@@ -32,7 +32,7 @@ export default async function RivenDetailPage({ params }: { params: Promise<{ id
         <RivenStats stats={riven.stats} attrs={attr} grades={grades} />
         {riven.notes && <p className="mt-3 text-sm text-dim">{riven.notes}</p>}
       </section>
-      <MarketEstimate rivenId={riven.id} attrs={Object.fromEntries(ref.attributes.map((a) => [a.slug, { name: a.name, unit: a.unit }]))} />
+      <MarketEstimate endpoint={`/api/rivens/${riven.id}/market`} attrs={Object.fromEntries(ref.attributes.map((a) => [a.slug, { name: a.name, unit: a.unit }]))} />
       <PushToWfm
         rivenId={riven.id}
         label={`${weapon?.name ?? riven.weapon_slug} ${riven.riven_name ?? ""}`.trim()}

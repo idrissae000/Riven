@@ -2,9 +2,11 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { publicSupabaseEnv } from "@/lib/env";
 
-const PUBLIC_PATHS = ["/login", "/auth", "/setup"];
-
-/** Refreshes the Supabase session cookie and gates the app behind sign-in. */
+/**
+ * Sign-in is OPTIONAL. This only refreshes the Supabase session cookie when someone is signed in
+ * (and sends signed-in users away from /login). Nothing is gated here: features that need an account
+ * (saving rivens, Warframe Market listing, screenshot scan) check for a user in their own routes/pages.
+ */
 export async function proxy(request: NextRequest) {
   const env = publicSupabaseEnv();
   const { pathname } = request.nextUrl;
@@ -15,6 +17,10 @@ export async function proxy(request: NextRequest) {
   }
 
   let response = NextResponse.next({ request });
+  // Visitors with no auth cookie have nothing to refresh — skip the work.
+  const hasSession = request.cookies.getAll().some((c) => c.name.startsWith("sb-"));
+  if (!hasSession) return response;
+
   const supabase = createServerClient(env.url, env.anonKey, {
     cookies: {
       getAll: () => request.cookies.getAll(),
@@ -27,21 +33,7 @@ export async function proxy(request: NextRequest) {
   });
 
   const { data } = await supabase.auth.getClaims();
-  const signedIn = !!data?.claims;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
-
-  if (!signedIn && !isPublic) {
-    if (pathname.startsWith("/api/")) {
-      return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-    }
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
-  }
-  if (signedIn && pathname === "/login") {
-    return NextResponse.redirect(new URL("/rivens", request.url));
-  }
+  if (data?.claims && pathname === "/login") return NextResponse.redirect(new URL("/rivens", request.url));
   return response;
 }
 

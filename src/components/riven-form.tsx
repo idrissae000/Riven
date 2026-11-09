@@ -7,6 +7,8 @@ import { POLARITIES } from "@/lib/types";
 import { unitSuffix } from "@/lib/format";
 import { signPrefix, toStoredValue, toTypedValue } from "@/lib/stat-sign";
 import type { MappedScan } from "@/lib/ocr/map";
+import { encodeRiven } from "@/lib/riven-share";
+import type { RivenInput } from "@/lib/riven-schema";
 
 interface Row { stat: string; value: string }
 
@@ -50,8 +52,8 @@ function StatRow({ row, onChange, negative, onRemove, options, unit, prefix }: {
 }
 
 export function RivenForm({
-  weapons, attributes, initial, rivenId,
-}: { weapons: Weapon[]; attributes: RivenAttribute[]; initial?: RivenFormInitial; rivenId?: string }) {
+  weapons, attributes, initial, rivenId, signedIn = true,
+}: { weapons: Weapon[]; attributes: RivenAttribute[]; initial?: RivenFormInitial; rivenId?: string; signedIn?: boolean }) {
   const router = useRouter();
   const attrBySlug = useMemo(() => new Map(attributes.map((a) => [a.slug, a])), [attributes]);
   const init = useMemo(() => toRows(initial, attrBySlug), [initial, attrBySlug]);
@@ -109,7 +111,7 @@ export function RivenForm({
     });
   }
 
-  async function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent, checkOnly = !signedIn && !rivenId) {
     e.preventDefault();
     setError(null);
     if (!weapon) return setError("Pick a weapon from the list.");
@@ -124,6 +126,11 @@ export function RivenForm({
       mastery_rank: Number(mr), rank: Number(rank), rerolls: Number(rerolls),
       stats, has_negative: hasNeg && !!neg.stat, notes: notes || null,
     };
+    if (checkOnly) {
+      // Nothing is stored: the riven rides in the URL and the result page grades + prices it.
+      router.push(`/rivens/check?r=${encodeRiven(body as RivenInput)}`);
+      return;
+    }
     setBusy(true);
     const res = await fetch(rivenId ? `/api/rivens/${rivenId}` : "/api/rivens", {
       method: rivenId ? "PUT" : "POST",
@@ -139,7 +146,7 @@ export function RivenForm({
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      {!rivenId && (
+      {!rivenId && signedIn && (
         <div className="card flex flex-wrap items-center gap-3 border-violet/40">
           <label className="btn cursor-pointer border-violet/50 text-violet">
             {scanState.busy ? "Reading screenshot…" : "📷 Scan a screenshot"}
@@ -205,7 +212,14 @@ export function RivenForm({
 
       {error && <p role="alert" className="rounded-lg bg-danger/10 p-3 text-sm text-danger">{error}</p>}
       <div className="flex gap-3">
-        <button className="btn-primary flex-1" disabled={busy}>{busy ? "Saving…" : rivenId ? "Save changes" : "Save riven"}</button>
+        {signedIn || rivenId ? (
+          <button className="btn-primary flex-1" disabled={busy}>{busy ? "Saving…" : rivenId ? "Save changes" : "Save riven"}</button>
+        ) : (
+          <button className="btn-primary flex-1">Check this riven</button>
+        )}
+        {signedIn && !rivenId && (
+          <button type="button" className="btn" onClick={(e) => submit(e as unknown as React.FormEvent, true)}>Check only</button>
+        )}
         <button type="button" className="btn" onClick={() => router.back()}>Cancel</button>
       </div>
     </form>

@@ -9,7 +9,7 @@ const TABS = [
   { href: "/market", label: "Market", icon: "⬡" },
 ];
 
-export function Nav() {
+export function Nav({ signedIn }: { signedIn: boolean }) {
   const path = usePathname();
   const active = (href: string) => path === href || path.startsWith(href + "/");
   return (
@@ -33,9 +33,16 @@ export function Nav() {
             </Link>
           ))}
         </nav>
-        <form action="/auth/signout" method="post" className="mt-auto">
-          <button className="btn w-full" type="submit">Sign out</button>
-        </form>
+        <div className="mt-auto space-y-2">
+          {signedIn ? (
+            <form action="/auth/signout" method="post"><button className="btn w-full" type="submit">Sign out</button></form>
+          ) : (
+            <>
+              <p className="px-1 text-xs text-dim">Sign in to save rivens and track them.</p>
+              <Link href="/login" className="btn-primary w-full">Sign in</Link>
+            </>
+          )}
+        </div>
       </aside>
 
       {/* Mobile: bottom tab bar */}

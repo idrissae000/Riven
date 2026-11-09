@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { listRivens, getReferenceData, getGradeRanges } from "@/lib/data";
+import { currentUserId, listRivens, getReferenceData, getGradeRanges } from "@/lib/data";
 import { gradeRiven } from "@/lib/grading/grade";
 import { GradeBadge } from "@/components/grade-badge";
 import { fmtStat } from "@/lib/format";
@@ -7,6 +7,21 @@ import { fmtStat } from "@/lib/format";
 export const metadata = { title: "Rivens" };
 
 export default async function RivensPage() {
+  if (!(await currentUserId())) {
+    return (
+      <div className="space-y-5">
+        <h1 className="h-display text-3xl">Rivens</h1>
+        <div className="card-glow space-y-4">
+          <p>Grade every stat on a riven and see what similar ones are actually selling for. No account needed.</p>
+          <Link href="/rivens/new" className="btn-primary">Check a riven</Link>
+        </div>
+        <div className="card space-y-2 text-sm text-dim">
+          <p><strong className="text-ink">Optional:</strong> sign in to save your rivens, track them, list them on Warframe Market, and scan screenshots.</p>
+          <Link href="/login" className="btn">Sign in or create an account</Link>
+        </div>
+      </div>
+    );
+  }
   const [rivens, ref] = await Promise.all([listRivens(), getReferenceData()]);
   const weapon = new Map(ref.weapons.map((w) => [w.slug, w]));
   const attr = new Map(ref.attributes.map((a) => [a.slug, a]));
