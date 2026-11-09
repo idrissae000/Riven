@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Polarity, Riven, RivenAttribute, Weapon } from "@/lib/types";
 import { POLARITIES } from "@/lib/types";
 import { unitSuffix } from "@/lib/format";
+import { signPrefix, toStoredValue, toTypedValue } from "@/lib/stat-sign";
 
 interface Row { stat: string; value: string }
 
@@ -15,17 +16,18 @@ export interface RivenFormInitial {
 
 const emptyRow = (): Row => ({ stat: "", value: "" });
 
-function toRows(initial?: RivenFormInitial) {
+function toRows(initial: RivenFormInitial | undefined, attrs: Map<string, RivenAttribute>) {
   const stats = initial?.stats ?? [];
-  const pos = stats.filter((s) => !s.is_negative).map((s) => ({ stat: s.stat, value: String(Math.abs(s.value)) }));
+  const typed = (s: Riven["stats"][number]) => String(toTypedValue(attrs.get(s.stat), s.value));
+  const pos = stats.filter((s) => !s.is_negative).map((s) => ({ stat: s.stat, value: typed(s) }));
   const neg = stats.find((s) => s.is_negative);
   while (pos.length < 2) pos.push(emptyRow());
-  return { pos, neg: neg ? { stat: neg.stat, value: String(Math.abs(neg.value)) } : emptyRow(), hasNeg: !!neg };
+  return { pos, neg: neg ? { stat: neg.stat, value: typed(neg) } : emptyRow(), hasNeg: !!neg };
 }
 
-function StatRow({ row, onChange, negative, onRemove, options, unit }: {
+function StatRow({ row, onChange, negative, onRemove, options, unit, prefix }: {
   row: Row; onChange: (r: Row) => void; negative: boolean; onRemove?: () => void;
-  options: RivenAttribute[]; unit: string;
+  options: RivenAttribute[]; unit: string; prefix: string;
 }) {
   return (
     <div className="flex items-end gap-2">
@@ -36,7 +38,7 @@ function StatRow({ row, onChange, negative, onRemove, options, unit }: {
         </select>
       </div>
       <div className="relative w-32 shrink-0">
-        <span className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono ${negative ? "text-danger" : "text-ok"}`}>{negative ? "−" : "+"}</span>
+        <span className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 font-mono ${negative ? "text-danger" : "text-ok"}`}>{prefix}</span>
         <input className="input pl-7 pr-7 font-mono" inputMode="decimal" type="number" step="any" min="0" placeholder="0.0"
           value={row.value} onChange={(e) => onChange({ ...row, value: e.target.value })} aria-label="Value" />
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-dim">{unit}</span>
@@ -50,7 +52,8 @@ export function RivenForm({
   weapons, attributes, initial, rivenId,
 }: { weapons: Weapon[]; attributes: RivenAttribute[]; initial?: RivenFormInitial; rivenId?: string }) {
   const router = useRouter();
-  const init = useMemo(() => toRows(initial), [initial]);
+  const attrBySlug = useMemo(() => new Map(attributes.map((a) => [a.slug, a])), [attributes]);
+  const init = useMemo(() => toRows(initial, attrBySlug), [initial, attrBySlug]);
   const [weaponText, setWeaponText] = useState(weapons.find((w) => w.slug === initial?.weapon_slug)?.name ?? "");
   const [rivenName, setRivenName] = useState(initial?.riven_name ?? "");
   const [polarity, setPolarity] = useState<Polarity>(initial?.polarity ?? "madurai");
@@ -65,7 +68,6 @@ export function RivenForm({
   const [error, setError] = useState<string | null>(null);
 
   const weapon = weapons.find((w) => w.name.toLowerCase() === weaponText.trim().toLowerCase());
-  const attrBySlug = useMemo(() => new Map(attributes.map((a) => [a.slug, a])), [attributes]);
   const usable = (a: RivenAttribute) =>
     !weapon || !a.exclusive_to || a.exclusive_to.length === 0 || a.exclusive_to.includes(weapon.riven_type);
 
@@ -78,8 +80,8 @@ export function RivenForm({
     setError(null);
     if (!weapon) return setError("Pick a weapon from the list.");
     const stats = [
-      ...pos.filter((r) => r.stat).map((r) => ({ stat: r.stat, value: Math.abs(parseFloat(r.value)), is_negative: false })),
-      ...(hasNeg && neg.stat ? [{ stat: neg.stat, value: -Math.abs(parseFloat(neg.value)), is_negative: true }] : []),
+      ...pos.filter((r) => r.stat).map((r) => ({ stat: r.stat, value: toStoredValue(attrBySlug.get(r.stat), false, parseFloat(r.value)), is_negative: false })),
+      ...(hasNeg && neg.stat ? [{ stat: neg.stat, value: toStoredValue(attrBySlug.get(neg.stat), true, parseFloat(neg.value)), is_negative: true }] : []),
     ];
     if (stats.some((s) => !Number.isFinite(s.value))) return setError("Enter a number for every stat.");
     if (hasNeg && !neg.stat) return setError("Pick the negative stat or untick “has negative”.");
@@ -139,7 +141,7 @@ export function RivenForm({
       <div className="card space-y-3">
         <h2 className="h-display text-lg text-teal">Stats</h2>
         {pos.map((r, i) => (
-          <StatRow key={i} row={r} negative={false} options={optionsFor(r.stat, false)} unit={unitSuffix(attrBySlug.get(r.stat))}
+          <StatRow key={i} row={r} negative={false} options={optionsFor(r.stat, false)} unit={unitSuffix(attrBySlug.get(r.stat))} prefix={signPrefix(attrBySlug.get(r.stat), false)}
             onChange={(nr) => setPos(pos.map((x, j) => (j === i ? nr : x)))}
             onRemove={pos.length > 2 ? () => setPos(pos.filter((_, j) => j !== i)) : undefined} />
         ))}
@@ -148,7 +150,7 @@ export function RivenForm({
           <input type="checkbox" className="size-5 accent-orange" checked={hasNeg} onChange={(e) => setHasNeg(e.target.checked)} />
           Has a negative stat
         </label>
-        {hasNeg && <StatRow row={neg} negative onChange={setNeg} options={optionsFor(neg.stat, true)} unit={unitSuffix(attrBySlug.get(neg.stat))} />}
+        {hasNeg && <StatRow row={neg} negative onChange={setNeg} options={optionsFor(neg.stat, true)} unit={unitSuffix(attrBySlug.get(neg.stat))} prefix={signPrefix(attrBySlug.get(neg.stat), true)} />}
       </div>
 
       <div className="card">

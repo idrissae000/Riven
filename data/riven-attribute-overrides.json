@@ -1,0 +1,4 @@
+{
+  "_comment": "Per-attribute facts Warframe Market doesn't expose. inverted = beneficial when the value is NEGATIVE (lower is better). Merged in by `npm run sync:wfm-static`.",
+  "recoil": { "inverted": true }
+}

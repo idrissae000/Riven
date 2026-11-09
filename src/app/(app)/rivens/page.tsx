@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { listRivens, getReferenceData } from "@/lib/data";
+import { listRivens, getReferenceData, getGradeRanges } from "@/lib/data";
+import { gradeRiven } from "@/lib/grading/grade";
+import { GradeBadge } from "@/components/grade-badge";
 import { fmtStat } from "@/lib/format";
 
 export const metadata = { title: "Rivens" };
@@ -8,6 +10,10 @@ export default async function RivensPage() {
   const [rivens, ref] = await Promise.all([listRivens(), getReferenceData()]);
   const weapon = new Map(ref.weapons.map((w) => [w.slug, w]));
   const attr = new Map(ref.attributes.map((a) => [a.slug, a]));
+  const ranges = await getGradeRanges(rivens.map((r) => r.weapon_slug));
+  const gradesById = new Map(
+    rivens.map((r) => [r.id, gradeRiven(r, weapon.get(r.weapon_slug)?.name ?? r.weapon_slug, attr, ranges)]),
+  );
 
   return (
     <div className="space-y-5">
@@ -41,12 +47,16 @@ export default async function RivensPage() {
                   <span className="chip">MR {r.mastery_rank}</span>
                   <span className="chip">{r.rerolls} rerolls</span>
                 </div>
-                <ul className="mt-3 space-y-0.5 font-mono text-sm">
-                  {r.stats.map((s) => (
-                    <li key={s.stat} className={s.is_negative ? "text-danger" : "text-ink"}>
-                      {fmtStat(s.value, attr.get(s.stat)?.unit)} <span className="font-sans text-dim">{attr.get(s.stat)?.name ?? s.stat}</span>
-                    </li>
-                  ))}
+                <ul className="mt-3 space-y-1 font-mono text-sm">
+                  {r.stats.map((s, i) => {
+                    const g = gradesById.get(r.id)![i];
+                    return (
+                      <li key={s.stat} className={`flex items-center gap-2 ${s.is_negative ? "text-danger" : "text-ink"}`}>
+                        <GradeBadge size="sm" tier={g.tier} placeholder={g.placeholder} />
+                        <span>{fmtStat(s.value, attr.get(s.stat)?.unit)} <span className="font-sans text-dim">{attr.get(s.stat)?.name ?? s.stat}</span></span>
+                      </li>
+                    );
+                  })}
                 </ul>
               </Link>
             </li>

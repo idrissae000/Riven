@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { POLARITIES } from "@/lib/types";
 
+// NOTE: whether a value's sign is right depends on the attribute (Recoil is inverted),
+// so that is checked server-side against riven_attributes (see stat-sign.ts).
 export const rivenStatSchema = z.object({
   stat: z.string().min(1, "Pick a stat"),
   value: z.number().finite(),
@@ -30,8 +32,6 @@ export const rivenInputSchema = z
     for (const s of r.stats) {
       if (seen.has(s.stat)) ctx.addIssue({ code: "custom", message: "Duplicate stat", path: ["stats"] });
       seen.add(s.stat);
-      if (s.is_negative && s.value > 0) ctx.addIssue({ code: "custom", message: "Negative stat must have a negative value", path: ["stats"] });
-      if (!s.is_negative && s.value < 0) ctx.addIssue({ code: "custom", message: "Positive stat must have a positive value", path: ["stats"] });
     }
   });
 

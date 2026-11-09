@@ -18,7 +18,7 @@ async function main() {
     return { stat, value, is_negative: value < 0 };
   });
   const attrsRes = await wfmGet<{ data: { slug: string; unit?: string; i18n: { en: { name: string } } }[] }>("/v2/riven/attributes");
-  const attributes = attrsRes.data.data.map((a) => ({ slug: a.slug, name: a.i18n.en.name, unit: a.unit ?? null, exclusive_to: null, positive_only: false, prefix: null, suffix: null })) as RivenAttribute[];
+  const attributes = attrsRes.data.data.map((a) => ({ slug: a.slug, name: a.i18n.en.name, unit: a.unit ?? null, exclusive_to: null, positive_only: false, inverted: false, prefix: null, suffix: null })) as RivenAttribute[];
 
   const riven = {
     id: "cli", user_id: "cli", weapon_slug: weapon, riven_name: name || null, polarity: "madurai", mastery_rank: 10,

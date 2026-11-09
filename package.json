@@ -10,7 +10,9 @@
     "sync:wfm-static": "tsx scripts/sync-wfm-static.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "price-check": "tsx --conditions=react-server scripts/price-check.ts"
+    "price-check": "tsx --conditions=react-server scripts/price-check.ts",
+    "import:grading": "tsx scripts/import-grade-ranges.ts",
+    "seed:grading-placeholder": "tsx scripts/import-grade-ranges.ts data/grading/placeholder-ranges.json"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

@@ -17,6 +17,8 @@ export interface RivenAttribute {
   unit: string | null;
   exclusive_to: string[] | null;
   positive_only: boolean;
+  /** Beneficial when NEGATIVE (e.g. Weapon Recoil). */
+  inverted: boolean;
   prefix: string | null;
   suffix: string | null;
 }

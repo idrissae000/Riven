@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getReferenceData, getRiven } from "@/lib/data";
-import { fmtStat } from "@/lib/format";
+import { getGradeRanges, getReferenceData, getRiven } from "@/lib/data";
+import { gradeRiven } from "@/lib/grading/grade";
+import { RivenStats } from "@/components/riven-stats";
 import { DeleteRivenButton } from "./delete-button";
 import { MarketEstimate } from "@/components/market-estimate";
 
@@ -11,6 +12,7 @@ export default async function RivenDetailPage({ params }: { params: Promise<{ id
   if (!riven) notFound();
   const weapon = ref.weapons.find((w) => w.slug === riven.weapon_slug);
   const attr = new Map(ref.attributes.map((a) => [a.slug, a]));
+  const grades = gradeRiven(riven, weapon?.name ?? riven.weapon_slug, attr, await getGradeRanges([riven.weapon_slug]));
 
   return (
     <div className="space-y-5">
@@ -26,14 +28,7 @@ export default async function RivenDetailPage({ params }: { params: Promise<{ id
           <span className="chip">{riven.rerolls} re-rolls</span>
           {weapon?.disposition != null && <span className="chip">disposition {weapon.disposition}</span>}
         </div>
-        <ul className="mt-4 divide-y divide-line">
-          {riven.stats.map((s) => (
-            <li key={s.stat} className="flex items-center justify-between py-2.5">
-              <span className="text-dim">{attr.get(s.stat)?.name ?? s.stat}</span>
-              <span className={`font-mono text-lg ${s.is_negative ? "text-danger" : "text-ink"}`}>{fmtStat(s.value, attr.get(s.stat)?.unit)}</span>
-            </li>
-          ))}
-        </ul>
+        <RivenStats stats={riven.stats} attrs={attr} grades={grades} />
         {riven.notes && <p className="mt-3 text-sm text-dim">{riven.notes}</p>}
       </section>
       <MarketEstimate rivenId={riven.id} attrs={Object.fromEntries(ref.attributes.map((a) => [a.slug, { name: a.name, unit: a.unit }]))} />

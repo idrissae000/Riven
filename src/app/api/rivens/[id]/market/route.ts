@@ -9,7 +9,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   const sb = await createClient();
   const { data: riven } = await sb.from("rivens").select("*").eq("id", id).maybeSingle(); // RLS: own rows only
   if (!riven) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const { data: attrs } = await sb.from("riven_attributes").select("slug,name,unit,exclusive_to,positive_only,prefix,suffix");
+  const { data: attrs } = await sb.from("riven_attributes").select("slug,name,unit,exclusive_to,positive_only,inverted,prefix,suffix");
 
   try {
     const force = new URL(request.url).searchParams.get("refresh") === "1";

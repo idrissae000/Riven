@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { rivenInputSchema } from "@/lib/riven-schema";
+import { checkRivenSigns } from "@/lib/riven-validate";
 
 type Ctx = { params: Promise<{ id: string }> };
+
 
 export async function PUT(request: Request, { params }: Ctx) {
   const { id } = await params;
   const sb = await createClient();
   const parsed = rivenInputSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid riven" }, { status: 400 });
+  const signError = await checkRivenSigns(sb, parsed.data.stats);
+  if (signError) return NextResponse.json({ error: signError }, { status: 400 });
   // RLS guarantees we can only touch our own rows.
   const { data, error } = await sb.from("rivens").update(parsed.data).eq("id", id).select("id").maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

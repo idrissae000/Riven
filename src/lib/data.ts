@@ -6,7 +6,7 @@ export async function getReferenceData() {
   const sb = await createClient();
   const [w, a] = await Promise.all([
     sb.from("weapons").select("slug,name,riven_type,group_name,disposition,req_mastery,icon").order("name"),
-    sb.from("riven_attributes").select("slug,name,unit,exclusive_to,positive_only,prefix,suffix").order("name"),
+    sb.from("riven_attributes").select("slug,name,unit,exclusive_to,positive_only,inverted,prefix,suffix").order("name"),
   ]);
   return { weapons: (w.data ?? []) as Weapon[], attributes: (a.data ?? []) as RivenAttribute[] };
 }
@@ -27,4 +27,16 @@ export async function currentUserId(): Promise<string | null> {
   const sb = await createClient();
   const { data } = await sb.auth.getUser();
   return data.user?.id ?? null;
+}
+
+import type { GradeRange } from "@/lib/grading/grade";
+
+/** Range rows for the given weapons plus the '*' default. */
+export async function getGradeRanges(weaponSlugs: string[]): Promise<GradeRange[]> {
+  const sb = await createClient();
+  const { data } = await sb
+    .from("riven_grade_ranges")
+    .select("weapon_slug,stat_slug,is_negative,min_roll,max_roll,is_placeholder")
+    .in("weapon_slug", [...new Set([...weaponSlugs, "*"])]);
+  return (data ?? []).map((r) => ({ ...r, min_roll: Number(r.min_roll), max_roll: Number(r.max_roll) })) as GradeRange[];
 }

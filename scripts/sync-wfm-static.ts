@@ -7,7 +7,7 @@
  * Inspect without a database:         npm run sync:wfm-static -- --dry-run
  */
 import { config } from "dotenv";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
 config({ path: ".env.local" });
@@ -15,6 +15,7 @@ config();
 
 const BASE = "https://api.warframe.market/v2";
 const dry = process.argv.includes("--dry-run");
+const overrides: Record<string, { inverted?: boolean }> = JSON.parse(readFileSync("data/riven-attribute-overrides.json", "utf8"));
 
 async function wfm<T>(path: string): Promise<T> {
   const res = await fetch(BASE + path, { headers: { Language: "en", Accept: "application/json", "User-Agent": "RivenBuddy/0.1 (personal tool)" } });
@@ -52,6 +53,7 @@ async function main() {
     unit: a.unit ?? null,
     exclusive_to: a.exclusiveTo ?? null,
     positive_only: a.positiveOnly ?? false,
+    inverted: overrides[a.slug]?.inverted ?? false,
     prefix: a.prefix ?? null,
     suffix: a.suffix ?? null,
     synced_at: new Date().toISOString(),

@@ -13,7 +13,7 @@ export function fmtStat(value: number, unit: string | null | undefined): string 
 
 export function unitSuffix(attr: RivenAttribute | undefined): string {
   if (!attr) return "";
-  return attr.unit === "percent" ? "%" : attr.unit === "seconds" ? "s" : attr.unit === "multiply" ? "x" : "";
+  return attr.unit === "percent" ? "%" : attr.unit === "seconds" ? "s" : "";
 }
 
 export function timeAgo(iso: string | Date): string {
