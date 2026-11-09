@@ -60,6 +60,6 @@ create policy "own rivens update" on public.rivens for update to authenticated
 create policy "own rivens delete" on public.rivens for delete to authenticated using (user_id = (select auth.uid()));
 
 create or replace function public.touch_updated_at() returns trigger
-language plpgsql as $$ begin new.updated_at = now(); return new; end $$;
+language plpgsql set search_path = '' as $$ begin new.updated_at = now(); return new; end $$;
 create trigger rivens_touch before update on public.rivens
   for each row execute function public.touch_updated_at();
