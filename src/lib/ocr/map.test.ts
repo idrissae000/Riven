@@ -10,6 +10,8 @@ const attrs = [
   A("damage_vs_infested", "Damage to Infested", { unit: "multiply" }),
   A("recoil", "Weapon Recoil", { inverted: true, exclusive_to: ["rifle", "pistol"] }),
   A("fire_rate_/_attack_speed", "Fire Rate / Attack Speed"), A("zoom", "Zoom"),
+  A("projectile_speed", "Projectile Speed"), A("critical_chance_on_slide_attack", "Critical Chance for Slide Attack"),
+  A("chance_to_gain_extra_combo_count", "Additional Combo Count Chance"), A("magazine_capacity", "Magazine Capacity"), A("status_chance", "Status Chance"),
 ];
 const weapons = [{ slug: "soma", name: "Soma", riven_type: "rifle" }, { slug: "galatine", name: "Galatine", riven_type: "melee" }] as Weapon[];
 
@@ -18,6 +20,8 @@ describe("matchAttribute", () => {
     ["Critical Damage", "critical_damage"], ["critical chance", "critical_chance"], ["Damage", "base_damage_/_melee_damage"],
     ["Melee Damage", "base_damage_/_melee_damage"], ["Fire Rate", "fire_rate_/_attack_speed"], ["Recoil", "recoil"],
     ["Damage to Infested", "damage_vs_infested"], ["Toxin Damage", "toxin_damage"],
+    ["Projectile Flight Speed", "projectile_speed"], ["Slide Attack Critical Chance", "critical_chance_on_slide_attack"],
+    ["Chance to Gain Extra Combo Count", "chance_to_gain_extra_combo_count"], ["Magazine Capacity", "magazine_capacity"], ["Status Chance", "status_chance"],
   ])("%s -> %s", (n, slug) => expect(matchAttribute(n, attrs)?.slug).toBe(slug));
   it("returns null for unknown stats instead of guessing", () => expect(matchAttribute("Bananas", attrs)).toBeNull());
 });

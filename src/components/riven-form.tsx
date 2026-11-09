@@ -8,7 +8,7 @@ import { unitSuffix } from "@/lib/format";
 import { signPrefix, toStoredValue, toTypedValue } from "@/lib/stat-sign";
 import type { MappedScan } from "@/lib/ocr/map";
 import { encodeRiven } from "@/lib/riven-share";
-import { prepareImage } from "@/lib/image-prep";
+import { CROP_ABOVE, OVERVIEW_EDGE, READ_EDGE, ScanImage, padBox, type Box } from "@/lib/image-prep";
 import type { RivenInput } from "@/lib/riven-schema";
 
 interface Row { stat: string; value: string }
@@ -80,6 +80,7 @@ export function RivenForm({
     attributes.filter((a) => usable(a) && (!negative || !a.positive_only) && (a.slug === current || !used.has(a.slug)));
 
   const [dragOver, setDragOver] = useState(false);
+  const [readLog, setReadLog] = useState<{ weapon: string | null; weaponOk: boolean; riven: string | null; stats: { read: string; as: string | null; curse: boolean }[] } | null>(null);
   const [scanState, setScanState] = useState<{ busy: boolean; msg: string | null; kind: "ok" | "err" }>({ busy: false, msg: null, kind: "ok" });
 
   // Ctrl/⌘+V anywhere on the page: if the clipboard holds an image, scan it.
@@ -95,15 +96,40 @@ export function RivenForm({
   }, [rivenId, weapons]);
 
   /** Prefills the form from a screenshot. Nothing is saved: the user reviews, fixes and saves as usual. */
-  async function scan(file: File) {
-    setScanState({ busy: true, msg: null, kind: "ok" });
-    const body = new FormData();
+  async function locateCard(overview: File): Promise<Box | null> {
     try {
-      // Phone photos are huge and rotated via EXIF: shrink + orient them in the browser first.
-      body.append("image", await prepareImage(file));
+      const body = new FormData();
+      body.append("image", overview);
+      const res = await fetch("/api/rivens/scan?stage=locate", { method: "POST", body });
+      return res.ok ? ((await res.json()).box as Box | null) ?? null : null; // any problem => just read the whole image
+    } catch {
+      return null;
+    }
+  }
+
+  async function scan(file: File) {
+    setReadLog(null);
+    setScanState({ busy: true, msg: "Preparing your image…", kind: "ok" });
+    const body = new FormData();
+    let img: ScanImage | null = null;
+    try {
+      img = await ScanImage.open(file);
+      let upload: File;
+      if (img.longEdge > CROP_ABOVE) {
+        // Big screenshot/photo: the card is a small part of it. Find it, then read it from the ORIGINAL pixels.
+        setScanState({ busy: true, msg: "Finding the riven card…", kind: "ok" });
+        const box = await locateCard(await img.jpeg({ maxEdge: OVERVIEW_EDGE }));
+        upload = await img.jpeg({ maxEdge: READ_EDGE, crop: box ? padBox(box) : undefined });
+      } else {
+        upload = img.isSmallPng ? file : await img.jpeg({ maxEdge: READ_EDGE });
+      }
+      body.append("image", upload);
     } catch (e) {
       return setScanState({ busy: false, msg: e instanceof Error ? e.message : "Couldn’t read that image.", kind: "err" });
+    } finally {
+      img?.close();
     }
+    setScanState({ busy: true, msg: "Reading the riven…", kind: "ok" });
     let res: Response;
     try {
       res = await fetch("/api/rivens/scan", { method: "POST", body });
@@ -116,6 +142,7 @@ export function RivenForm({
       return setScanState({ busy: false, msg: json.error ?? (tooBig ? "That image is too large — crop it closer to the card." : "The scan didn’t work. You can still enter the stats by hand below."), kind: "err" });
     }
     const r = json as MappedScan;
+    setReadLog({ weapon: r.weapon_name, weaponOk: !!r.weapon_slug, riven: r.riven_name, stats: r.stats.map((st) => ({ read: `${st.scanned.shown} ${st.scanned.name}`, as: st.attribute?.name ?? null, curse: st.is_negative })) });
     const w = weapons.find((x) => x.slug === r.weapon_slug);
     if (w) setWeaponText(w.name); else if (r.weapon_name) setWeaponText(r.weapon_name);
     if (r.riven_name) setRivenName(r.riven_name);
@@ -193,7 +220,21 @@ export function RivenForm({
                 onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void scan(f); }} />
             </label>
           </div>
-          {scanState.msg && <p role="status" className={`mt-3 text-sm ${scanState.kind === "err" ? "text-orange" : "text-ok"}`}>{scanState.msg}</p>}
+          {scanState.msg && <p role="status" className={`mt-3 text-sm ${scanState.kind === "err" ? "text-orange" : scanState.busy ? "text-dim" : "text-ok"}`}>{scanState.msg}</p>}
+          {readLog && (
+            <details className="mt-3 text-sm" open>
+              <summary className="cursor-pointer font-display text-xs font-semibold uppercase tracking-[0.16em] text-gold">What the scan read</summary>
+              <ul className="mt-2 space-y-1 font-mono text-xs">
+                <li>Weapon: {readLog.weapon ?? "—"} {readLog.weapon && (readLog.weaponOk ? <span className="text-ok">✓</span> : <span className="text-orange">not in the weapon list — pick it below</span>)}{readLog.riven && <span className="text-dim"> · name {readLog.riven}</span>}</li>
+                {readLog.stats.map((st, i) => (
+                  <li key={i} className={st.curse ? "text-danger" : ""}>
+                    {st.read} {st.as ? <span className="text-ok">→ {st.as} ✓</span> : <span className="text-orange">→ no match, choose the stat below</span>}{st.curse && <span className="text-dim"> (negative)</span>}
+                  </li>
+                ))}
+                {readLog.stats.length === 0 && <li className="text-orange">No stat lines were found. Try a closer or brighter image.</li>}
+              </ul>
+            </details>
+          )}
         </div>
       )}
 

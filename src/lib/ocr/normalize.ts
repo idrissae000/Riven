@@ -65,3 +65,19 @@ export function extractJson(text: string): unknown {
   if (start < 0 || end <= start) throw new Error("No JSON in the model's reply.");
   return JSON.parse(body.slice(start, end + 1));
 }
+
+export interface Box { x: number; y: number; w: number; h: number } // normalised 0..1, top-left origin
+
+/** Validates the model's "where is the card" answer. null => couldn't find it, so the caller should read the whole image. */
+export function normalizeBox(raw: unknown): Box | null {
+  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  if (o.found === false) return null;
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : NaN);
+  let [x, y, w, h] = [n(o.x), n(o.y), n(o.w), n(o.h)];
+  if ([x, y, w, h].some(Number.isNaN)) return null;
+  x = Math.min(Math.max(x, 0), 1); y = Math.min(Math.max(y, 0), 1);
+  w = Math.min(w, 1 - x); h = Math.min(h, 1 - y);
+  if (w < 0.04 || h < 0.04) return null;        // implausibly small
+  if (w * h > 0.9) return null;                 // it IS basically the whole image: nothing to gain by cropping
+  return { x, y, w, h };
+}

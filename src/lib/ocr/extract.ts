@@ -1,7 +1,7 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ScannedRiven } from "./map";
-import { extractJson, normalizeScan } from "./normalize";
+import { extractJson, normalizeBox, normalizeScan, type Box } from "./normalize";
 
 /** Vision model. Override with RIVEN_OCR_MODEL (e.g. claude-opus-5-5 for max accuracy). */
 export const OCR_MODEL = process.env.RIVEN_OCR_MODEL || "claude-sonnet-5-5";
@@ -61,53 +61,80 @@ export class ScanFailed extends Error {}
 
 type ImageBlock = { type: "image"; source: { type: "base64"; media_type: AllowedType; data: string } };
 
-async function structured(client: Anthropic, image: ImageBlock): Promise<{ text: string; stop: string | null }> {
-  const res = await client.beta.messages.create({
-    model: OCR_MODEL,
-    max_tokens: 8000, // headroom: the model may spend some of this thinking before it writes the JSON
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default", // a safety-classifier decline is retried on a fallback model server-side
-    output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA as unknown as Record<string, unknown> } },
-    messages: [{ role: "user", content: [image, { type: "text", text: PROMPT }] }],
-  });
-  if (res.stop_reason === "refusal") throw new ScanRefused("The model declined to read this image.");
-  const block = res.content.find((b) => b.type === "text");
-  return { text: block && block.type === "text" ? block.text : "", stop: res.stop_reason };
-}
+const BOX_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["found", "x", "y", "w", "h"],
+  properties: {
+    found: { type: "boolean", description: "True if a Warframe Riven mod card is visible." },
+    x: { type: "number", description: "Left edge of the card as a fraction of image width (0-1)." },
+    y: { type: "number", description: "Top edge as a fraction of image height (0-1)." },
+    w: { type: "number", description: "Card width as a fraction of image width." },
+    h: { type: "number", description: "Card height as a fraction of image height." },
+  },
+} as const;
 
-async function plain(client: Anthropic, image: ImageBlock): Promise<{ text: string; stop: string | null }> {
-  const res = await client.messages.create({
-    model: OCR_MODEL,
-    max_tokens: 8000,
-    messages: [{ role: "user", content: [image, { type: "text", text: PROMPT + PLAIN_SUFFIX }] }],
-  });
-  if (res.stop_reason === "refusal") throw new ScanRefused("The model declined to read this image.");
-  const block = res.content.find((b) => b.type === "text");
-  return { text: block && block.type === "text" ? block.text : "", stop: res.stop_reason };
+const LOCATE_PROMPT = `Find the Warframe Riven mod card in this image (a screenshot of the game, or a photo of a screen).
+Return its bounding box as fractions of the image: x,y = top-left corner, w,h = size, all between 0 and 1.
+Include the whole card: title, polarity icon, every stat line, and the rank and re-roll indicators. Be generous rather than tight — slightly too big is better than cutting off a stat line.
+If there is no Riven card, return found=false and zeros.`;
+
+const BOX_PLAIN = `\n\nReply with ONLY a JSON object: {"found": boolean, "x": number, "y": number, "w": number, "h": number}.`;
+
+/**
+ * Ask the model for JSON. First with structured outputs (+ server-side refusal fallback); if that request is
+ * rejected or comes back empty/truncated, retry as plain "reply with JSON" text. Throws ScanRefused on refusals.
+ */
+async function askJson(client: Anthropic, image: ImageBlock, prompt: string, schema: object, plainSuffix: string, maxTokens = 8000): Promise<unknown> {
+  const run = async (structuredMode: boolean): Promise<{ text: string; stop: string | null }> => {
+    const content = [image, { type: "text" as const, text: structuredMode ? prompt : prompt + plainSuffix }];
+    const res = structuredMode
+      ? await client.beta.messages.create({
+          model: OCR_MODEL,
+          max_tokens: maxTokens, // headroom: the model may spend some of this thinking before it writes the JSON
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default",
+          output_config: { effort: "low", format: { type: "json_schema", schema: schema as Record<string, unknown> } },
+          messages: [{ role: "user", content }],
+        })
+      : await client.messages.create({ model: OCR_MODEL, max_tokens: maxTokens, messages: [{ role: "user", content }] });
+    if (res.stop_reason === "refusal") throw new ScanRefused("The model declined to read this image.");
+    const block = res.content.find((b) => b.type === "text");
+    return { text: block && block.type === "text" ? block.text : "", stop: res.stop_reason };
+  };
+
+  let out: { text: string; stop: string | null } | null = null;
+  try {
+    out = await run(true);
+    if (out.stop === "max_tokens" || !out.text.trim()) out = null;
+  } catch (e) {
+    if (!shouldFallBack(e)) throw e;
+    console.error("[scan] structured output failed, retrying as plain JSON:", e instanceof Error ? e.message : e);
+  }
+  if (!out) out = await run(false);
+  try {
+    return extractJson(out.text);
+  } catch (e) {
+    console.error("[scan] could not parse model reply:", e instanceof Error ? e.message : e, out.text.slice(0, 300));
+    throw new ScanFailed("Couldn’t read a riven from that image. Try a closer, brighter, straight-on shot of just the card.");
+  }
 }
 
 /** Worth retrying on the plain-JSON path (request shape / schema problems), as opposed to auth, rate limits, or refusals. */
 const shouldFallBack = (e: unknown) =>
   !(e instanceof ScanRefused) && !(e instanceof Anthropic.AuthenticationError) && !(e instanceof Anthropic.PermissionDeniedError) && !(e instanceof Anthropic.RateLimitError);
 
+const makeClient = () => new Anthropic({ maxRetries: 2, timeout: 55_000 }); // ANTHROPIC_API_KEY (or an `ant auth login` profile)
+const toBlock = (bytes: Buffer, mediaType: AllowedType): ImageBlock => ({ type: "image", source: { type: "base64", media_type: mediaType, data: bytes.toString("base64") } });
+
+/** Stage 1 (big images): where is the riven card? Returns a normalised box, or null to mean "read the whole image". */
+export async function locateRivenCard(bytes: Buffer, mediaType: AllowedType): Promise<Box | null> {
+  const raw = await askJson(makeClient(), toBlock(bytes, mediaType), LOCATE_PROMPT, BOX_SCHEMA, BOX_PLAIN, 2000);
+  return normalizeBox(raw);
+}
+
+/** Stage 2: read the (already cropped) riven card. */
 export async function scanRivenImage(bytes: Buffer, mediaType: AllowedType): Promise<ScannedRiven> {
-  const client = new Anthropic({ maxRetries: 2, timeout: 55_000 }); // ANTHROPIC_API_KEY (or an `ant auth login` profile)
-  const image: ImageBlock = { type: "image", source: { type: "base64", media_type: mediaType, data: bytes.toString("base64") } };
-
-  let out: { text: string; stop: string | null } | null = null;
-  try {
-    out = await structured(client, image);
-    if (out.stop === "max_tokens" || !out.text.trim()) out = null; // fall through to the plain path
-  } catch (e) {
-    if (!shouldFallBack(e)) throw e;
-    console.error("[scan] structured output failed, retrying as plain JSON:", e instanceof Error ? e.message : e);
-  }
-  if (!out) out = await plain(client, image);
-
-  try {
-    return normalizeScan(extractJson(out.text));
-  } catch (e) {
-    console.error("[scan] could not parse model reply:", e instanceof Error ? e.message : e, out.text.slice(0, 300));
-    throw new ScanFailed("Couldn’t read a riven from that image. Try a closer, brighter, straight-on shot of just the card.");
-  }
+  const raw = await askJson(makeClient(), toBlock(bytes, mediaType), PROMPT, SCHEMA, PLAIN_SUFFIX);
+  return normalizeScan(raw);
 }

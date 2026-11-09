@@ -29,6 +29,17 @@ const STAT_ALIASES: Record<string, string> = {
   "ammo maximum": "ammo maximum",
   "toxin": "toxin damage", "heat": "heat damage", "cold": "cold damage", "electricity": "electric damage", "electric": "electric damage",
   "impact": "impact damage", "puncture": "puncture damage", "slash": "slash damage",
+  "projectile flight speed": "projectile speed",
+  "slide attack critical chance": "critical chance for slide attack",
+  "critical chance for slide attack": "critical chance for slide attack",
+  "chance to gain extra combo count": "additional combo count chance",
+  "extra combo count chance": "additional combo count chance",
+  "combo count chance": "chance to gain combo count",
+  "heavy attack efficiency": "heavy attack efficiency",
+  "weapon recoil": "weapon recoil",
+  "reload speed": "reload speed",
+  "damage vs grineer": "damage vs grineer", "damage vs corpus": "damage vs corpus", "damage vs infested": "damage vs infested",
+  "damage to orokin": "damage to orokin", "damage to techrot": "damage to techrot", "damage to scaldra": "damage to scaldra",
 };
 
 export interface MappedStat {

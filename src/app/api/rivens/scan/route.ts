@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
-import { ALLOWED_TYPES, MAX_BYTES, ScanFailed, ScanRefused, scanRivenImage, type AllowedType } from "@/lib/ocr/extract";
+import { ALLOWED_TYPES, MAX_BYTES, ScanFailed, ScanRefused, locateRivenCard, scanRivenImage, type AllowedType } from "@/lib/ocr/extract";
 import { mapScan } from "@/lib/ocr/map";
 import type { RivenAttribute, Weapon } from "@/lib/types";
 
@@ -17,9 +17,11 @@ export async function POST(request: Request) {
   const sb = await createClient();
   const { data: auth } = await sb.auth.getUser();
   const visitor = auth.user ? `user:${auth.user.id}` : `ip:${clientIp(request.headers)}`;
-  const mine = rateLimit(`scan:${visitor}`, PER_VISITOR.limit, PER_VISITOR.windowMs);
-  if (!mine.ok) return NextResponse.json({ error: `Easy there — you can scan ${PER_VISITOR.limit} screenshots per 10 minutes. Try again in ${Math.ceil(mine.retryAfterSec / 60)} min.` }, { status: 429, headers: { "Retry-After": String(mine.retryAfterSec) } });
-  if (!rateLimit("scan:global", GLOBAL_PER_DAY, 24 * 60 * 60 * 1000).ok)
+  // Big images take two calls: "locate" (cheap) then "read". Only reads count against the visible limit.
+  const stage = new URL(request.url).searchParams.get("stage") === "locate" ? "locate" : "read";
+  const mine = rateLimit(`scan-${stage}:${visitor}`, stage === "read" ? PER_VISITOR.limit : PER_VISITOR.limit * 2, PER_VISITOR.windowMs);
+  if (!mine.ok) return NextResponse.json({ error: `Easy there — you can scan ${PER_VISITOR.limit} images per 10 minutes. Try again in ${Math.ceil(mine.retryAfterSec / 60)} min.` }, { status: 429, headers: { "Retry-After": String(mine.retryAfterSec) } });
+  if (!rateLimit(`scan-${stage}:global`, GLOBAL_PER_DAY, 24 * 60 * 60 * 1000).ok)
     return NextResponse.json({ error: "Scanning is at its daily limit. You can still enter the stats by hand." }, { status: 429 });
   if (!process.env.ANTHROPIC_API_KEY)
     return NextResponse.json({ error: "Screenshot scanning needs ANTHROPIC_API_KEY set on the server." }, { status: 503 });
@@ -31,7 +33,9 @@ export async function POST(request: Request) {
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "That image is too large to upload — crop it closer to the riven card." }, { status: 413 });
 
   try {
-    const scan = await scanRivenImage(Buffer.from(await file.arrayBuffer()), file.type as AllowedType);
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (stage === "locate") return NextResponse.json({ box: await locateRivenCard(bytes, file.type as AllowedType) });
+    const scan = await scanRivenImage(bytes, file.type as AllowedType);
     const [w, a] = await Promise.all([
       sb.from("weapons").select("slug,name,riven_type,group_name,disposition,req_mastery,icon"),
       sb.from("riven_attributes").select("slug,name,unit,exclusive_to,positive_only,inverted,prefix,suffix"),

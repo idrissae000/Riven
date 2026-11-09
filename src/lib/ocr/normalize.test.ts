@@ -54,3 +54,18 @@ describe("fitWithin", () => {
     expect(fitWithin(800, 600, 1800)).toEqual({ width: 800, height: 600 });
   });
 });
+
+import { normalizeBox } from "./normalize";
+describe("normalizeBox", () => {
+  it("accepts a sensible box and clamps it into the image", () => {
+    expect(normalizeBox({ found: true, x: 0.3, y: 0.1, w: 0.3, h: 0.7 })).toEqual({ x: 0.3, y: 0.1, w: 0.3, h: 0.7 });
+    expect(normalizeBox({ found: true, x: 0.8, y: 0.5, w: 0.5, h: 0.9 })).toEqual({ x: 0.8, y: 0.5, w: expect.closeTo(0.2), h: 0.5 });
+  });
+  it("returns null when not found, malformed, tiny, or basically the whole image", () => {
+    expect(normalizeBox({ found: false })).toBeNull();
+    expect(normalizeBox({ found: true, x: "a" })).toBeNull();
+    expect(normalizeBox({ found: true, x: 0.5, y: 0.5, w: 0.01, h: 0.01 })).toBeNull();
+    expect(normalizeBox({ found: true, x: 0, y: 0, w: 1, h: 1 })).toBeNull();
+    expect(normalizeBox(null)).toBeNull();
+  });
+});
