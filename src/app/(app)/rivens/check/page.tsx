@@ -27,12 +27,12 @@ export default async function CheckPage({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <Link href="/rivens/new" className="text-sm text-dim hover:text-teal">← Check another</Link>
+        <Link href="/rivens/new" className="font-display text-xs font-semibold uppercase tracking-[0.16em] text-dim hover:text-gold">← Check another</Link>
         <span className="chip">not saved</span>
       </div>
 
       <section className="card-glow">
-        <h1 className="h-display text-3xl">{weapon?.name ?? riven.weapon_slug} <span className="text-violet">{riven.riven_name}</span></h1>
+        <h1 className="h-display text-[1.9rem]">{weapon?.name ?? riven.weapon_slug} <span className="text-violet">{riven.riven_name}</span></h1>
         <div className="mt-2 flex flex-wrap gap-1.5">
           <span className="chip">{riven.polarity}</span>
           <span className="chip">MR {riven.mastery_rank}</span>

@@ -32,7 +32,7 @@ export function WfmConnect({ status, onChange }: { status: WfmStatus | null; onC
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!status) return <div className="h-12 animate-pulse rounded-lg bg-panel-2" />;
+  if (!status) return <div className="h-12 animate-pulse bg-panel-2" />;
   if (!status.configured)
     return <p className="rounded-lg border border-orange/40 bg-orange/10 p-3 text-sm text-orange">Warframe Market sign-in needs <code>WFM_TOKEN_ENCRYPTION_KEY</code> and <code>SUPABASE_SERVICE_ROLE_KEY</code> set on the server (see .env.example).</p>;
 

@@ -68,9 +68,12 @@ export interface AbilityRow { slug: string; name: string; warframe: string; key:
 export async function getAbilitiesScalingWith(modifiers: string[]): Promise<{ abilities: AbilityRow[]; unknownCount: number }> {
   if (modifiers.length === 0) return { abilities: [], unknownCount: 0 };
   const sb = await createClient();
-  const [hit, unknown] = await Promise.all([
+  const ALL_STATS = ["AVATAR_ABILITY_STRENGTH", "AVATAR_ABILITY_DURATION", "AVATAR_ABILITY_EFFICIENCY", "AVATAR_ABILITY_RANGE"];
+  const [hit, total, covered] = await Promise.all([
     sb.from("abilities").select("slug,name,warframe,key,helminth,modifiers").overlaps("modifiers", modifiers).order("name").limit(1000),
-    sb.from("abilities").select("slug", { count: "exact", head: true }).eq("modifiers", "{}"),
+    sb.from("abilities").select("slug", { count: "exact", head: true }),
+    sb.from("abilities").select("slug", { count: "exact", head: true }).overlaps("modifiers", ALL_STATS),
   ]);
+  const unknown = { count: (total.count ?? 0) - (covered.count ?? 0) };
   return { abilities: (hit.data ?? []) as AbilityRow[], unknownCount: unknown.count ?? 0 };
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Plat } from "@/components/brand";
 import { WfmConnect, useWfmStatus } from "@/components/wfm-connect";
 
 interface Props {
@@ -61,13 +62,13 @@ export function PushToWfm({ rivenId, label, hasName, listed }: Props) {
 
   return (
     <section className="card space-y-3">
-      <h2 className="h-display text-xl text-violet">Warframe Market listing</h2>
+      <h2 className="kicker">Warframe Market listing</h2>
 
       {listed ? (
         <div className="space-y-3">
           <p className="text-sm">
             <span className="mr-2 inline-block size-2 rounded-full bg-ok" />
-            Listed{listed.price ? <> for <strong className="text-orange">{listed.price}p</strong></> : null}.{" "}
+            Listed{listed.price ? <> for <strong className="inline-flex items-center gap-1 text-plat">{listed.price}<Plat size={13} /></strong></> : null}.{" "}
             <a className="text-teal hover:underline" href={`https://warframe.market/auction/${listed.auctionId}`} target="_blank" rel="noopener noreferrer">View listing ↗</a>
           </p>
           <button className="btn-danger" onClick={remove} disabled={busy}>Remove listing</button>

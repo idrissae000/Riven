@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/page-header";
 import { notFound } from "next/navigation";
 import { RivenForm } from "@/components/riven-form";
 import { getReferenceData, getRiven } from "@/lib/data";
@@ -10,7 +11,7 @@ export default async function EditRivenPage({ params }: { params: Promise<{ id: 
   if (!riven) notFound();
   return (
     <div className="space-y-5">
-      <h1 className="h-display text-3xl">Edit riven</h1>
+      <PageHeader kicker="Vault" title="Edit riven" />
       <RivenForm weapons={ref.weapons} attributes={ref.attributes} rivenId={riven.id} initial={riven} />
     </div>
   );

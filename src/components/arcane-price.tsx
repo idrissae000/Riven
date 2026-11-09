@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { timeAgo } from "@/lib/format";
+import { Plat } from "@/components/brand";
 import type { ArcanePriceSummary } from "@/lib/arcanes/price-reduce";
 
 type Result = ArcanePriceSummary & { fetchedAt: string; fromCache: boolean; stale: boolean };
@@ -37,12 +38,12 @@ export function ArcanePrice({ slug, tradable }: { slug: string; tradable: boolea
   return (
     <section className="card space-y-4" aria-busy={loading}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="h-display text-xl text-orange">Current price</h2>
+        <h2 className="kicker">Current price</h2>
         {tradable && <button className="btn min-h-9 px-3 text-xs" onClick={refresh} disabled={loading}>{loading ? "Loading…" : "↻ Refresh"}</button>}
       </div>
       {!tradable && <p className="text-sm text-dim">Not tradable on Warframe Market.</p>}
       {error && <p role="alert" className="rounded-lg bg-danger/10 p-3 text-sm text-danger">{error}</p>}
-      {loading && !data && <div className="h-24 animate-pulse rounded-lg bg-panel-2" />}
+      {loading && !data && <div className="h-24 animate-pulse bg-panel-2" />}
       {data && (
         <>
           {data.ranks.length === 0 && <p className="text-sm text-dim">No live sell listings right now.</p>}
@@ -51,7 +52,7 @@ export function ArcanePrice({ slug, tradable }: { slug: string; tradable: boolea
               <div key={r.rank} className="rounded-lg border border-line bg-void/40 p-3">
                 <div className="text-xs uppercase tracking-wider text-dim">{r.label}</div>
                 {r.low != null ? (
-                  <div className="h-display text-3xl text-orange">{r.low}<span className="text-base">p</span> <span className="text-sm text-dim">low · median {r.median}p</span></div>
+                  <div className="h-display flex items-baseline gap-2 text-3xl text-plat">{r.low}<Plat size={20} className="self-center" /> <span className="font-sans text-sm normal-case tracking-normal text-dim">low · median {r.median}</span></div>
                 ) : <div className="text-dim">—</div>}
                 <div className="mt-0.5 text-xs text-dim">{r.onlineListings} online of {r.totalListings} listed{r.basis === "offline" && " — no one online, offline sellers shown"}</div>
                 <ul className="mt-2 space-y-1">
@@ -62,7 +63,7 @@ export function ArcanePrice({ slug, tradable }: { slug: string; tradable: boolea
                         <a className="truncate text-teal hover:underline" href={l.sellerUrl} target="_blank" rel="noopener noreferrer">{l.seller}</a>
                         <span className="shrink-0 text-xs text-dim">{timeAgo(l.updatedAt)}</span>
                       </span>
-                      <span className="font-mono text-orange">{l.price}p{l.quantity > 1 && <span className="text-xs text-dim"> ×{l.quantity}</span>}</span>
+                      <span className="flex items-center gap-1 font-mono text-plat">{l.price}<Plat size={12} />{l.quantity > 1 && <span className="text-xs text-dim"> ×{l.quantity}</span>}</span>
                     </li>
                   ))}
                 </ul>

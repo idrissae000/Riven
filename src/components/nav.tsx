@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { IconArcane, IconMarket, IconRiven, Wordmark } from "@/components/brand";
 
 const TABS = [
-  { href: "/rivens", label: "Rivens", icon: "◈" },
-  { href: "/arcanes", label: "Arcanes", icon: "✦" },
-  { href: "/market", label: "Market", icon: "⬡" },
+  { href: "/rivens", label: "Rivens", Icon: IconRiven },
+  { href: "/arcanes", label: "Arcanes", Icon: IconArcane },
+  { href: "/market", label: "Market", Icon: IconMarket },
 ];
 
 export function Nav({ signedIn }: { signedIn: boolean }) {
@@ -15,49 +16,49 @@ export function Nav({ signedIn }: { signedIn: boolean }) {
   return (
     <>
       {/* Desktop: left rail */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-56 flex-col border-r border-line bg-panel/80 p-4 backdrop-blur md:flex">
-        <Link href="/rivens" className="h-display mb-8 flex items-center gap-2 text-2xl text-ink">
-          <span className="text-violet">◆</span> Riven <span className="text-teal">Buddy</span>
-        </Link>
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col border-r border-line bg-void/85 px-4 py-6 backdrop-blur md:flex">
+        <div className="mb-9 px-2"><Wordmark /></div>
+        <p className="kicker mb-3 px-2 !text-[0.62rem] !text-dim before:!bg-line-2">Navigate</p>
         <nav className="flex flex-col gap-1">
-          {TABS.map((t) => (
+          {TABS.map(({ href, label, Icon }) => (
             <Link
-              key={t.href}
-              href={t.href}
-              className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition ${
-                active(t.href) ? "bg-teal/10 text-teal" : "text-dim hover:bg-panel-2 hover:text-ink"
+              key={href}
+              href={href}
+              aria-current={active(href) ? "page" : undefined}
+              className={`relative flex min-h-11 items-center gap-3 px-3 font-display text-[0.82rem] font-semibold uppercase tracking-[0.14em] transition ${
+                active(href) ? "bg-gradient-to-r from-gold/15 to-transparent text-gold" : "text-dim hover:bg-panel-2 hover:text-ink"
               }`}
             >
-              <span className="text-lg">{t.icon}</span>
-              {t.label}
+              {active(href) && <span className="absolute inset-y-1 left-0 w-[3px] bg-gold shadow-[0_0_12px_var(--color-gold)]" />}
+              <Icon size={20} />
+              {label}
             </Link>
           ))}
         </nav>
-        <div className="mt-auto space-y-2">
+        <div className="mt-auto space-y-2 border-t border-line pt-4">
           {signedIn ? (
             <form action="/auth/signout" method="post"><button className="btn w-full" type="submit">Sign out</button></form>
           ) : (
             <>
-              <p className="px-1 text-xs text-dim">Sign in to save rivens and track them.</p>
-              <Link href="/login" className="btn-primary w-full">Sign in</Link>
+              <p className="px-1 text-xs leading-relaxed text-dim">Everything works without an account. Sign in to save and track rivens.</p>
+              <Link href="/login" className="btn w-full">Sign in</Link>
             </>
           )}
         </div>
       </aside>
 
       {/* Mobile: bottom tab bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t border-line bg-panel/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-        {TABS.map((t) => (
+      <nav className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t border-line-2 bg-void/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+        {TABS.map(({ href, label, Icon }) => (
           <Link
-            key={t.href}
-            href={t.href}
-            aria-current={active(t.href) ? "page" : undefined}
-            className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-semibold transition ${
-              active(t.href) ? "text-teal" : "text-dim"
-            }`}
+            key={href}
+            href={href}
+            aria-current={active(href) ? "page" : undefined}
+            className={`relative flex min-h-16 flex-col items-center justify-center gap-1 font-display text-[0.66rem] font-semibold uppercase tracking-[0.16em] transition ${active(href) ? "text-gold" : "text-dim"}`}
           >
-            <span className="text-xl leading-none">{t.icon}</span>
-            {t.label}
+            {active(href) && <span className="absolute inset-x-5 top-0 h-[2px] bg-gold shadow-[0_0_10px_var(--color-gold)]" />}
+            <Icon size={22} />
+            {label}
           </Link>
         ))}
       </nav>

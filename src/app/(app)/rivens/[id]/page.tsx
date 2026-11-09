@@ -17,10 +17,10 @@ export default async function RivenDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="space-y-5">
-      <Link href="/rivens" className="text-sm text-dim hover:text-teal">← All rivens</Link>
+      <Link href="/rivens" className="font-display text-xs font-semibold uppercase tracking-[0.16em] text-dim hover:text-gold">← All rivens</Link>
       <section className="card-glow">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h1 className="h-display text-3xl">{weapon?.name ?? riven.weapon_slug} <span className="text-violet">{riven.riven_name}</span></h1>
+          <h1 className="h-display text-[1.9rem]">{weapon?.name ?? riven.weapon_slug} <span className="text-violet">{riven.riven_name}</span></h1>
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           <span className="chip">{riven.polarity}</span>

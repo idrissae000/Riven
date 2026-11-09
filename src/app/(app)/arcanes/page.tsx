@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/page-header";
 import { listArcanes } from "@/lib/data";
 import { ArcaneBrowser, type ArcaneListItem } from "@/components/arcane-browser";
 
@@ -11,7 +12,7 @@ export default async function ArcanesPage() {
   }));
   return (
     <div className="space-y-5">
-      <h1 className="h-display text-3xl">Arcanes</h1>
+      <PageHeader kicker="Arcane archive" title="Arcanes" />
       {arcanes.length === 0 ? (
         <p className="card border-orange/40 text-sm text-orange">No arcanes loaded yet. Run <code>npm run sync:wiki-arcanes</code> to import them from the Warframe Wiki.</p>
       ) : (

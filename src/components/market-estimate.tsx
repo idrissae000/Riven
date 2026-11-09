@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { Estimate, Listing } from "@/lib/wfm/comparables";
 import { fmtStat, timeAgo } from "@/lib/format";
+import { Plat } from "@/components/brand";
 
 interface Result {
   estimate: Estimate | null;
@@ -52,20 +53,20 @@ export function MarketEstimate({ endpoint, attrs }: { endpoint: string; attrs: R
   return (
     <section className="card space-y-4" aria-busy={loading}>
       <div className="flex items-center justify-between gap-3">
-        <h2 className="h-display text-xl text-orange">Market estimate</h2>
+        <h2 className="kicker">Market estimate</h2>
         <button className="btn min-h-9 px-3 text-xs" onClick={refresh} disabled={loading}>{loading ? "Loading…" : "↻ Refresh"}</button>
       </div>
 
       {error && <p role="alert" className="rounded-lg bg-danger/10 p-3 text-sm text-danger">{error}</p>}
-      {loading && !data && <div className="h-24 animate-pulse rounded-lg bg-panel-2" />}
+      {loading && !data && <div className="h-24 animate-pulse bg-panel-2" />}
 
       {data && (
         <>
           {est ? (
             <div className="rounded-lg border border-orange/30 bg-orange/5 p-4">
-              <div className="text-xs uppercase tracking-wider text-dim">Estimated range</div>
-              <div className="h-display text-4xl text-orange">{est.low}–{est.high} <span className="text-lg">plat</span></div>
-              <div className="text-sm text-dim">median {est.median}p · from {est.sampleSize} {est.basis === "exact" ? "exact-name" : "similar-spread"} listings below</div>
+              <div className="font-display text-[0.66rem] font-semibold uppercase tracking-[0.22em] text-dim">Estimated range</div>
+              <div className="h-display flex items-center gap-2 text-4xl text-plat">{est.low}–{est.high} <Plat size={26} /></div>
+              <div className="text-sm text-dim">median {est.median} plat · from {est.sampleSize} {est.basis === "exact" ? "exact-name" : "similar-spread"} listings below</div>
             </div>
           ) : (
             <p className="rounded-lg border border-line bg-panel-2 p-3 text-sm text-dim">No price estimate. {data.note}</p>
@@ -79,7 +80,7 @@ export function MarketEstimate({ endpoint, attrs }: { endpoint: string; attrs: R
               {data.listings.map((l) => (
                 <li key={l.id} className="rounded-lg border border-line bg-void/40 p-3">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="h-display text-2xl text-orange">{l.price}<span className="text-sm">p</span></span>
+                    <span className="h-display flex items-center gap-1.5 text-2xl text-plat">{l.price}<Plat size={16} /></span>
                     <span className="flex items-center gap-1.5 text-xs text-dim">
                       <span className={`inline-block size-2 rounded-full ${statusColor[l.sellerStatus] ?? "bg-dim/50"}`} />
                       <a className="text-teal hover:underline" href={l.sellerUrl} target="_blank" rel="noopener noreferrer">{l.seller}</a>

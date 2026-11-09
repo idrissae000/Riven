@@ -160,18 +160,29 @@ export function RivenForm({
   return (
     <form onSubmit={submit} className="space-y-5">
       {!rivenId && (
-        <div className={`card flex flex-wrap items-center gap-3 border-violet/40 ${dragOver ? "bg-violet/10" : ""}`}
+        <div
+          className={`relative border border-dashed p-4 transition-colors ${dragOver ? "border-gold bg-gold/10" : "border-line-2 bg-panel/60"}`}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) void scan(f); }}>
-          <label className="btn cursor-pointer border-violet/50 text-violet">
-            {scanState.busy ? "Reading screenshot…" : "📷 Scan a screenshot"}
-            <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={scanState.busy}
-              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void scan(f); }} />
-          </label>
-          <span className="text-xs text-dim">Choose, drop or paste (Ctrl/⌘+V) a screenshot of the riven card. Always double-check the numbers.</span>
-          {scanState.msg && <p role="status" className={`w-full text-sm ${scanState.kind === "err" ? "text-orange" : "text-ok"}`}>{scanState.msg}</p>}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) void scan(f); }}
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <svg width="38" height="38" viewBox="0 0 38 38" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-gold" aria-hidden="true">
+              <path d="M9 4h14l7 7v23H9z" /><path d="M23 4v7h7" /><path d="M14 25l4-5 3 3.5 2.5-3L28 26" /><circle cx="15.5" cy="17" r="1.4" />
+            </svg>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-sm font-bold uppercase tracking-[0.12em]">{scanState.busy ? "Reading your riven…" : "Skip the typing"}</p>
+              <p className="text-xs leading-relaxed text-dim">Drop a screenshot of the riven card here, paste it (Ctrl/⌘+V) or choose a file. Always double-check the numbers.</p>
+            </div>
+            <label className={`btn cursor-pointer sm:shrink-0 ${scanState.busy ? "pointer-events-none opacity-50" : ""}`}>
+              Choose image
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={scanState.busy}
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void scan(f); }} />
+            </label>
+          </div>
+          {scanState.msg && <p role="status" className={`mt-3 text-sm ${scanState.kind === "err" ? "text-orange" : "text-ok"}`}>{scanState.msg}</p>}
         </div>
       )}
+
       <div className="card space-y-4">
         <div>
           <label className="label" htmlFor="weapon">Weapon</label>
@@ -206,7 +217,7 @@ export function RivenForm({
       </div>
 
       <div className="card space-y-3">
-        <h2 className="h-display text-lg text-teal">Stats</h2>
+        <h2 className="kicker">Stats</h2>
         {pos.map((r, i) => (
           <StatRow key={i} row={r} negative={false} options={optionsFor(r.stat, false)} unit={unitSuffix(attrBySlug.get(r.stat))} prefix={signPrefix(attrBySlug.get(r.stat), false)}
             onChange={(nr) => setPos(pos.map((x, j) => (j === i ? nr : x)))}

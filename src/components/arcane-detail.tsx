@@ -31,7 +31,7 @@ export function ArcaneDetailView({ a, abilities = [], abilityStats = [], unknown
       <ArcanePrice slug={a.slug} tradable={!!a.wfm_slug} />
 
       <section className="card space-y-3">
-        <h2 className="h-display text-xl text-teal">Compatibility</h2>
+        <h2 className="kicker">Compatibility</h2>
         <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[8rem_1fr]">
           <dt className="text-dim">Equips on</dt>
           <dd>{c.equips_on}</dd>
@@ -74,7 +74,7 @@ export function ArcaneDetailView({ a, abilities = [], abilityStats = [], unknown
       </section>
 
       <section className="card space-y-3">
-        <h2 className="h-display text-xl text-violet">Where to get it</h2>
+        <h2 className="kicker">Where to get it</h2>
         {a.drop_sources.length === 0 ? (
           <p className="text-sm text-dim">No acquisition info found on the wiki page — check the <a className="text-teal hover:underline" href={a.wiki_url} target="_blank" rel="noopener noreferrer">wiki</a>.</p>
         ) : (
