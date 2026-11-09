@@ -1,0 +1,17 @@
+{
+  "_comment": "Hand-curated data that wins over the wiki sync. Key = arcane name exactly as on the wiki. Supply per-ability compatibility / drop sources here once you have them; re-running `npm run sync:wiki-arcanes` keeps these. Fields are all optional.",
+  "_example (rename the key to a real arcane name to use)": {
+    "description": "Optional replacement effect text.",
+    "compatibility": {
+      "abilities": [
+        { "name": "Roar", "affected": true, "note": "Scales with Ability Strength" },
+        { "name": "Sonar", "affected": false }
+      ],
+      "playstyles": ["ability spam", "strength builds"],
+      "notes": ["Anything extra worth knowing."]
+    },
+    "drop_sources": [
+      { "text": "Netracells (Week 1 reward).", "kind": "reward", "links": ["Netracells"], "details": [] }
+    ]
+  }
+}

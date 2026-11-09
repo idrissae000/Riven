@@ -40,3 +40,24 @@ export async function getGradeRanges(weaponSlugs: string[]): Promise<GradeRange[
     .in("weapon_slug", [...new Set([...weaponSlugs, "*"])]);
   return (data ?? []).map((r) => ({ ...r, min_roll: Number(r.min_roll), max_roll: Number(r.max_roll) })) as GradeRange[];
 }
+
+export interface ArcaneRow {
+  slug: string; name: string; slot: string; rarity: string | null; max_rank: number | null; description: string;
+  effect_stats: { key: string; label: string; category: string }[];
+  compatibility: import("@/lib/arcanes/build").Compatibility;
+  drop_sources: import("@/lib/wiki/wikitext").DropSource[];
+  wiki_title: string; wiki_url: string; wiki_revid: number | null; wfm_slug: string | null; wfm_icon: string | null;
+  introduced: string | null; needs_review: string[]; overridden_fields: string[]; synced_at: string;
+}
+
+export async function listArcanes(): Promise<ArcaneRow[]> {
+  const sb = await createClient();
+  const { data } = await sb.from("arcanes").select("*").order("name");
+  return (data ?? []) as ArcaneRow[];
+}
+
+export async function getArcane(slug: string): Promise<ArcaneRow | null> {
+  const sb = await createClient();
+  const { data } = await sb.from("arcanes").select("*").eq("slug", slug).maybeSingle();
+  return (data as ArcaneRow | null) ?? null;
+}

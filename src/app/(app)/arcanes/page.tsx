@@ -1,10 +1,22 @@
+import { listArcanes } from "@/lib/data";
+import { ArcaneBrowser, type ArcaneListItem } from "@/components/arcane-browser";
+
 export const metadata = { title: "Arcanes" };
 
-export default function Page() {
+export default async function ArcanesPage() {
+  const arcanes = await listArcanes();
+  const items: ArcaneListItem[] = arcanes.map((a) => ({
+    slug: a.slug, name: a.name, slot: a.slot, rarity: a.rarity, description: a.description,
+    categories: a.compatibility?.categories ?? [], ability_scaling: !!a.compatibility?.ability_scaling, scales_with: a.compatibility?.scales_with ?? [],
+  }));
   return (
-    <div className="card text-center text-dim">
-      <h1 className="h-display mb-2 text-3xl text-ink">Arcanes</h1>
-      Coming in step 5.
+    <div className="space-y-5">
+      <h1 className="h-display text-3xl">Arcanes</h1>
+      {arcanes.length === 0 ? (
+        <p className="card border-orange/40 text-sm text-orange">No arcanes loaded yet. Run <code>npm run sync:wiki-arcanes</code> to import them from the Warframe Wiki.</p>
+      ) : (
+        <ArcaneBrowser items={items} />
+      )}
     </div>
   );
 }
