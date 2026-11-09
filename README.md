@@ -18,7 +18,6 @@ Price, grade and manage Warframe riven mods; look up arcanes. Next.js (App Route
 4. Load reference data (re-runnable any time):
    ```bash
    npm run sync:wfm-static          # weapons (+disposition) and riven stat definitions, from Warframe Market
-   npm run sync:wiki-abilities      # every ability (Warframe, Helminth flag, which stats it scales with)
    npm run sync:wiki-arcanes        # arcanes, drop sources, compatibility, from the Warframe Wiki (+ WFM ids)
    npm run seed:grading-placeholder # PLACEHOLDER roll ranges so grading is testable
    ```

@@ -8,6 +8,7 @@ import { unitSuffix } from "@/lib/format";
 import { signPrefix, toStoredValue, toTypedValue } from "@/lib/stat-sign";
 import type { MappedScan } from "@/lib/ocr/map";
 import { encodeRiven } from "@/lib/riven-share";
+import { prepareImage } from "@/lib/image-prep";
 import type { RivenInput } from "@/lib/riven-schema";
 
 interface Row { stat: string; value: string }
@@ -97,10 +98,23 @@ export function RivenForm({
   async function scan(file: File) {
     setScanState({ busy: true, msg: null, kind: "ok" });
     const body = new FormData();
-    body.append("image", file);
-    const res = await fetch("/api/rivens/scan", { method: "POST", body });
+    try {
+      // Phone photos are huge and rotated via EXIF: shrink + orient them in the browser first.
+      body.append("image", await prepareImage(file));
+    } catch (e) {
+      return setScanState({ busy: false, msg: e instanceof Error ? e.message : "Couldn’t read that image.", kind: "err" });
+    }
+    let res: Response;
+    try {
+      res = await fetch("/api/rivens/scan", { method: "POST", body });
+    } catch {
+      return setScanState({ busy: false, msg: "Couldn’t reach the server — check your connection and try again.", kind: "err" });
+    }
     const json = await res.json().catch(() => ({}));
-    if (!res.ok) return setScanState({ busy: false, msg: json.error ?? "Scan failed.", kind: "err" });
+    if (!res.ok) {
+      const tooBig = res.status === 413;
+      return setScanState({ busy: false, msg: json.error ?? (tooBig ? "That image is too large — crop it closer to the card." : "The scan didn’t work. You can still enter the stats by hand below."), kind: "err" });
+    }
     const r = json as MappedScan;
     const w = weapons.find((x) => x.slug === r.weapon_slug);
     if (w) setWeaponText(w.name); else if (r.weapon_name) setWeaponText(r.weapon_name);
@@ -120,7 +134,7 @@ export function RivenForm({
     const problems = [!w && "weapon", unmatched.length && `stat${unmatched.length > 1 ? "s" : ""} “${unmatched.join("”, “")}”`].filter(Boolean);
     setScanState({
       busy: false, kind: problems.length ? "err" : "ok",
-      msg: (problems.length ? `Couldn’t match ${problems.join(" and ")} — pick ${problems.length > 1 ? "them" : "it"} below. ` : "Filled in from your screenshot. ") + "Please check every value before saving." + (r.notes ? ` Note: ${r.notes}` : ""),
+      msg: (problems.length ? `Couldn’t match ${problems.join(" and ")} — pick ${problems.length > 1 ? "them" : "it"} below. ` : "Filled in from your image. ") + "Please check every value before saving." + (r.notes ? ` Note: ${r.notes}` : ""),
     });
   }
 
@@ -171,11 +185,11 @@ export function RivenForm({
             </svg>
             <div className="min-w-0 flex-1">
               <p className="font-display text-sm font-bold uppercase tracking-[0.12em]">{scanState.busy ? "Reading your riven…" : "Skip the typing"}</p>
-              <p className="text-xs leading-relaxed text-dim">Drop a screenshot of the riven card here, paste it (Ctrl/⌘+V) or choose a file. Always double-check the numbers.</p>
+              <p className="text-xs leading-relaxed text-dim">A screenshot or a photo from your phone both work. Drop it here, paste it (Ctrl/⌘+V) or choose a file. Always double-check the numbers.</p>
             </div>
             <label className={`btn cursor-pointer sm:shrink-0 ${scanState.busy ? "pointer-events-none opacity-50" : ""}`}>
               Choose image
-              <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={scanState.busy}
+              <input type="file" accept="image/*" className="sr-only" disabled={scanState.busy}
                 onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void scan(f); }} />
             </label>
           </div>

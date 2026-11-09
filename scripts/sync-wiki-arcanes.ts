@@ -32,6 +32,16 @@ async function wfmArcanes(): Promise<Map<string, WfmItem>> {
   return new Map(items.map((i) => [norm(i.i18n.en.name), i]));
 }
 
+/** (Warframe, ability) -> is it Helminth-subsumable, from Module:Ability/data. Used when an arcane's table has no Subsumable column. */
+async function helminthIndex(): Promise<(wf: string, ability: string) => boolean | undefined> {
+  const mod = await fetchPage("Module:Ability/data");
+  const abilities = mod.content ? (parseLuaModule(mod.content) as unknown as { Ability?: Record<string, { Name?: string; Powersuit?: string; Subsumable?: boolean }> }).Ability : undefined;
+  if (!abilities) { console.warn("  (could not read Module:Ability/data; Helminth stars limited to tables with a Subsumable column)"); return () => undefined; }
+  const idx = new Map<string, boolean>();
+  for (const [key, a] of Object.entries(abilities)) if (a.Powersuit) idx.set(`${a.Powersuit}|${a.Name ?? key}`.toLowerCase(), a.Subsumable === true);
+  return (wf, ability) => idx.get(`${wf}|${ability}`.toLowerCase());
+}
+
 async function main() {
   console.log("Fetching Module:Arcane/data …");
   const mod = await fetchPage("Module:Arcane/data");
@@ -48,6 +58,7 @@ async function main() {
   console.log("Fetching Warframe Market arcane list …");
   const wfm = await wfmArcanes();
 
+  const helminthOf = await helminthIndex();
   const upgradeMap = readJson<UpgradeTypeMap>("data/arcane-upgrade-types.json");
   const overrides = readJson<Record<string, Overrides>>("data/arcane-overrides.json");
   const unmapped = new Set<string>();
@@ -55,7 +66,7 @@ async function main() {
   const records: (ArcaneRecord & { wfm_icon: string | null })[] = entries.map(([name, a]) => {
     const title = a.Link ?? a.Name ?? name;
     const page = pages.get(title);
-    const rec = buildArcane({ ...a, Name: a.Name ?? name }, page?.content ?? null, page?.revid ?? null, upgradeMap, overrides[a.Name ?? name], unmapped);
+    const rec = buildArcane({ ...a, Name: a.Name ?? name }, page?.content ?? null, page?.revid ?? null, upgradeMap, overrides[a.Name ?? name], unmapped, helminthOf);
     const item = wfm.get(norm(rec.name));
     if (item) rec.wfm_slug = item.slug;
     else rec.needs_review.push("not matched to a Warframe Market item (no price)");
@@ -69,6 +80,7 @@ async function main() {
   console.log(`  with drop sources : ${records.filter((r) => r.drop_sources.length).length}`);
   console.log(`  with WFM price id : ${records.filter((r) => r.wfm_slug).length}`);
   console.log(`  ability-scaling   : ${records.filter((r) => r.compatibility.ability_scaling).length}`);
+  console.log(`  with ability lists: ${records.filter((r) => r.compatibility.ability_lists.length).map((r) => `${r.name} (${r.compatibility.ability_lists.map((l) => `${l.kind} ${l.abilities.length}`).join(", ")})`).join("; ")}`);
   console.log(`  overridden        : ${records.filter((r) => r.overridden_fields.length).length}`);
   if (unmapped.size) console.log(`  UNMAPPED upgrade types (add to data/arcane-upgrade-types.json): ${[...unmapped].join(", ")}`);
   const noDrops = records.filter((r) => !r.drop_sources.length).map((r) => r.name);

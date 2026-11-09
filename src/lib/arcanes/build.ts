@@ -1,4 +1,4 @@
-import { extractCompatNotes, extractDropSources, type DropSource } from "@/lib/wiki/wikitext";
+import { extractAbilityLists, extractCompatNotes, extractDropSources, type AbilityList, type DropSource } from "@/lib/wiki/wikitext";
 import { cleanWikitext } from "@/lib/wiki/wikitext";
 
 export interface UpgradeTypeInfo { label: string; category: string; hidden?: boolean }
@@ -41,6 +41,8 @@ export interface Compatibility {
   /** Per-ability compatibility — filled from data/arcane-overrides.json. */
   abilities: { name: string; affected: boolean; note?: string }[];
   playstyles: string[];
+  /** Per-ability lists parsed from the arcane's wiki page (e.g. Arcane Sculptor's Valid / Invalid Objects). */
+  ability_lists: AbilityList[];
 }
 
 export const slugify = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
@@ -66,6 +68,7 @@ export function buildArcane(
   upgradeMap: UpgradeTypeMap,
   override: Overrides | undefined,
   unmapped: Set<string>,
+  helminthOf?: (warframe: string, ability: string) => boolean | undefined,
 ): ArcaneRecord {
   const name = lua.Name ?? lua.Link ?? "";
   const title = lua.Link ?? name;
@@ -93,6 +96,7 @@ export function buildArcane(
     notes: wikitext ? extractCompatNotes(wikitext, title) : [],
     abilities: [],
     playstyles: [],
+    ability_lists: wikitext ? extractAbilityLists(wikitext, title, helminthOf) : [],
   };
   if (shown.length === 0) needs.push("wiki lists no scaling stats (compatibility is Type + notes only)");
 

@@ -1,7 +1,6 @@
 import Link from "next/link";
-import type { AbilityRow, ArcaneRow } from "@/lib/data";
+import type { ArcaneRow } from "@/lib/data";
 import { ArcaneAbilities } from "@/components/arcane-abilities";
-import { ABILITY_MODIFIERS } from "@/lib/abilities/build";
 import { ArcanePrice } from "@/components/arcane-price";
 import { rarityClass } from "@/lib/arcanes/style";
 import { timeAgo } from "@/lib/format";
@@ -9,7 +8,7 @@ import { timeAgo } from "@/lib/format";
 const KIND_LABEL: Record<string, string> = { drop: "Drop", reward: "Reward", vendor: "Vendor", event: "Event", other: "Other" };
 const KIND_STYLE: Record<string, string> = { drop: "border-violet/50 text-violet", reward: "border-teal/50 text-teal", vendor: "border-orange/50 text-orange", event: "border-grade-c/50 text-grade-c", other: "" };
 
-export function ArcaneDetailView({ a, abilities = [], abilityStats = [], unknownAbilityCount = 0 }: { a: ArcaneRow; abilities?: AbilityRow[]; abilityStats?: string[]; unknownAbilityCount?: number }) {
+export function ArcaneDetailView({ a }: { a: ArcaneRow }) {
   const c = a.compatibility;
   const overridden = (f: string) => a.overridden_fields.includes(f);
 
@@ -44,12 +43,9 @@ export function ArcaneDetailView({ a, abilities = [], abilityStats = [], unknown
           {c.playstyles.length > 0 && (<><dt className="text-dim">Playstyles</dt><dd className="flex flex-wrap gap-1.5">{c.playstyles.map((p) => <span key={p} className="chip">{p}</span>)}</dd></>)}
         </dl>
 
-        {abilityStats.length > 0 && (
-          <div>
-            <h3 className="label">Works with these abilities</h3>
-            <ArcaneAbilities abilities={abilities} statLabels={abilityStats.map((k) => ABILITY_MODIFIERS[k])} unknownCount={unknownAbilityCount} />
-          </div>
-        )}
+        {(c.ability_lists ?? []).map((list, i) => (
+          <div key={i} className="border-t border-line pt-4"><ArcaneAbilities list={list} /></div>
+        ))}
         {c.abilities.length > 0 && (
           <div>
             <h3 className="label">Your overrides</h3>
@@ -69,7 +65,7 @@ export function ArcaneDetailView({ a, abilities = [], abilityStats = [], unknown
             <ul className="list-disc space-y-1 pl-5 text-sm text-dim">{c.notes.map((n) => <li key={n}>{n}</li>)}</ul>
           </div>
         )}
-        {abilityStats.length === 0 && c.abilities.length === 0 && <p className="text-xs text-dim">This arcane doesn’t scale with an ability stat, so there’s no ability list. Add specifics in <code>data/arcane-overrides.json</code>.</p>}
+        {(c.ability_lists ?? []).length === 0 && c.abilities.length === 0 && <p className="text-xs text-dim">The wiki page for this arcane doesn’t list specific abilities. You can add them in <code>data/arcane-overrides.json</code>.</p>}
         {overridden("compatibility") && <p className="text-xs text-violet">Includes data from your overrides.</p>}
       </section>
 

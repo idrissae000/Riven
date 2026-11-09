@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanWikitext, extractCompatNotes, extractDropSources, extractSection, extractTemplate, linkTargets } from "./wikitext";
+import { cleanWikitext, extractAbilityLists, extractCompatNotes, extractDropSources, extractSection, extractTemplate, linkTargets } from "./wikitext";
 
 describe("cleanWikitext", () => {
   it("resolves links, bold and common templates", () => {
@@ -51,6 +51,12 @@ x`;
     expect(d).toHaveLength(1);
     expect(d[0]).toMatchObject({ kind: "vendor", text: "X can be purchased from Cavalero for 5,500 Credits." });
   });
+  it("uses the text after a bare {{Acquisition|name=...}} template (newer wiki pages)", () => {
+    const wt = `{{Acquisition|name={{PAGENAME}}}}\n\nCan be bought from [[Hunhow]] at [[Pontis Tower]] for 10 {{Resource|Emerald Talent}}.\n\n==Notes==\n*x`;
+    const d = extractDropSources(wt, "Arcane Sculptor");
+    expect(d).toHaveLength(1);
+    expect(d[0]).toMatchObject({ kind: "vendor", links: ["Hunhow", "Pontis Tower"], text: "Can be bought from Hunhow at Pontis Tower for 10 Emerald Talent." });
+  });
   it("returns [] when there is no acquisition info", () => expect(extractDropSources("==Effect==\nx", "X")).toEqual([]));
 });
 
@@ -72,4 +78,95 @@ describe("extractCompatNotes", () => {
 
 describe("linkTargets", () => {
   it("returns page names without section anchors or display text", () => expect(linkTargets("[[Steel Path#Rewards|SP]] and [[The Circuit]] [[File:a.png]]")).toEqual(["Steel Path", "The Circuit"]));
+});
+
+describe("extractAbilityLists", () => {
+  const sculptor = `==Notes==
+*Some note about efficiency.
+===Valid Objects===
+{| class="wikitable sortable stickyHeader"
+|-
+! Warframe
+! Ability
+! [[Helminth#Ability_Replacement|Subsumable]]
+!Notes
+|-
+| rowspan=1 | {{WF|Atlas}}
+| {{A|Tectonics}}
+| style="text-align:center" |
+|
+|-
+| rowspan=1 |{{WF|Citrine}}
+| {{A|Prismatic Gem}}
+| style="text-align:center" |
+|Doesn't work with {{M|Prismatic Companion}}.
+|-
+| rowspan=2 | {{WF|Follie}}
+| {{A|Shadowgraph}}
+| style="text-align:center" |
+|
+|-
+| {{A|Self Portrait}}
+| style="text-align:center" | [[File:HelminthChrysalis.png|24px]] Subsumable
+|
+|-
+| rowspan=1 |{{WF|Ivara}}
+| {{A|Quiver|Dashwire Arrow}}
+| style="text-align:center" |
+|
+|}
+===Invalid Objects===
+{|class="wikitable"
+|-
+! Warframe
+! Ability
+!Notes
+|-
+|colspan="2" |[[Exalted Weapon|Exalted Weapons]]
+|Including {{WF|Sevagoth}}'s {{A|Exalted Shadow}}
+|-
+|rowspan="2" |{{WF|Ash}}
+|{{A|Shuriken}}
+|
+|-
+|{{A|Blade Storm}}
+|Shadows
+|}`;
+  const lists = extractAbilityLists(sculptor, "Arcane Sculptor", (wf, ab) => (wf === "Ash" && ab === "Shuriken" ? true : undefined));
+
+  it("finds valid and invalid tables from their headings", () => {
+    expect(lists.map((l) => [l.kind, l.title, l.abilities.length])).toEqual([["valid", "Valid Objects", 5], ["invalid", "Invalid Objects", 3]]);
+    expect(lists[0].intro).toBeNull(); // the line above the table is a heading
+  });
+  it("carries rowspan'd Warframe cells down and uses display names", () => {
+    const a = lists[0].abilities;
+    expect(a.map((x) => `${x.name} (${x.warframe})`)).toEqual(["Tectonics (Atlas)", "Prismatic Gem (Citrine)", "Shadowgraph (Follie)", "Self Portrait (Follie)", "Dashwire Arrow (Ivara)"]);
+  });
+  it("reads the Subsumable column and notes", () => {
+    const a = lists[0].abilities;
+    expect(a.find((x) => x.name === "Self Portrait")?.helminth).toBe(true);
+    expect(a.find((x) => x.name === "Tectonics")?.helminth).toBe(false);
+    expect(a.find((x) => x.name === "Prismatic Gem")?.note).toBe("Doesn't work with Prismatic Companion.");
+  });
+  it("handles colspan special rows and falls back to the Helminth index when there is no column", () => {
+    const inv = lists[1].abilities;
+    expect(inv[0]).toEqual({ warframe: null, name: "Exalted Weapons", helminth: false, note: "Including Sevagoth's Exalted Shadow" });
+    expect(inv.find((x) => x.name === "Shuriken")).toMatchObject({ warframe: "Ash", helminth: true });
+    expect(inv.find((x) => x.name === "Blade Storm")).toMatchObject({ warframe: "Ash", helminth: false, note: "Shadows" });
+  });
+  it("keeps multi-line bullet notes together and takes the intro from the line above the table", () => {
+    const wt = `==Eligible Abilities==\n<noinclude>\n*Only the following abilities can trigger this effect:\n</noinclude>\n{| class="wikitable"\n|-\n! Warframe\n! Ability\n! Notes\n|-\n| rowspan=1 | {{WF|Atlas}}\n| {{A|Tectonics}}\n|\n*Does not qualify if {{M|Tectonic Fracture}} is used.\n*Second line.\n|}`;
+    const [l] = extractAbilityLists(wt, "Arcane Intention");
+    expect(l.intro).toBe("Only the following abilities can trigger this effect:");
+    expect(l.abilities[0].note).toBe("Does not qualify if Tectonic Fracture is used. Second line.");
+  });
+  it("treats \"Helminth-transferable\" in a Notes cell as the Helminth flag and strips it from the note", () => {
+    const wt = `==Eligible Abilities==\n{| class="wikitable"\n|-\n! Warframe\n! Ability\n! Notes\n|-\n| rowspan=1 | {{WF|Ivara}}\n| {{A|Quiver}}\n|\n*Only qualifies while its arrows are in flight.\n*Helminth-transferable\n|-\n| rowspan=1 | {{WF|Lavos}}\n| {{A|Vial Rush}}\n|\n*Helminth-transferable\n|}`;
+    const [l] = extractAbilityLists(wt, "Arcane Intention");
+    expect(l.abilities[0]).toMatchObject({ name: "Quiver", helminth: true, note: "Only qualifies while its arrows are in flight." });
+    expect(l.abilities[1]).toMatchObject({ name: "Vial Rush", helminth: true, note: null });
+  });
+  it("ignores tables without Warframe + Ability columns", () => {
+    expect(extractAbilityLists("{| class=\"wikitable\"\n|-\n! Rank\n! Ability Strength\n|-\n| 0 || 10%\n|}", "X")).toEqual([]);
+  });
 });

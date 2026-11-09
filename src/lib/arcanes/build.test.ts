@@ -54,5 +54,12 @@ describe("buildArcane", () => {
     expect(a.needs_review.length).toBe(2);
   });
 
+  it("parses per-ability trigger tables from the wiki page into ability_lists", () => {
+    const wt = `==Notes==\n===Valid Objects===\n{| class="wikitable"\n|-\n! Warframe\n! Ability\n! Notes\n|-\n| rowspan=1 | {{WF|Atlas}}\n| {{A|Tectonics}}\n|\n|}`;
+    const a = buildArcane({ Name: "Arcane Sculptor", Type: "Warframe" }, wt, 1, map, undefined, new Set(), (wf, ab) => wf === "Atlas" && ab === "Tectonics");
+    expect(a.compatibility.ability_lists).toHaveLength(1);
+    expect(a.compatibility.ability_lists[0].abilities[0]).toEqual({ warframe: "Atlas", name: "Tectonics", helminth: true, note: null });
+  });
+
   it("slugifies", () => expect(slugify("Akimbo Slip Shot")).toBe("akimbo_slip_shot"));
 });
