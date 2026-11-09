@@ -2,8 +2,8 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import type { ScannedRiven } from "./map";
 
-/** Vision model. Override with RIVEN_OCR_MODEL (e.g. a cheaper Sonnet/Haiku) once you've compared accuracy. */
-export const OCR_MODEL = process.env.RIVEN_OCR_MODEL || "claude-opus-5-5";
+/** Vision model. Override with RIVEN_OCR_MODEL (e.g. claude-opus-5-5 for max accuracy). */
+export const OCR_MODEL = process.env.RIVEN_OCR_MODEL || "claude-sonnet-5-5";
 
 export const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/webp"] as const;
 export type AllowedType = (typeof ALLOWED_TYPES)[number];
