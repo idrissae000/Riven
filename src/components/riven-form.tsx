@@ -6,6 +6,7 @@ import type { Polarity, Riven, RivenAttribute, Weapon } from "@/lib/types";
 import { POLARITIES } from "@/lib/types";
 import { unitSuffix } from "@/lib/format";
 import { signPrefix, toStoredValue, toTypedValue } from "@/lib/stat-sign";
+import type { MappedScan } from "@/lib/ocr/map";
 
 interface Row { stat: string; value: string }
 
@@ -75,6 +76,39 @@ export function RivenForm({
   const optionsFor = (current: string, negative: boolean) =>
     attributes.filter((a) => usable(a) && (!negative || !a.positive_only) && (a.slug === current || !used.has(a.slug)));
 
+  const [scanState, setScanState] = useState<{ busy: boolean; msg: string | null; kind: "ok" | "err" }>({ busy: false, msg: null, kind: "ok" });
+
+  /** Prefills the form from a screenshot. Nothing is saved: the user reviews, fixes and saves as usual. */
+  async function scan(file: File) {
+    setScanState({ busy: true, msg: null, kind: "ok" });
+    const body = new FormData();
+    body.append("image", file);
+    const res = await fetch("/api/rivens/scan", { method: "POST", body });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) return setScanState({ busy: false, msg: json.error ?? "Scan failed.", kind: "err" });
+    const r = json as MappedScan;
+    const w = weapons.find((x) => x.slug === r.weapon_slug);
+    if (w) setWeaponText(w.name); else if (r.weapon_name) setWeaponText(r.weapon_name);
+    if (r.riven_name) setRivenName(r.riven_name);
+    if (r.polarity) setPolarity(r.polarity);
+    if (r.mastery_rank != null) setMr(String(r.mastery_rank));
+    if (r.rank != null) setRank(String(r.rank));
+    if (r.rerolls != null) setRerolls(String(r.rerolls));
+    const toRow = (st: MappedScan["stats"][number]): Row => ({ stat: st.stat ?? "", value: st.value != null ? String(Math.round(st.value * 1000) / 1000) : "" });
+    const bonus = r.stats.filter((st) => !st.is_negative).slice(0, 3).map(toRow);
+    while (bonus.length < 2) bonus.push(emptyRow());
+    setPos(bonus);
+    const curse = r.stats.find((st) => st.is_negative);
+    setHasNeg(!!curse);
+    setNeg(curse ? toRow(curse) : emptyRow());
+    const unmatched = r.stats.filter((st) => !st.stat).map((st) => st.scanned.name);
+    const problems = [!w && "weapon", unmatched.length && `stat${unmatched.length > 1 ? "s" : ""} “${unmatched.join("”, “")}”`].filter(Boolean);
+    setScanState({
+      busy: false, kind: problems.length ? "err" : "ok",
+      msg: (problems.length ? `Couldn’t match ${problems.join(" and ")} — pick ${problems.length > 1 ? "them" : "it"} below. ` : "Filled in from your screenshot. ") + "Please check every value before saving." + (r.notes ? ` Note: ${r.notes}` : ""),
+    });
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -105,6 +139,17 @@ export function RivenForm({
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {!rivenId && (
+        <div className="card flex flex-wrap items-center gap-3 border-violet/40">
+          <label className="btn cursor-pointer border-violet/50 text-violet">
+            {scanState.busy ? "Reading screenshot…" : "📷 Scan a screenshot"}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={scanState.busy}
+              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void scan(f); }} />
+          </label>
+          <span className="text-xs text-dim">Auto-fills the form from an in-game riven card. Always double-check the numbers.</span>
+          {scanState.msg && <p role="status" className={`w-full text-sm ${scanState.kind === "err" ? "text-orange" : "text-ok"}`}>{scanState.msg}</p>}
+        </div>
+      )}
       <div className="card space-y-4">
         <div>
           <label className="label" htmlFor="weapon">Weapon</label>
