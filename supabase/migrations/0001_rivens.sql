@@ -32,7 +32,7 @@ create table if not exists public.rivens (
   user_id       uuid not null references auth.users(id) on delete cascade,
   weapon_slug   text not null references public.weapons(slug),
   riven_name    text,                          -- e.g. "Acria-da" (prefix + suffix)
-  polarity      text not null check (polarity in ('madurai','vazarin','naramon','zenurik')),
+  polarity      text not null check (polarity in ('madurai','vazarin','naramon')),
   mastery_rank  int  not null check (mastery_rank between 8 and 16),
   rank          int  not null default 0 check (rank between 0 and 8),
   rerolls       int  not null default 0 check (rerolls >= 0),

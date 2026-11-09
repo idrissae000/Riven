@@ -43,6 +43,7 @@ describe("fmtStat", () => {
     expect(fmtStat(112.3, "percent")).toBe("+112.3%");
     expect(fmtStat(-45, "percent")).toBe("-45%");
     expect(fmtStat(1.6, "multiply")).toBe("x1.6");
+    expect(fmtStat(1.47, "multiply")).toBe("x1.47");
     expect(fmtStat(2.5, "seconds")).toBe("+2.5s");
     expect(fmtStat(3, null)).toBe("+3");
   });

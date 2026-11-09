@@ -9,7 +9,8 @@
     "lint": "eslint",
     "sync:wfm-static": "tsx scripts/sync-wfm-static.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "price-check": "tsx --conditions=react-server scripts/price-check.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

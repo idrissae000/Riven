@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getReferenceData, getRiven } from "@/lib/data";
 import { fmtStat } from "@/lib/format";
 import { DeleteRivenButton } from "./delete-button";
+import { MarketEstimate } from "@/components/market-estimate";
 
 export default async function RivenDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -35,6 +36,7 @@ export default async function RivenDetailPage({ params }: { params: Promise<{ id
         </ul>
         {riven.notes && <p className="mt-3 text-sm text-dim">{riven.notes}</p>}
       </section>
+      <MarketEstimate rivenId={riven.id} attrs={Object.fromEntries(ref.attributes.map((a) => [a.slug, { name: a.name, unit: a.unit }]))} />
       <div className="flex gap-3">
         <Link href={`/rivens/${riven.id}/edit`} className="btn flex-1">Edit</Link>
         <DeleteRivenButton id={riven.id} />

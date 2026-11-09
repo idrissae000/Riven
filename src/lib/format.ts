@@ -4,7 +4,7 @@ import type { RivenAttribute } from "@/lib/types";
 export function fmtStat(value: number, unit: string | null | undefined): string {
   const sign = value < 0 ? "-" : "+";
   const abs = Math.abs(value);
-  const n = Number.isInteger(abs) ? String(abs) : abs.toFixed(1);
+  const n = String(Number(abs.toFixed(unit === "multiply" ? 2 : 1)));
   if (unit === "percent") return `${sign}${n}%`;
   if (unit === "seconds") return `${sign}${n}s`;
   if (unit === "multiply") return `x${n}`;

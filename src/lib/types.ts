@@ -1,5 +1,5 @@
-export type Polarity = "madurai" | "vazarin" | "naramon" | "zenurik";
-export const POLARITIES: Polarity[] = ["madurai", "vazarin", "naramon", "zenurik"];
+export type Polarity = "madurai" | "vazarin" | "naramon";
+export const POLARITIES: Polarity[] = ["madurai", "vazarin", "naramon"];
 
 export interface Weapon {
   slug: string;
