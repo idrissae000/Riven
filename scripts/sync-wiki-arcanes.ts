@@ -87,7 +87,9 @@ async function main() {
   if (!url || !key) throw new Error("Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or use --dry-run)");
   const sb = createClient(url, key, { auth: { persistSession: false } });
   const now = new Date().toISOString();
-  const rows = records.map((r) => ({ ...r, synced_at: now, wiki_icon: undefined }));
+  // wiki_icon is only informational (not a column); drop it so PostgREST doesn't see an unknown key
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const rows = records.map(({ wiki_icon: _icon, ...r }) => ({ ...r, synced_at: now }));
   for (let i = 0; i < rows.length; i += 100) {
     const { error } = await sb.from("arcanes").upsert(rows.slice(i, i + 100), { onConflict: "slug" });
     if (error) throw new Error(error.message);
