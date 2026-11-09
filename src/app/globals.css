@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+/* ---- Riven Buddy design tokens: dark sci-fi, teal / orange / purple ---- */
+@theme {
+  --color-void: #07090f;
+  --color-panel: #0e121c;
+  --color-panel-2: #151a28;
+  --color-line: #232b40;
+  --color-ink: #e7ecf6;
+  --color-dim: #8b95b0;
+
+  --color-teal: #2ee6d0;
+  --color-orange: #ff8a3d;
+  --color-violet: #a77bff;
+  --color-danger: #ff5d7a;
+  --color-ok: #5be584;
+
+  --color-grade-s: #ffd24a;
+  --color-grade-a: #5be584;
+  --color-grade-b: #2ee6d0;
+  --color-grade-c: #7aa2ff;
+  --color-grade-d: #ff8a3d;
+  --color-grade-f: #ff5d7a;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Rajdhani", "Segoe UI Semibold", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+body {
+  background-image:
+    radial-gradient(900px 420px at 85% -10%, rgb(167 123 255 / 0.13), transparent 60%),
+    radial-gradient(700px 380px at -5% 0%, rgb(46 230 208 / 0.1), transparent 55%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+@utility card {
+    @apply rounded-xl border border-line bg-panel/90 p-4 shadow-[0_0_0_1px_rgb(255_255_255/0.02)_inset];
+  }
+@utility card-glow {
+    @apply card relative overflow-hidden;
+    &::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--color-teal), var(--color-violet), var(--color-orange));
+    opacity: 0.8;
+    }
+  }
+@utility btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-line bg-panel-2 px-4 text-sm font-semibold text-ink transition hover:border-teal/60 hover:text-teal disabled:cursor-not-allowed disabled:opacity-50;
+  }
+@utility btn-primary {
+    @apply btn border-transparent bg-teal text-void hover:bg-teal/85 hover:text-void;
+  }
+@utility btn-danger {
+    @apply btn text-danger hover:border-danger/60 hover:text-danger;
+  }
+@utility input {
+    @apply min-h-11 w-full rounded-lg border border-line bg-void/70 px-3 text-base text-ink placeholder:text-dim/60 focus:border-teal focus:outline-none focus:ring-1 focus:ring-teal;
+  }
+@utility label {
+    @apply mb-1 block text-xs font-semibold uppercase tracking-wider text-dim;
+  }
+@utility h-display {
+    font-family: var(--font-display);
+    @apply font-bold tracking-wide;
+  }
+@utility chip {
+    @apply inline-flex items-center rounded-full border border-line bg-panel-2 px-2.5 py-0.5 text-xs text-dim;
+  }
