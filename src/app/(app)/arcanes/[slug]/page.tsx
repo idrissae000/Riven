@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getArcane } from "@/lib/data";
+import { getAbilitiesScalingWith, getArcane } from "@/lib/data";
+import { modifiersFor } from "@/lib/abilities/build";
 import { ArcaneDetailView } from "@/components/arcane-detail";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
@@ -10,5 +11,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function ArcaneDetail({ params }: { params: Promise<{ slug: string }> }) {
   const a = await getArcane((await params).slug);
   if (!a) notFound();
-  return <ArcaneDetailView a={a} />;
+  const mods = modifiersFor(a.effect_stats.map((e) => e.key));
+  const { abilities, unknownCount } = await getAbilitiesScalingWith(mods);
+  return <ArcaneDetailView a={a} abilities={abilities} abilityStats={mods} unknownAbilityCount={unknownCount} />;
 }

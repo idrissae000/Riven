@@ -1,5 +1,7 @@
 import Link from "next/link";
-import type { ArcaneRow } from "@/lib/data";
+import type { AbilityRow, ArcaneRow } from "@/lib/data";
+import { ArcaneAbilities } from "@/components/arcane-abilities";
+import { ABILITY_MODIFIERS } from "@/lib/abilities/build";
 import { ArcanePrice } from "@/components/arcane-price";
 import { rarityClass } from "@/lib/arcanes/style";
 import { timeAgo } from "@/lib/format";
@@ -7,7 +9,7 @@ import { timeAgo } from "@/lib/format";
 const KIND_LABEL: Record<string, string> = { drop: "Drop", reward: "Reward", vendor: "Vendor", event: "Event", other: "Other" };
 const KIND_STYLE: Record<string, string> = { drop: "border-violet/50 text-violet", reward: "border-teal/50 text-teal", vendor: "border-orange/50 text-orange", event: "border-grade-c/50 text-grade-c", other: "" };
 
-export function ArcaneDetailView({ a }: { a: ArcaneRow }) {
+export function ArcaneDetailView({ a, abilities = [], abilityStats = [], unknownAbilityCount = 0 }: { a: ArcaneRow; abilities?: AbilityRow[]; abilityStats?: string[]; unknownAbilityCount?: number }) {
   const c = a.compatibility;
   const overridden = (f: string) => a.overridden_fields.includes(f);
 
@@ -37,15 +39,20 @@ export function ArcaneDetailView({ a }: { a: ArcaneRow }) {
           <dd className="flex flex-wrap gap-1.5">
             {c.scales_with.length ? c.scales_with.map((s) => <span key={s} className="chip border-teal/40 text-teal">{s}</span>) : <span className="text-dim">The wiki lists no scaling stat for this arcane.</span>}
           </dd>
-          {c.ability_scaling && (<><dt className="text-dim">Abilities</dt><dd>Benefits from ability-stat mods and arcanes (strength, duration, efficiency or energy).</dd></>)}
           {c.excludes.length > 0 && (<><dt className="text-dim">Doesn’t work with</dt><dd>{c.excludes.join(", ")}</dd></>)}
           {c.requires.length > 0 && (<><dt className="text-dim">Requires</dt><dd>{c.requires.join(", ")}</dd></>)}
           {c.playstyles.length > 0 && (<><dt className="text-dim">Playstyles</dt><dd className="flex flex-wrap gap-1.5">{c.playstyles.map((p) => <span key={p} className="chip">{p}</span>)}</dd></>)}
         </dl>
 
+        {abilityStats.length > 0 && (
+          <div>
+            <h3 className="label">Works with these abilities</h3>
+            <ArcaneAbilities abilities={abilities} statLabels={abilityStats.map((k) => ABILITY_MODIFIERS[k])} unknownCount={unknownAbilityCount} />
+          </div>
+        )}
         {c.abilities.length > 0 && (
           <div>
-            <h3 className="label">Abilities</h3>
+            <h3 className="label">Your overrides</h3>
             <ul className="grid gap-1 text-sm sm:grid-cols-2">
               {c.abilities.map((ab) => (
                 <li key={ab.name} className="flex items-baseline gap-2">
@@ -62,7 +69,7 @@ export function ArcaneDetailView({ a }: { a: ArcaneRow }) {
             <ul className="list-disc space-y-1 pl-5 text-sm text-dim">{c.notes.map((n) => <li key={n}>{n}</li>)}</ul>
           </div>
         )}
-        {c.abilities.length === 0 && <p className="text-xs text-dim">Per-ability compatibility isn’t in the wiki’s structured data; add it in <code>data/arcane-overrides.json</code>.</p>}
+        {abilityStats.length === 0 && c.abilities.length === 0 && <p className="text-xs text-dim">This arcane doesn’t scale with an ability stat, so there’s no ability list. Add specifics in <code>data/arcane-overrides.json</code>.</p>}
         {overridden("compatibility") && <p className="text-xs text-violet">Includes data from your overrides.</p>}
       </section>
 

@@ -61,3 +61,16 @@ export async function getArcane(slug: string): Promise<ArcaneRow | null> {
   const { data } = await sb.from("arcanes").select("*").eq("slug", slug).maybeSingle();
   return (data as ArcaneRow | null) ?? null;
 }
+
+export interface AbilityRow { slug: string; name: string; warframe: string; key: number | null; helminth: boolean; modifiers: string[] }
+
+/** Abilities that scale with ANY of the given ability stats (e.g. AVATAR_ABILITY_STRENGTH), plus how many have no stat data. */
+export async function getAbilitiesScalingWith(modifiers: string[]): Promise<{ abilities: AbilityRow[]; unknownCount: number }> {
+  if (modifiers.length === 0) return { abilities: [], unknownCount: 0 };
+  const sb = await createClient();
+  const [hit, unknown] = await Promise.all([
+    sb.from("abilities").select("slug,name,warframe,key,helminth,modifiers").overlaps("modifiers", modifiers).order("name").limit(1000),
+    sb.from("abilities").select("slug", { count: "exact", head: true }).eq("modifiers", "{}"),
+  ]);
+  return { abilities: (hit.data ?? []) as AbilityRow[], unknownCount: unknown.count ?? 0 };
+}

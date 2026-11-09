@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Polarity, Riven, RivenAttribute, Weapon } from "@/lib/types";
 import { POLARITIES } from "@/lib/types";
@@ -78,7 +78,20 @@ export function RivenForm({
   const optionsFor = (current: string, negative: boolean) =>
     attributes.filter((a) => usable(a) && (!negative || !a.positive_only) && (a.slug === current || !used.has(a.slug)));
 
+  const [dragOver, setDragOver] = useState(false);
   const [scanState, setScanState] = useState<{ busy: boolean; msg: string | null; kind: "ok" | "err" }>({ busy: false, msg: null, kind: "ok" });
+
+  // Ctrl/⌘+V anywhere on the page: if the clipboard holds an image, scan it.
+  useEffect(() => {
+    if (rivenId) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith("image/"));
+      if (file) { e.preventDefault(); void scan(file); }
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- scan is recreated each render; it only reads state setters + props
+  }, [rivenId, weapons]);
 
   /** Prefills the form from a screenshot. Nothing is saved: the user reviews, fixes and saves as usual. */
   async function scan(file: File) {
@@ -146,14 +159,16 @@ export function RivenForm({
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      {!rivenId && signedIn && (
-        <div className="card flex flex-wrap items-center gap-3 border-violet/40">
+      {!rivenId && (
+        <div className={`card flex flex-wrap items-center gap-3 border-violet/40 ${dragOver ? "bg-violet/10" : ""}`}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files?.[0]; if (f) void scan(f); }}>
           <label className="btn cursor-pointer border-violet/50 text-violet">
             {scanState.busy ? "Reading screenshot…" : "📷 Scan a screenshot"}
             <input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={scanState.busy}
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void scan(f); }} />
           </label>
-          <span className="text-xs text-dim">Auto-fills the form from an in-game riven card. Always double-check the numbers.</span>
+          <span className="text-xs text-dim">Choose, drop or paste (Ctrl/⌘+V) a screenshot of the riven card. Always double-check the numbers.</span>
           {scanState.msg && <p role="status" className={`w-full text-sm ${scanState.kind === "err" ? "text-orange" : "text-ok"}`}>{scanState.msg}</p>}
         </div>
       )}

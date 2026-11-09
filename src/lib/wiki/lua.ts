@@ -96,5 +96,11 @@ export function parseLuaModule(src: string): LuaValue {
 
   skip();
   if (src.startsWith("return", i)) i += 6;
+  else if (src.startsWith("local", i)) {
+    // `local Name = { ... }` — parse that first table; anything after it (return, helper code) is ignored.
+    const eq = src.indexOf("=", i);
+    if (eq < 0) fail("expected = after local");
+    i = eq + 1;
+  }
   return value();
 }

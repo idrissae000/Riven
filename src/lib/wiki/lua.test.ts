@@ -33,3 +33,10 @@ describe("parseLuaModule", () => {
     expect(() => parseLuaModule('return { A = "x')).toThrow(/unterminated/);
   });
 });
+
+describe("parseLuaModule — `local X = {}` form", () => {
+  it("parses the first table and ignores trailing code", () => {
+    const v = parseLuaModule(`-- c\nlocal AbilityData = { Archived = { ["Bounce"] = { Powersuit = "Vauban", Key = 2 } } }\nreturn AbilityData`) as { Archived: Record<string, Record<string, unknown>> };
+    expect(v.Archived.Bounce).toEqual({ Powersuit: "Vauban", Key: 2 });
+  });
+});
