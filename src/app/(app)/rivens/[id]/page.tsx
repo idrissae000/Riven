@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getGradeRanges, getReferenceData, getRiven } from "@/lib/data";
 import { gradeRiven } from "@/lib/grading/grade";
+import { PushToWfm } from "@/components/push-to-wfm";
 import { RivenStats } from "@/components/riven-stats";
 import { DeleteRivenButton } from "./delete-button";
 import { MarketEstimate } from "@/components/market-estimate";
@@ -32,6 +33,12 @@ export default async function RivenDetailPage({ params }: { params: Promise<{ id
         {riven.notes && <p className="mt-3 text-sm text-dim">{riven.notes}</p>}
       </section>
       <MarketEstimate rivenId={riven.id} attrs={Object.fromEntries(ref.attributes.map((a) => [a.slug, { name: a.name, unit: a.unit }]))} />
+      <PushToWfm
+        rivenId={riven.id}
+        label={`${weapon?.name ?? riven.weapon_slug} ${riven.riven_name ?? ""}`.trim()}
+        hasName={!!riven.riven_name?.trim()}
+        listed={riven.wfm_auction_id ? { auctionId: riven.wfm_auction_id, price: riven.wfm_price ?? null } : null}
+      />
       <div className="flex gap-3">
         <Link href={`/rivens/${riven.id}/edit`} className="btn flex-1">Edit</Link>
         <DeleteRivenButton id={riven.id} />

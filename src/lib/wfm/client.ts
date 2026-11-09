@@ -16,7 +16,7 @@ export function wfmHeaders(extra: Record<string, string> = {}): Record<string, s
   return { Accept: "application/json", Language: "en", Platform: "pc", "User-Agent": WFM_USER_AGENT, ...extra };
 }
 
-/** Throttled request with one retry on 429/5xx. Not cached — use wfmGet for reads. */
+/** Throttled request. GETs get one retry on 429/5xx (never POST/DELETE: a retry could double-post). Not cached — use wfmGet for reads. */
 export async function wfmRequest(path: string, init: RequestInit = {}): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     const res = await wfmThrottle.schedule(() =>
@@ -27,7 +27,8 @@ export async function wfmRequest(path: string, init: RequestInit = {}): Promise<
         cache: "no-store",
       }),
     );
-    if ((res.status === 429 || res.status >= 500) && attempt < 1) {
+    const idempotent = !init.method || init.method.toUpperCase() === "GET";
+    if (idempotent && (res.status === 429 || res.status >= 500) && attempt < 1) {
       const retryAfter = Number(res.headers.get("retry-after"));
       await new Promise((r) => setTimeout(r, Math.min(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1500, 5000)));
       continue;

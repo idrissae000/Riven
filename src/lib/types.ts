@@ -44,4 +44,6 @@ export interface Riven {
   created_at: string;
   updated_at: string;
   wfm_auction_id?: string | null;
+  wfm_listed_at?: string | null;
+  wfm_price?: number | null;
 }
