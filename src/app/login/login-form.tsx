@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
+import { friendlyAuthError, isExistingAccount } from "@/lib/auth-errors";
 
 export function LoginForm({ next }: { next: string }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -17,7 +18,7 @@ export function LoginForm({ next }: { next: string }) {
     const sb = createBrowserSupabase();
     if (mode === "signin") {
       const { error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) setMsg({ kind: "err", text: error.message });
+      if (error) setMsg({ kind: "err", text: friendlyAuthError(error) });
       else window.location.assign(next);
     } else {
       const { data, error } = await sb.auth.signUp({
@@ -25,9 +26,13 @@ export function LoginForm({ next }: { next: string }) {
         password,
         options: { emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
       });
-      if (error) setMsg({ kind: "err", text: error.message });
+      if (error) setMsg({ kind: "err", text: friendlyAuthError(error) });
       else if (data.session) window.location.assign(next);
-      else setMsg({ kind: "ok", text: "Check your email to confirm your account, then sign in." });
+      else if (isExistingAccount(data.user)) {
+        // Supabase "succeeds" but sends nothing for an address that already has an account.
+        setMode("signin");
+        setMsg({ kind: "err", text: "An account with this email already exists, so no new email was sent. Sign in instead — or tap “Email me a magic link”." });
+      } else setMsg({ kind: "ok", text: `We sent a confirmation link to ${email}. It can take a minute — check spam too, then sign in.` });
     }
     setBusy(false);
   }
@@ -40,7 +45,7 @@ export function LoginForm({ next }: { next: string }) {
       email,
       options: { emailRedirectTo: `${location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
     });
-    setMsg(error ? { kind: "err", text: error.message } : { kind: "ok", text: "Magic link sent — check your email." });
+    setMsg(error ? { kind: "err", text: friendlyAuthError(error) } : { kind: "ok", text: "Magic link sent — check your email (and spam)." });
     setBusy(false);
   }
 
