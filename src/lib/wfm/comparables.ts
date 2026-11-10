@@ -1,5 +1,6 @@
 import { toMaxRank } from "@/lib/rank";
 import type { RivenStat } from "@/lib/types";
+import type { Tier } from "@/lib/grading/config";
 
 /** Raw v1 auction as returned by /v1/auctions/search (only fields we use). */
 export interface WfmAuction {
@@ -42,6 +43,8 @@ export interface Listing {
   matched: number;
   total: number;
   score: number; // 0..1 closeness of the matching stats' values (used only to rank)
+  /** Codex grade of each entry in `stats` (same order), graded for this weapon; null = can't be graded. */
+  grades?: (Tier | null)[];
 }
 
 export interface Estimate {

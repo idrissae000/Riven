@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { Estimate, Listing } from "@/lib/wfm/comparables";
 import { fmtStat, timeAgo } from "@/lib/format";
 import { Plat } from "@/components/brand";
+import { GradeBadge } from "@/components/grade-badge";
 
 interface Result {
   estimate: Estimate | null;
@@ -93,10 +94,11 @@ export function MarketEstimate({ endpoint, attrs }: { endpoint: string; attrs: R
                     <span className="chip">rank {l.rank}</span>
                     <span className="chip">{l.rerolls} rerolls</span>
                   </div>
-                  <ul className="mt-2 grid gap-x-4 font-mono text-xs sm:grid-cols-2">
-                    {l.stats.map((s) => (
-                      <li key={s.stat} className={s.positive ? "" : "text-danger"}>
-                        {fmtStat(s.value, attrs[s.stat]?.unit)} <span className="font-sans text-dim">{attrs[s.stat]?.name ?? s.stat}</span>
+                  <ul className="mt-2 grid gap-x-4 gap-y-1 font-mono text-xs sm:grid-cols-2">
+                    {l.stats.map((s, i) => (
+                      <li key={s.stat} className={`flex items-center gap-2 ${s.positive ? "" : "text-danger"}`}>
+                        {l.grades && <GradeBadge tier={l.grades[i] ?? null} size="sm" />}
+                        <span>{fmtStat(s.value, attrs[s.stat]?.unit)} <span className="font-sans text-dim">{attrs[s.stat]?.name ?? s.stat}</span></span>
                       </li>
                     ))}
                   </ul>

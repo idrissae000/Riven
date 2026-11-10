@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { decodeRiven } from "@/lib/riven-share";
+import { getGradingData } from "@/lib/data";
 import { priceRiven } from "@/lib/wfm/pricing";
 import { WfmError } from "@/lib/wfm/client";
 import type { Riven, RivenAttribute } from "@/lib/types";
@@ -16,15 +17,16 @@ export async function GET(request: Request) {
   if (!riven) return NextResponse.json({ error: "Invalid riven." }, { status: 400 });
 
   const sb = await createClient();
-  const [{ data: weapon }, { data: attrs }] = await Promise.all([
-    sb.from("weapons").select("slug").eq("slug", riven.weapon_slug).maybeSingle(),
+  const [{ data: weapon }, { data: attrs }, gradingData] = await Promise.all([
+    sb.from("weapons").select("slug,name,riven_type,group_name").eq("slug", riven.weapon_slug).maybeSingle(),
     sb.from("riven_attributes").select("slug,name,unit,exclusive_to,positive_only,inverted,prefix,suffix"),
+    getGradingData(),
   ]);
   if (!weapon) return NextResponse.json({ error: "Unknown weapon." }, { status: 404 });
 
   try {
     const full = { ...riven, id: "guest", user_id: "", created_at: "", updated_at: "" } as unknown as Riven;
-    const result = await priceRiven(full, (attrs ?? []) as RivenAttribute[], { force: url.searchParams.get("refresh") === "1" });
+    const result = await priceRiven(full, (attrs ?? []) as RivenAttribute[], { force: url.searchParams.get("refresh") === "1", grading: { weapon, data: gradingData } });
     return NextResponse.json(result);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Market lookup failed" }, { status: e instanceof WfmError && e.status === 429 ? 429 : 502 });
