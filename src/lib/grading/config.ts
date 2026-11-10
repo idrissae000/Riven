@@ -1,6 +1,6 @@
-/** The calculator's grades, best to worst. (The old S–F set was our own invention; these are the real bands.) */
-export const GRADES = ["S", "A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "F"] as const;
+/** Grades, best to worst. Roll bands use the calculator's S … C- and F; "D" is only ever a fixed curse rating. */
+export const GRADES = ["S", "A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D", "F"] as const;
 export type Tier = (typeof GRADES)[number];
 
 /** Colour family for a grade: its letter. */
-export const gradeGroup = (g: Tier) => g[0] as "S" | "A" | "B" | "C" | "F";
+export const gradeGroup = (g: Tier) => g[0] as "S" | "A" | "B" | "C" | "D" | "F";

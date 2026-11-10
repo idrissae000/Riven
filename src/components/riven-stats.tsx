@@ -44,7 +44,7 @@ export function RivenStats({ stats, attrs, grades }: { stats: RivenStat[]; attrs
 
               {g && g.bands.length > 0 && (
                 <details className="mt-2 text-xs">
-                  <summary className="cursor-pointer font-display text-[0.66rem] font-semibold uppercase tracking-[0.16em] text-gold hover:text-ink">Grade bands for this stat</summary>
+                  <summary className="cursor-pointer font-display text-[0.66rem] font-semibold uppercase tracking-[0.16em] text-gold hover:text-ink">{g.gradeSource === "curse-weapon" || g.gradeSource === "curse-stat" ? "Where the roll sits (information only — this curse’s grade is fixed)" : "Grade bands for this stat"}</summary>
                   <table className="mt-2 w-full max-w-sm border-collapse font-mono">
                     <thead>
                       <tr className="text-left font-display text-[0.62rem] uppercase tracking-[0.14em] text-dim">
@@ -53,7 +53,7 @@ export function RivenStats({ stats, attrs, grades }: { stats: RivenStat[]; attrs
                     </thead>
                     <tbody>
                       {g.bands.map((b) => (
-                        <tr key={b.grade} className={b.grade === g.tier ? "bg-gold/10 text-ink" : "text-dim"}>
+                        <tr key={b.grade} className={b.grade === g.rollGrade ? "bg-gold/10 text-ink" : "text-dim"}>
                           <td className="py-0.5 pr-3 font-display font-bold" style={{ color: tierColor(b.grade) }}>{b.grade}</td>
                           <td className="py-0.5 pr-3">{plain(b.from, unit)} – {plain(b.to, unit)}</td>
                           <td className="py-0.5">{pctText(b.fromPct)}–{pctText(b.toPct)}%</td>
@@ -70,7 +70,9 @@ export function RivenStats({ stats, attrs, grades }: { stats: RivenStat[]; attrs
       {notes.map((n) => <p key={n} className="mt-4 border border-line-2 bg-panel-2/60 p-2.5 text-xs leading-relaxed text-dim">{n}</p>)}
       {grades.some((g) => g.tier) && (
         <p className="mt-4 text-[0.7rem] leading-relaxed text-dim">
-          Grades follow the browse.wf Riven Calculator and say how high a roll is within its possible range, not how useful the stat is. Ranges are for a max-rank riven.
+          Positive stats are graded by how high the roll sits in its possible range, using the browse.wf Riven Calculator’s bands.
+          {grades.some((g) => g.gradeSource.startsWith("curse")) && " A curse gets a fixed rating for the stat (and the weapon) instead of a roll grade, so it reads the same at any roll; its gauge still shows where the roll sits."}
+          {" "}Ranges are for a max-rank riven.
         </p>
       )}
     </>

@@ -1,0 +1,41 @@
+{
+  "_comment": "How good a CURSE (negative stat) is, by stat and optionally by weapon. A curse's grade comes from here, not from its roll. Grades: S, A, B, C, D, F. Keys are Warframe Market riven stat slugs (see riven_attributes). A weapon entry beats the general stat rating. A curse stat that isn't listed falls back to the roll-based grade (and the explanation says so).",
+  "stats": {
+    "zoom": "S",
+    "ammo_maximum": "S",
+    "critical_chance_on_slide_attack": "S",
+    "finisher_damage": "S",
+    "channeling_efficiency": "S",
+
+    "recoil": "A",
+    "impact_damage": "A",
+    "puncture_damage": "A",
+    "slash_damage": "A",
+    "projectile_speed": "A",
+
+    "reload_speed": "B",
+    "status_duration": "B",
+    "combo_duration": "B",
+
+    "magazine_capacity": "C",
+    "fire_rate_/_attack_speed": "C",
+    "range": "C",
+    "damage_vs_grineer": "C",
+    "damage_vs_corpus": "C",
+    "damage_vs_infested": "C",
+    "damage_to_orokin": "C",
+    "damage_to_scaldra": "C",
+    "damage_to_techrot": "C",
+
+    "status_chance": "D",
+
+    "base_damage_/_melee_damage": "F",
+    "critical_chance": "F",
+    "critical_damage": "F",
+    "multishot": "F"
+  },
+  "weapons": {
+    "_comment": "Weapon name (as shown in the app) -> stat slug -> grade. Add more entries like the Felarx one.",
+    "Felarx": { "critical_chance": "S" }
+  }
+}

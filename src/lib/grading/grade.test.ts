@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { gradeRiven } from "./grade";
+import { parseCurseRatings } from "./curse-ratings";
 import { RIVENCALC_FIXTURE } from "@/lib/rivencalc/fixture";
 import type { RivenAttribute, RivenStat } from "@/lib/types";
 
@@ -14,6 +15,8 @@ const attrs = new Map([
   ["recoil", attr("recoil", "Weapon Recoil", { inverted: true })],
   ["combo_duration", attr("combo_duration", "Combo Duration", { unit: "seconds" })],
   ["blast", attr("blast", "Blast")],
+  ["ammo_maximum", attr("ammo_maximum", "Ammo Maximum")],
+  ["chance_to_gain_combo_count", attr("chance_to_gain_combo_count", "Chance to Gain Combo Count")],
 ]);
 const S = (stat: string, value: number, is_negative = false): RivenStat => ({ stat, value, is_negative });
 const SOMA = { name: "Soma", riven_type: "rifle" };
@@ -75,13 +78,79 @@ describe("gradeRiven with the browse.wf calculator data", () => {
     expect(g.explanation).toContain("scaled to max rank");
   });
 
-  it("curses are graded the calculator's way: a milder penalty scores higher", () => {
-    const [, , , zoom] = rifle([S("base_damage_/_melee_damage", 185.6216), S("critical_chance", 168.7432), S("critical_damage", 134.9966), S("zoom", -48.6, true)]);
-    expect(zoom.tier).toBe("S");
-    expect(zoom.explanation).toContain("milder penalty");
-    const [, , , worst] = rifle([S("base_damage_/_melee_damage", 185.6216), S("critical_chance", 168.7432), S("critical_damage", 134.9966), S("zoom", -59.39, true)]);
-    expect(worst.tier).toBe("F");
-    expect(zoom.ends!.best).toBeCloseTo(-48.59514);
+  describe("curses have a fixed rating, not a roll grade", () => {
+    const curse = (stat: string, value: number, weapon = SOMA, ratings?: Parameters<typeof gradeRiven>[4]) =>
+      gradeRiven({ rank: 8, stats: [S("base_damage_/_melee_damage", 185.6216), S("critical_damage", 134.9966), S("zoom", 71.99), S(stat, value, true)] }, weapon, attrs, D, ratings)[3];
+
+    it("a Zoom curse is S for any weapon at any roll (the roll only moves the gauge)", () => {
+      const mild = curse("zoom", -48.6), harsh = curse("zoom", -59.39);
+      expect(mild.tier).toBe("S");
+      expect(harsh.tier).toBe("S");
+      expect(mild.rollGrade).toBe("S"); // the milder roll sits at the top of the range…
+      expect(harsh.rollGrade).toBe("F"); // …the harsher one at the bottom, but the grade doesn't follow
+      expect(mild.pct).not.toBeCloseTo(harsh.pct!);
+      expect(mild.gradeSource).toBe("curse-stat");
+      expect(harsh.explanation).toContain("−Zoom is S for any weapon");
+      expect(harsh.explanation).toContain("not based on the roll");
+      expect(harsh.explanation).toContain("shown on the gauge");
+    });
+
+    it("a Critical Damage curse is F for any weapon, even the mildest roll", () => {
+      const g = gradeRiven({ rank: 8, stats: [S("base_damage_/_melee_damage", 185.6216), S("critical_chance", 168.7432), S("zoom", 71.99), S("critical_damage", -97.2, true)] }, SOMA, attrs, D)[3];
+      expect(g.tier).toBe("F");
+      expect(g.rollGrade).toBe("S");
+      expect(g.explanation).toContain("−Critical Damage is F for any weapon");
+    });
+
+    it("both the badge and the band table data are still there", () => {
+      const g = curse("zoom", -53.99);
+      expect(g.bands).toHaveLength(11);
+      expect(g.range!.max).toBeCloseTo(-48.595, 2);
+      expect(g.ends!.best).toBeCloseTo(-48.595, 2);
+    });
+
+    it("a weapon's own entry beats the stat's rating (Felarx: −Critical Chance is S)", () => {
+      const crit = (weapon: { name: string; riven_type: string }) =>
+        gradeRiven({ rank: 8, stats: [S("base_damage_/_melee_damage", 185.6), S("critical_damage", 135), S("zoom", 72), S("critical_chance", -135, true)] }, weapon, attrs, D)[3];
+      const felarx = crit({ name: "Felarx", riven_type: "shotgun" });
+      expect(felarx.tier).toBe("S");
+      expect(felarx.gradeSource).toBe("curse-weapon");
+      expect(felarx.explanation).toContain("−Critical Chance is S on the Felarx");
+      expect(crit({ name: "felarx ", riven_type: "shotgun" }).tier).toBe("S"); // name match ignores case/spacing
+      const hek = crit({ name: "Hek", riven_type: "shotgun" });
+      expect(hek.tier).toBe("F");
+      expect(hek.explanation).toContain("−Critical Chance is F for any weapon");
+    });
+
+    it("a curse with no rating is graded by its roll, and says so", () => {
+      const grades = gradeRiven({ rank: 8, stats: [S("base_damage_/_melee_damage", 244.58), S("critical_chance", 100), S("chance_to_gain_combo_count", -56.05, true)] }, { name: "Galatine", riven_type: "melee" }, attrs, D);
+      const g = grades[2];
+      expect(g.gradeSource).toBe("curse-unrated");
+      expect(g.tier).toBe("S"); // the mildest penalty, graded the calculator's way
+      expect(g.tier).toBe(g.rollGrade);
+      expect(g.explanation).toContain("no fixed rating for this curse");
+    });
+
+    it("positive stats are never touched by the ratings", () => {
+      const g = gradeRiven({ rank: 8, stats: [S("zoom", 71.99), S("critical_chance", 168.7432), S("critical_damage", 134.9966), S("recoil", -91.2, true)] }, SOMA, attrs, D);
+      expect(g[0].gradeSource).toBe("roll");
+      expect(g[0].tier).toBe(g[0].rollGrade);
+    });
+
+    it("ratings come from the data file and can be swapped", () => {
+      const custom = parseCurseRatings({ stats: { zoom: "D" }, weapons: { Soma: { zoom: "A" } } });
+      expect(curse("zoom", -50, { name: "Boltor", riven_type: "rifle" }, custom).tier).toBe("D");
+      expect(curse("zoom", -50, SOMA, custom).tier).toBe("A");
+      expect(curse("zoom", -50, SOMA, parseCurseRatings({ stats: {} })).gradeSource).toBe("curse-unrated");
+    });
+
+    it("a fixed rating survives when the roll can't be placed in a range", () => {
+      const g = gradeRiven({ rank: 8, stats: [S("critical_chance", 1), S("critical_damage", 1), S("zoom", 1), S("base_damage_/_melee_damage", 1), S("ammo_maximum", -20, true)] }, SOMA, attrs, D)[4];
+      expect(g.tier).toBe("S"); // 4 positives + a curse isn't a layout the calculator covers
+      expect(g.pct).toBeNull();
+      expect(g.explanation).toContain("−Ammo Maximum is S for any weapon");
+      expect(g.explanation).toContain("can’t be placed");
+    });
   });
 
   it("weapon recoil: a bigger reduction is the better roll", () => {

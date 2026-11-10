@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { gradeGroup, type Tier } from "@/lib/grading/config";
 
 const GROUP_COLOR = {
-  S: "var(--color-grade-s)", A: "var(--color-grade-a)", B: "var(--color-grade-b)", C: "var(--color-grade-c)", F: "var(--color-grade-f)",
+  S: "var(--color-grade-s)", A: "var(--color-grade-a)", B: "var(--color-grade-b)", C: "var(--color-grade-c)", D: "var(--color-grade-d)", F: "var(--color-grade-f)",
 } as const;
 export const tierColor = (t: Tier) => GROUP_COLOR[gradeGroup(t)];
 

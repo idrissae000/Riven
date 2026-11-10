@@ -31,16 +31,17 @@ Price, grade and manage Warframe riven mods; look up arcanes. Next.js (App Route
 | Per-ability arcane compatibility, drop-source corrections | `data/arcane-overrides.json` | Wins over the wiki; re-run `sync:wiki-arcanes`. |
 | Readable labels for wiki stat tags | `data/arcane-upgrade-types.json` | Sync prints any unmapped tags. |
 | Stats that are good when negative (Recoil) | `data/riven-attribute-overrides.json` | Re-run `sync:wfm-static`. |
-| Grade list (display order/colours) | `src/lib/grading/config.ts` | The band cut-offs and how curses are graded come from the scraped data. |
+| **Curse (negative stat) ratings**, general per stat plus per-weapon overrides | `data/curse-ratings.json` | Edit and redeploy. `stats` maps a stat slug to S/A/B/C/D/F; `weapons` maps a weapon name (as shown in the app) to stat → grade and beats the general rating. A typo'd grade fails at startup and the tests check slugs and weapon names. Curses not listed there are graded by their roll. |
+| Grade list (display order/colours) | `src/lib/grading/config.ts` | The roll band cut-offs come from the scraped data. |
 
 ## Things worth knowing
 
 - **Riven auctions are v1-only.** Warframe Market v2 has no riven auction endpoint, so pricing and listing use `/v1/auctions/*`; everything else uses v2. Closing a listing is `PUT …/close` (DELETE returns 405).
 - **Rate limiting:** one shared 350 ms throttle per server instance + a 12-minute cache (memory + `market_cache` table, stale-on-error). The throttle is per lambda; the shared cache is what keeps combined volume low.
-- **Grading:** per stat, from browse.wf's Riven Calculator at a fixed 1.2 disposition: a ±10% roll around each stat's center, 11 bands (S … F). Like the calculator, a curse grades higher the milder the penalty. Stats browse.wf doesn't list (combined elements, weak point stats, Zoom on shotguns …) are graded from the Unified-Codex calculator's ranges instead, and the result says so; they have no 1+/1- layout. A curse on those is graded the same way as the rest (milder = higher).
+- **Grading:** per stat, from browse.wf's Riven Calculator at a fixed 1.2 disposition: a ±10% roll around each stat's center, 11 bands (S … F). **Curses are different:** a curse's grade is a fixed rating for the stat (and weapon) from `data/curse-ratings.json`, not its roll — the gauge and band table still show where the roll sits, as information. A curse with no rating falls back to roll grading (a milder penalty grades higher, as on the calculator), and says so. Stats browse.wf doesn't list (combined elements, weak point stats, Zoom on shotguns …) are graded from the Unified-Codex calculator's ranges instead, and the result says so; they have no 1+/1- layout. 
 - **Rank scaling:** riven stats scale with rank ((rank+1)/9). All comparisons and grading are normalised to rank 8.
 - **WFM tokens:** passwords are never stored; the session token is AES-256-GCM encrypted (user id as AAD) in a table no client role can read.
 - **Not verified live:** the WFM sign-in *success* path and listing creation (need a real account), and screenshot scanning (needs an API key). Request shapes were checked against the real API using fake credentials.
-- Riven Disposition was retired by the game (all weapons 1.2x), so one range table normally covers every weapon. Ranges also vary with the number of bonus/curse stats (wiki "Attribute Value Formula") — the current table shape (`weapon, stat, min, max, is_negative`) doesn't capture that.
+- Riven ranges vary with weapon type and the number of bonus/curse stats; `data/rivencalc.json` has every combination at the fixed 1.2× disposition (see "Grading" below).
 
 Scripts: `npm test`, `npm run typecheck`, `npm run price-check -- soma "Crita-cron" critical_chance=150 …` (live market lookup).
