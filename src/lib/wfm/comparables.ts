@@ -43,7 +43,7 @@ export interface Listing {
   matched: number;
   total: number;
   score: number; // 0..1 closeness of the matching stats' values (used only to rank)
-  /** Codex grade of each entry in `stats` (same order), graded for this weapon; null = can't be graded. */
+  /** Grade of each entry in `stats` (same order), graded for this weapon; null = can't be graded. */
   grades?: (Tier | null)[];
 }
 

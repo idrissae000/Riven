@@ -1,11 +1,9 @@
 import { toMaxRank } from "@/lib/rank";
 import { fmtStat } from "@/lib/format";
 import type { RivenAttribute, RivenStat } from "@/lib/types";
-import {
-  bandFor, bandValueRanges, categoryForWeapon, centerFor, deviationPct, findStat, layoutFor, rollRange, toCalcValue, toDisplayValue,
-} from "@/lib/codex/compute";
-import type { CodexRivenData } from "@/lib/codex/types";
-import { NEGATIVE_STAT_GRADING, OUT_OF_RANGE_TOLERANCE, type Tier } from "./config";
+import { bandFor, bandValueRanges, categoryForWeapon, centerOf, deviationPct, layoutFor, statFor, toCalcValue } from "@/lib/rivencalc/compute";
+import type { RivenCalcData } from "@/lib/rivencalc/types";
+import type { Tier } from "./config";
 
 export interface BandRow { grade: Tier; from: number; to: number; fromPct: number; toPct: number }
 
@@ -57,16 +55,17 @@ const ungraded = (stat: RivenStat, valueAtMax: number, text: string, extra: Part
 });
 
 /**
- * Grade every stat of a riven with the Codex calculator's method:
- *   center = base(stat, weapon category) × layout multiplier;  range = center × 0.9 .. × 1.1;
- *   grade  = the calculator's band that the roll's deviation from center falls in.
+ * Grade every stat of a riven with browse.wf's Riven Calculator data:
+ *   range  = the calculator's min–max for this weapon type, layout and stat (a ±10% roll around the center);
+ *   grade  = the band that the roll's deviation from the center falls in. A curse is graded the way the calculator
+ *            grades it: the milder the penalty, the higher the grade.
  * Each stat is graded independently; there is no riven-wide grade.
  */
 export function gradeRiven(
   riven: { rank: number; stats: RivenStat[] },
   weapon: { name: string; riven_type: string; group_name?: string | null },
   attrs: Map<string, RivenAttribute>,
-  data: CodexRivenData | null,
+  data: RivenCalcData | null,
 ): StatGrade[] {
   const positives = riven.stats.filter((s) => !s.is_negative).length;
   const negatives = riven.stats.length - positives;
@@ -83,38 +82,36 @@ export function gradeRiven(
     if (!data) return ungraded(stat, valueAtMax, `${base}: grading data isn’t loaded yet.`);
     const cat = categoryForWeapon(data, weapon);
     if (!cat) return ungraded(stat, valueAtMax, `${base}: couldn’t work out ${weapon.name}’s weapon type, so it can’t be graded.`);
-    const catName = data.categories[cat.index];
     const layout = layoutFor(data, positives, negatives);
     if (!layout) return ungraded(stat, valueAtMax, `${base}: a riven with ${positives} positive and ${negatives} negative stats isn’t a layout the calculator covers.`, { note: cat.note });
 
-    const codexName = data.statSlugs[stat.stat];
-    const codexStat = codexName ? findStat(data, codexName) : undefined;
-    if (!codexStat) return ungraded(stat, valueAtMax, `${base}: no reference data for this stat.`, { note: cat.note });
-    const center = centerFor(data, codexStat, cat.index, layout, stat.is_negative);
-    if (center == null) return ungraded(stat, valueAtMax, `${base}: ${name} can’t roll on ${catName} weapons, so there’s no range to grade against. Check the weapon and stat.`, { note: cat.note });
+    const found = statFor(data, stat.stat, cat.id, stat.is_negative, layout.id);
+    if (found.kind === "unlisted") return ungraded(stat, valueAtMax, `${base}: the calculator has no range for this stat, so it can’t be graded.`, { note: cat.note });
+    if (found.kind === "cannot-roll") return ungraded(stat, valueAtMax, `${base}: the calculator doesn’t list ${name} as a ${stat.is_negative ? "negative" : "positive"} stat on ${cat.name} weapons, so there’s no range to grade against. Check the weapon and stat.`, { note: cat.note });
 
-    const r = rollRange(data, center);
-    const dev = deviationPct(toCalcValue(valueAtMax, codexStat.unit), center);
-    const flip = stat.is_negative && NEGATIVE_STAT_GRADING === "benefit";
+    const { stat: def, range: raw } = found;
+    const center = centerOf(raw, def.unit);
+    const dev = deviationPct(toCalcValue(valueAtMax, def.unit), center);
+    const flip = stat.is_negative && data.curseGrading === "inverted";
     const effDev = flip ? -dev : dev;
     const band = bandFor(data, effDev);
     const lo = data.gradeBands[0].lower, hi = data.gradeBands[data.gradeBands.length - 1].upper;
     const pct = Math.min(1, Math.max(0, (effDev - lo) / (hi - lo)));
-    const outOfRange = Math.abs(dev) > hi + OUT_OF_RANGE_TOLERANCE;
+    const outOfRange = Math.abs(dev) > data.outOfRangeDeviation;
 
-    const dLo = toDisplayValue(r.lo, codexStat.unit), dHi = toDisplayValue(r.hi, codexStat.unit);
-    const range = { min: Math.min(dLo, dHi), max: Math.max(dLo, dHi) };
-    const ends = flip ? { worst: dHi, best: dLo } : { worst: dLo, best: dHi };
-    const bands = bandValueRanges(data, center, codexStat.unit).map((b) => ({ ...b, grade: b.grade as Tier }));
+    // raw = [value at the lowest roll multiplier, value at the highest]; for curses the first is the milder penalty.
+    const range = { min: Math.min(raw[0], raw[1]), max: Math.max(raw[0], raw[1]) };
+    const ends = flip ? { worst: raw[1], best: raw[0] } : { worst: raw[0], best: raw[1] };
+    const bands = bandValueRanges(data, center, def.unit).map((b) => ({ ...b, grade: b.grade as Tier }));
     const rangeText = fmtRange(range.min, range.max, wfmUnit);
 
     let explanation = `${base} is ${position(pct)} this weapon’s ${rangeText} range → ${band.grade}`;
-    if (stat.is_negative && !flip) explanation += " (on a negative stat the grade follows roll size: a high grade is a bigger penalty)";
+    if (stat.is_negative && flip) explanation += " (on a negative stat a milder penalty grades higher)";
     if (outOfRange) explanation += " (outside the possible range — check the value and rank)";
 
     return {
       stat: stat.stat, valueAtMax, tier: band.grade as Tier, pct, range, ends, bands, outOfRange,
-      context: `${catName} · ${layout.positives} positive${layout.negatives ? ", 1 negative" : ""}`,
+      context: `${cat.name} · ${layout.buffs} positive${layout.buffs === 1 ? "" : "s"}${layout.curses ? ", 1 negative" : ""}`,
       note: cat.note, explanation,
     };
   });

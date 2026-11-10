@@ -2,7 +2,7 @@ import "server-only";
 import { wfmGet } from "./client";
 import { citedListings, estimate, findComparables, type Estimate, type Listing, type WfmAuction } from "./comparables";
 import { gradeRiven } from "@/lib/grading/grade";
-import type { CodexRivenData } from "@/lib/codex/types";
+import type { RivenCalcData } from "@/lib/rivencalc/types";
 import type { Riven, RivenAttribute } from "@/lib/types";
 
 export interface RivenMarketResult {
@@ -53,7 +53,7 @@ export function auctionQueries(riven: Pick<Riven, "weapon_slug" | "stats">): str
 export async function priceRiven(
   riven: Riven,
   attributes: RivenAttribute[],
-  opts: { force?: boolean; grading?: { weapon: { name: string; riven_type: string; group_name?: string | null }; data: CodexRivenData | null } } = {},
+  opts: { force?: boolean; grading?: { weapon: { name: string; riven_type: string; group_name?: string | null }; data: RivenCalcData | null } } = {},
 ): Promise<RivenMarketResult> {
   const unit = new Map(attributes.map((a) => [a.slug, a.unit]));
   const queries = auctionQueries(riven);

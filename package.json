@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "price-check": "tsx --conditions=react-server scripts/price-check.ts",
     "sync:wiki-arcanes": "tsx scripts/sync-wiki-arcanes.ts",
-    "sync:codex-riven": "tsx scripts/sync-codex-riven.ts"
+    "sync:rivencalc": "tsx scripts/sync-rivencalc.ts",
+    "verify:rivencalc": "node scripts/verify-rivencalc.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { RivenStats } from "@/components/riven-stats";
 import { gradeRiven, type StatGrade } from "@/lib/grading/grade";
-import { CODEX_FIXTURE } from "@/lib/codex/fixture";
+import { RIVENCALC_FIXTURE } from "@/lib/rivencalc/fixture";
 import type { RivenAttribute, RivenStat } from "@/lib/types";
 
-// An example result, computed with the real grading code on real Codex numbers (rifle, 2 positive + 1 negative).
+// An example result, computed with the real grading code on real browse.wf calculator numbers (rifle, 2 positive + 1 negative).
 // The riven itself is made up and labelled "Example".
 const attr = (slug: string, name: string): [string, RivenAttribute] => [slug, { slug, name, unit: "percent", exclusive_to: null, positive_only: false, inverted: false, prefix: null, suffix: null }];
 const ATTRS = new Map([attr("critical_chance", "Critical Chance"), attr("critical_damage", "Critical Damage"), attr("zoom", "Zoom")]);
@@ -13,10 +13,10 @@ const STATS: RivenStat[] = [
   { stat: "critical_damage", value: 171.0, is_negative: false },
   { stat: "zoom", value: -33.1, is_negative: true },
 ];
-const GRADES: StatGrade[] = gradeRiven({ rank: 8, stats: STATS }, { name: "Soma", riven_type: "rifle" }, ATTRS, CODEX_FIXTURE);
+const GRADES: StatGrade[] = gradeRiven({ rank: 8, stats: STATS }, { name: "Soma", riven_type: "rifle" }, ATTRS, RIVENCALC_FIXTURE);
 
 const FEATURES = [
-  { n: "01", title: "Every stat graded", body: "Not one vague grade for the whole riven. Each roll is placed between the lowest and highest it could have rolled, using the Codex calculator’s bands (S, A+ … F)." },
+  { n: "01", title: "Every stat graded", body: "Not one vague grade for the whole riven. Each roll is placed between the lowest and highest it could have rolled, using the browse.wf calculator’s bands (S, A+ … F)." },
   { n: "02", title: "Real listings, no guesswork", body: "Price ranges come from live Warframe Market listings, and you can see exactly which ones. No listings, no number." },
   { n: "03", title: "Account optional", body: "Check as many rivens as you like without signing up. Make an account only if you want to save them." },
 ];

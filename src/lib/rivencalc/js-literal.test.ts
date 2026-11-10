@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { balancedLiteral, parseJsLiteral } from "./js-literal";
 
 describe("parseJsLiteral", () => {
-  it("parses the shapes the Codex tables use", () => {
+  it("parses the shapes the calculator tables use", () => {
     expect(parseJsLiteral("[['Damage vs Corpus',.45,.45,null,'x'],['Crit',149.99,90,null,'%']]")).toEqual([["Damage vs Corpus", 0.45, 0.45, null, "x"], ["Crit", 149.99, 90, null, "%"]]);
     expect(parseJsLiteral("[{id:'2/1',p:2,n:1,b:1.2375,m:-.495},]")).toEqual([{ id: "2/1", p: 2, n: 1, b: 1.2375, m: -0.495 }]);
   });

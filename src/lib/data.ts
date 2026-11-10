@@ -29,19 +29,17 @@ export async function currentUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
-import type { CodexRivenData } from "@/lib/codex/types";
+import type { RivenCalcData } from "@/lib/rivencalc/types";
+import rivenCalc from "../../data/rivencalc.json";
 
-let gradingCache: { at: number; data: CodexRivenData | null } | null = null;
-
-/** The real riven grading data (synced from the Codex Riven Calculator). Cached briefly per server instance. */
-export async function getGradingData(): Promise<CodexRivenData | null> {
-  if (gradingCache && Date.now() - gradingCache.at < 10 * 60 * 1000) return gradingCache.data;
-  const sb = await createClient();
-  const { data } = await sb.from("riven_grading_data").select("data").eq("id", "codex").maybeSingle();
-  const d = (data?.data ?? null) as CodexRivenData | null;
-  const ok = !!d && Array.isArray(d.stats) && Array.isArray(d.layouts) && Array.isArray(d.gradeBands) && d.gradeBands.length > 0;
-  gradingCache = { at: Date.now(), data: ok ? d : null };
-  return gradingCache.data;
+/**
+ * The riven grading data: browse.wf's Riven Calculator, tabulated into data/rivencalc.json by `npm run sync:rivencalc`.
+ * It ships with the app (no database round-trip) and is null only if the file is malformed.
+ */
+export async function getGradingData(): Promise<RivenCalcData | null> {
+  const d = rivenCalc as unknown as RivenCalcData;
+  const ok = Array.isArray(d.stats) && Array.isArray(d.layouts) && Array.isArray(d.categories) && Array.isArray(d.gradeBands) && d.gradeBands.length > 0 && !!d.ranges && !!d.statSlugs;
+  return ok ? d : null;
 }
 
 export interface ArcaneRow {

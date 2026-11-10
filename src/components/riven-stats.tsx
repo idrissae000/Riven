@@ -70,7 +70,7 @@ export function RivenStats({ stats, attrs, grades }: { stats: RivenStat[]; attrs
       {notes.map((n) => <p key={n} className="mt-4 border border-line-2 bg-panel-2/60 p-2.5 text-xs leading-relaxed text-dim">{n}</p>)}
       {grades.some((g) => g.tier) && (
         <p className="mt-4 text-[0.7rem] leading-relaxed text-dim">
-          Grades follow the Codex Riven Calculator’s bands and describe roll size, not usefulness. Ranges are for a max-rank riven.
+          Grades follow the browse.wf Riven Calculator and say how high a roll is within its possible range, not how useful the stat is. Ranges are for a max-rank riven.
         </p>
       )}
     </>
