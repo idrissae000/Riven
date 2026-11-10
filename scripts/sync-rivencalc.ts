@@ -7,20 +7,28 @@
  * same files, read them as text/JSON (never executed), confirm the formulas, and tabulate the result — see
  * src/lib/rivencalc/parse.ts. If the source changes shape the script throws instead of guessing.
  *
+ * Stats browse.wf has no range for are filled in from the Unified-Codex Riven Calculator (a labelled fallback, see
+ * src/lib/rivencalc/fallback.ts); anything browse.wf lists always wins.
+ *
  *   npm run sync:rivencalc                      # fetch the latest and rewrite data/rivencalc.json (commit the result)
  *   npm run sync:rivencalc -- --check           # fetch + compare, change nothing; exit 1 if the file is out of date
  *   npm run sync:rivencalc -- --dir path        # use saved copies (page.html, RivenParser.js, ExportUpgrades.json,
- *                                               #   ExportWeapons.json, dict.en.json) instead of fetching
+ *                                               #   ExportWeapons.json, dict.en.json, codex.html) instead of fetching
  *   npm run sync:rivencalc -- --save-dir path   # also keep the downloaded copies there
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseCodexRiven } from "../src/lib/codex-fallback/parse";
+import { buildFallback } from "../src/lib/rivencalc/fallback";
 import { buildRivenCalc } from "../src/lib/rivencalc/parse";
 import type { RivenCalcData } from "../src/lib/rivencalc/types";
 
 const OUT = "data/rivencalc.json";
 const PAGE = "https://browse.wf/rivencalc";
+const CODEX_REPO = "Unified-Codex/Codex-Calculators";
+const CODEX_PAGE = "https://unified-codex.github.io/Codex-Calculators/?tool=riven";
+const CODEX_SOURCES = [`https://raw.githubusercontent.com/${CODEX_REPO}/main/index.html`, "https://unified-codex.github.io/Codex-Calculators/index.html"];
 const UA = "RivenBuddy/0.1 (personal tool; rivencalc sync script)";
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
@@ -61,6 +69,13 @@ async function main() {
     }
   }
 
+  let codexHtml: string | null = null;
+  if (dir) { if (existsSync(join(dir, "codex.html"))) codexHtml = readFileSync(join(dir, "codex.html"), "utf8"); }
+  else {
+    for (const u of CODEX_SOURCES) { try { codexHtml = await get(u); break; } catch (e) { console.warn(`  could not fetch ${u}: ${e instanceof Error ? e.message : e}`); } }
+    if (codexHtml && saveDir) writeFileSync(join(saveDir, "codex.html"), codexHtml);
+  }
+
   const statMap = (JSON.parse(readFileSync("data/rivencalc-stat-map.json", "utf8")) as { stats: Record<string, string | string[]> }).stats;
   const { data, warnings } = buildRivenCalc(
     { pageHtml, parserJs, upgrades: JSON.parse(upgradesTxt), weapons: JSON.parse(weaponsTxt), dict: JSON.parse(dictTxt) },
@@ -71,6 +86,14 @@ async function main() {
     },
     statMap,
   );
+
+  if (codexHtml) {
+    const codexMap = (JSON.parse(readFileSync("data/codex-stat-map.json", "utf8")) as { stats: Record<string, string> }).stats;
+    const codex = parseCodexRiven(codexHtml, { url: CODEX_PAGE, repo: CODEX_REPO }, codexMap);
+    const { fallback, filled } = buildFallback(codex, data, codexMap, { name: "Unified-Codex Riven Calculator", url: CODEX_PAGE, repo: CODEX_REPO, commit: null, version: codex.source.version, sha256: codex.source.sha256, fetchedAt: data.source.fetchedAt });
+    data.fallback = fallback;
+    console.log(`  fallback (Unified-Codex ${codex.source.version ?? "?"}, sha256 ${codex.source.sha256.slice(0, 12)}): ${filled.length} stats get their range from it where browse.wf has none: ${filled.join(", ")}`);
+  } else console.warn("  ! no Codex source available — stats browse.wf lacks will be ungraded");
 
   const cells = Object.values(data.ranges).reduce((n, c) => n + Object.values(c).reduce((m, l) => m + Object.keys(l.buffs).length + Object.keys(l.curses).length, 0), 0);
   console.log(`  RivenParser.js sha256 ${data.source.sha256.parser.slice(0, 12)} · page ${data.source.sha256.page.slice(0, 12)}`);
@@ -83,13 +106,15 @@ async function main() {
   const wfmPath = "data/generated/riven_attributes.json";
   if (existsSync(wfmPath)) {
     const wfm = (JSON.parse(readFileSync(wfmPath, "utf8")) as { slug: string }[]).map((a) => a.slug);
-    const unmapped = wfm.filter((s) => !data.statSlugs[s]);
-    if (unmapped.length) console.warn(`  note: Warframe Market riven stats the calculator doesn't list (they show as ungraded): ${unmapped.join(", ")}`);
+    const unmapped = wfm.filter((s) => !data.statSlugs[s] && !data.fallback?.units[s]);
+    if (unmapped.length) console.warn(`  note: Warframe Market riven stats with no range in either source (ungraded): ${unmapped.join(", ")}`);
+    else console.log(`  every Warframe Market riven stat has a range in at least one source`);
   }
 
   // Keep fetchedAt unless something real changed, so re-running on an unchanged source leaves no diff.
   const prev = existsSync(OUT) ? (JSON.parse(readFileSync(OUT, "utf8")) as RivenCalcData) : null;
-  const same = prev && serialize({ ...data, source: { ...data.source, fetchedAt: prev.source.fetchedAt } }) === serialize(prev);
+  const keepTimes = (d: RivenCalcData): RivenCalcData => ({ ...d, source: { ...d.source, fetchedAt: prev!.source.fetchedAt }, ...(d.fallback ? { fallback: { ...d.fallback, source: { ...d.fallback.source, fetchedAt: prev!.fallback?.source.fetchedAt ?? "" } } } : {}) });
+  const same = prev && serialize(keepTimes(data)) === serialize(keepTimes(prev));
   if (flag("--check")) {
     console.log(same ? `${OUT} is up to date.` : `${OUT} is OUT OF DATE with browse.wf — run npm run sync:rivencalc and commit the result.`);
     process.exit(same ? 0 : 1);

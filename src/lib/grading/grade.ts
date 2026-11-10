@@ -89,7 +89,7 @@ export function gradeRiven(
     if (found.kind === "unlisted") return ungraded(stat, valueAtMax, `${base}: the calculator has no range for this stat, so it can’t be graded.`, { note: cat.note });
     if (found.kind === "cannot-roll") return ungraded(stat, valueAtMax, `${base}: the calculator doesn’t list ${name} as a ${stat.is_negative ? "negative" : "positive"} stat on ${cat.name} weapons, so there’s no range to grade against. Check the weapon and stat.`, { note: cat.note });
 
-    const { stat: def, range: raw } = found;
+    const { stat: def, range: raw, fallback } = found;
     const center = centerOf(raw, def.unit);
     const dev = deviationPct(toCalcValue(valueAtMax, def.unit), center);
     const flip = stat.is_negative && data.curseGrading === "inverted";
@@ -108,11 +108,12 @@ export function gradeRiven(
     let explanation = `${base} is ${position(pct)} this weapon’s ${rangeText} range → ${band.grade}`;
     if (stat.is_negative && flip) explanation += " (on a negative stat a milder penalty grades higher)";
     if (outOfRange) explanation += " (outside the possible range — check the value and rank)";
+    const fbNote = fallback ? `${name}: browse.wf has no range for this, so it was graded against the Unified-Codex calculator’s range.` : null;
 
     return {
       stat: stat.stat, valueAtMax, tier: band.grade as Tier, pct, range, ends, bands, outOfRange,
       context: `${cat.name} · ${layout.buffs} positive${layout.buffs === 1 ? "" : "s"}${layout.curses ? ", 1 negative" : ""}`,
-      note: cat.note, explanation,
+      note: [cat.note, fbNote].filter(Boolean).join(" ") || null, explanation,
     };
   });
 }

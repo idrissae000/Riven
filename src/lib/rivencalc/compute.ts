@@ -14,14 +14,24 @@ export function layoutFor(data: RivenCalcData, buffs: number, curses: number) {
   return data.layouts.find((l) => l.buffs === buffs && l.curses === curses) ?? null;
 }
 
-/** The calculator's stat for a Warframe Market slug in this category (a slug can have a ranged and a melee tag). */
-export function statFor(data: RivenCalcData, slug: string, categoryId: string, isCurse: boolean, layoutId: string) {
+/**
+ * The range for a Warframe Market stat in this category + layout: browse.wf's, or — only where browse.wf has none —
+ * the Unified-Codex fallback ranges.
+ */
+export function statFor(data: RivenCalcData, slug: string, categoryId: string, isCurse: boolean, layoutId: string):
+  | { kind: "unlisted" }
+  | { kind: "cannot-roll"; tag: string }
+  | { kind: "ok"; tag: string; stat: StatDef; range: [number, number]; fallback: boolean } {
+  const kind = isCurse ? "curses" : "buffs";
   const tags = data.statSlugs[slug];
-  if (!tags) return { kind: "unlisted" as const };
-  const table = data.ranges[categoryId]?.[layoutId]?.[isCurse ? "curses" : "buffs"] ?? {};
-  const tag = tags.find((t) => t in table);
-  if (!tag) return { kind: "cannot-roll" as const, tag: tags[0] };
-  return { kind: "ok" as const, tag, stat: findStat(data, tag)!, range: table[tag] };
+  if (tags) {
+    const table = data.ranges[categoryId]?.[layoutId]?.[kind] ?? {};
+    const tag = tags.find((t) => t in table);
+    if (tag) return { kind: "ok", tag, stat: findStat(data, tag)!, range: table[tag], fallback: false };
+  }
+  const fb = data.fallback?.ranges[categoryId]?.[layoutId]?.[kind]?.[slug];
+  if (fb) return { kind: "ok", tag: slug, stat: { tag: slug, name: slug, unit: data.fallback!.units[slug] ?? "" }, range: fb, fallback: true };
+  return tags || slug in (data.fallback?.units ?? {}) ? { kind: "cannot-roll", tag: tags?.[0] ?? slug } : { kind: "unlisted" };
 }
 
 /** "x" stats are shown as ×(1+x); deviation is measured on the part above ×1. */

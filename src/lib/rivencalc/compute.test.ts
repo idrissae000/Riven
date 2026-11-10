@@ -51,6 +51,16 @@ describe("ranges", () => {
     const r = statFor(D, "damage_vs_infested", RIFLE, false, "3/1");
     expect(r.kind === "ok" && centerOf(r.range, r.stat.unit)).toBeCloseTo(0.5062, 3);
   });
+  it("the Unified-Codex fallback only fills gaps", () => {
+    const blast = statFor(D, "blast", RIFLE, false, "2/0");
+    expect(blast.kind === "ok" && blast.fallback).toBe(true);
+    expect(blast.kind === "ok" && blast.range[0]).toBeCloseTo(96.228, 2); // 90 × 1.2 × 0.99 × 0.9
+    const zoom = statFor(D, "zoom", RIFLE, false, "2/0");
+    expect(zoom.kind === "ok" && zoom.fallback).toBe(false); // browse.wf has it for rifles
+    const sg = statFor(D, "zoom", "LotusShotgunRandomModRare", false, "2/0");
+    expect(sg.kind === "ok" && sg.fallback).toBe(true); // …but not for shotguns
+    expect(D.fallback!.ranges[RIFLE]["1/1"]).toBeUndefined(); // the Codex has no 1+/1- layout
+  });
   it("deviation is sign-safe", () => {
     expect(deviationPct(-110, -100)).toBeCloseTo(10);
     expect(deviationPct(90, 100)).toBeCloseTo(-10);
@@ -60,7 +70,8 @@ describe("ranges", () => {
     const melee = statFor(D, "base_damage_/_melee_damage", "PlayerMeleeWeaponRandomModRare", false, "2/0");
     expect(rifle.kind === "ok" && rifle.tag).toBe("WeaponDamageAmountMod");
     expect(melee.kind === "ok" && melee.tag).toBe("WeaponMeleeDamageMod");
-    expect(statFor(D, "blast", RIFLE, false, "2/0").kind).toBe("unlisted");
+    expect(statFor(D, "nope", RIFLE, false, "2/0").kind).toBe("unlisted");
+    expect(statFor(D, "blast", RIFLE, true, "2/1").kind).toBe("cannot-roll"); // a fallback stat that can't be a penalty
     expect(statFor(D, "combo_duration", RIFLE, false, "2/0").kind).toBe("cannot-roll");
   });
 });

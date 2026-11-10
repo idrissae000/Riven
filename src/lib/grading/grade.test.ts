@@ -118,10 +118,34 @@ describe("gradeRiven with the browse.wf calculator data", () => {
     expect(g.explanation).toContain("doesn’t list Combo Duration");
   });
 
-  it("ungraded when the calculator doesn't know the stat", () => {
-    const g = rifle([S("blast", 50), S("critical_chance", 100)])[0];
+  it("ungraded when neither source knows the stat", () => {
+    const g = rifle([S("nope", 50), S("critical_chance", 100)])[0];
     expect(g.tier).toBeNull();
     expect(g.explanation).toContain("no range for this stat");
+  });
+
+  it("stats browse.wf lacks are graded from the Unified-Codex ranges, and say so", () => {
+    // Codex: Blast on a rifle, layout 2/0: 90 × 1.2 × 0.99 = 106.92 center
+    const blast = rifle([S("blast", 106.92), S("critical_chance", 178.19)])[0];
+    expect(blast.tier).toBe("B");
+    expect(blast.range!.min).toBeCloseTo(96.228, 2);
+    expect(blast.range!.max).toBeCloseTo(117.612, 2);
+    expect(blast.note).toContain("Unified-Codex");
+    expect(rifle([S("blast", 117.6), S("critical_chance", 178.19)])[0].tier).toBe("S");
+  });
+
+  it("fills only the gaps: Zoom on shotguns comes from the Codex, on rifles from browse.wf", () => {
+    const hek = { name: "Hek", riven_type: "shotgun" };
+    const sg = gradeRiven({ rank: 8, stats: [S("zoom", 49.889), S("critical_chance", 100)] }, hek, attrs, D)[0];
+    expect(sg.tier).toBe("B");
+    expect(sg.note).toContain("Unified-Codex");
+    const rf = rifle([S("zoom", 71.99), S("critical_chance", 100)])[0];
+    expect(rf.note).toBeNull();
+  });
+
+  it("a fallback stat that can't roll as a penalty is ungraded, not mis-graded", () => {
+    const g = rifle([S("critical_chance", 100), S("critical_damage", 100), S("blast", -20, true)]).at(-1)!;
+    expect(g.tier).toBeNull();
   });
 
   it("ungraded when data isn't loaded or the layout isn't tabulated", () => {

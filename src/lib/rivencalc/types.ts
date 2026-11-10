@@ -46,6 +46,12 @@ export interface RivenCalcData {
   ranges: Record<string, Record<string, LayoutRanges>>;
   /** Weapon name (as the calculator lists it) → category id. */
   weapons: { name: string; category: string }[];
+  /**
+   * Ranges for stats (or stat/category cells) browse.wf does not list, taken from the Unified-Codex Riven Calculator
+   * instead, keyed by Warframe Market slug. Only the four standard layouts exist there (no 1/1). Used only when
+   * `ranges` has nothing for that stat; grading is otherwise identical.
+   */
+  fallback?: RivenCalcFallback;
   /** Warframe Market riven attribute slug → the calculator's stat tag(s); a slug can map to a ranged and a melee tag. */
   statSlugs: Record<string, string[]>;
 }
@@ -68,4 +74,12 @@ export interface GradeBand {
   /** Deviation from the center, in percent. The lowest band's lower bound is the bottom of the roll range (-10). */
   lower: number;
   upper: number;
+}
+
+export interface RivenCalcFallback {
+  source: { name: string; url: string; repo: string; commit: string | null; version: string | null; sha256: string; fetchedAt: string };
+  /** How a player sees each fallback stat's number. */
+  units: Record<string, StatDef["unit"]>;
+  /** ranges[categoryId][layoutId] = { buffs: { slug: [atRoll0.9, atRoll1.1] }, curses: { slug: [...] } } — same shape as `ranges`, keyed by slug. */
+  ranges: Record<string, Record<string, LayoutRanges>>;
 }
