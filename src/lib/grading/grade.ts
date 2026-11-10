@@ -1,52 +1,36 @@
 import { toMaxRank } from "@/lib/rank";
 import { fmtStat } from "@/lib/format";
 import type { RivenAttribute, RivenStat } from "@/lib/types";
-import { DEFAULT_WEAPON, TIER_THRESHOLDS, type Tier } from "./config";
+import {
+  bandFor, bandValueRanges, categoryForWeapon, centerFor, deviationPct, findStat, layoutFor, rollRange, toCalcValue, toDisplayValue,
+} from "@/lib/codex/compute";
+import type { CodexRivenData } from "@/lib/codex/types";
+import { NEGATIVE_STAT_GRADING, OUT_OF_RANGE_TOLERANCE, type Tier } from "./config";
 
-export interface GradeRange {
-  weapon_slug: string;
-  stat_slug: string;
-  is_negative: boolean;
-  min_roll: number; // signed, as displayed at max rank; min_roll <= max_roll
-  max_roll: number;
-  is_placeholder: boolean;
-}
+export interface BandRow { grade: Tier; from: number; to: number; fromPct: number; toPct: number }
 
 export interface StatGrade {
   stat: string;
-  /** Value normalised to max rank (what the range is defined against). */
+  /** Value normalised to max rank (what the calculator's ranges are defined against). */
   valueAtMax: number;
   tier: Tier | null;
-  /** 0 = worst possible roll, 1 = best possible roll; clamped. null when ungraded. */
+  /** Position inside the roll range, 0 = worst end, 1 = best end (clamped). null when ungraded. */
   pct: number | null;
+  /** Lowest/highest possible roll for this weapon type + layout, as displayed (signed). */
   range: { min: number; max: number } | null;
-  placeholder: boolean;
-  /** Value fell outside the known range — a sign the range data needs checking. */
+  /** Values at the two ends of the gauge: where pct = 0 and where pct = 1. */
+  ends: { worst: number; best: number } | null;
+  /** The calculator's grade table for this stat (best grade first) — shown in the "grade bands" panel. */
+  bands: BandRow[];
+  /** Value fell outside the possible range — usually a mistyped value or the wrong rank. */
   outOfRange: boolean;
+  /** Context such as "Weapon type: Rifle · layout 3 positive, 1 negative". */
+  context: string | null;
+  /** Caveats about how the weapon category was chosen. */
+  note: string | null;
   explanation: string;
 }
 
-export function tierForPct(pct: number): Tier {
-  for (const t of TIER_THRESHOLDS) if (pct >= t.min) return t.tier;
-  return "F";
-}
-
-/** weapon-specific row first, then the '*' default. */
-export function lookupRange(ranges: GradeRange[], weapon: string, stat: string, isNegative: boolean): GradeRange | null {
-  const hit = (w: string) => ranges.find((r) => r.weapon_slug === w && r.stat_slug === stat && r.is_negative === isNegative);
-  return hit(weapon) ?? hit(DEFAULT_WEAPON) ?? null;
-}
-
-function position(pct: number): string {
-  if (pct >= 0.9) return "near the top of";
-  if (pct >= 0.75) return "in the upper part of";
-  if (pct >= 0.55) return "above the middle of";
-  if (pct >= 0.35) return "around the middle of";
-  if (pct >= 0.15) return "in the lower part of";
-  return "near the bottom of";
-}
-
-/** Unsigned display, matching in-game wording: "112%", "x1.48", "30s". */
 const plain = (v: number, unit: string | null | undefined) => fmtStat(v, unit).replace(/^\+/, "");
 
 /** "56–115%" / "x1.48–x1.59" / "-60% to -30%" — avoids a confusing "–-". */
@@ -56,59 +40,82 @@ function fmtRange(min: number, max: number, unit: string | null | undefined): st
   return suffix ? `${plain(min, unit).slice(0, -1)}–${plain(max, unit)}` : `${plain(min, unit)}–${plain(max, unit)}`;
 }
 
-/**
- * Grade ONE stat independently of the others, by where its rolled value falls between
- * the known min and max roll for that weapon/stat, on a linear scale.
- *
- * Direction: higher is better — except for `inverted` attributes (Weapon Recoil), where
- * lower is better. That single rule also covers curses: a curse of -30 beats -60 because
- * -30 is the larger number.
- */
-export function gradeStat(
-  stat: RivenStat,
-  rank: number,
-  weaponSlug: string,
-  weaponName: string,
-  attr: RivenAttribute | undefined,
-  ranges: GradeRange[],
-): StatGrade {
-  const name = attr?.name ?? stat.stat;
-  const unit = attr?.unit;
-  const valueAtMax = toMaxRank(stat.value, rank, unit);
-  const range = lookupRange(ranges, weaponSlug, stat.stat, stat.is_negative);
-  const shown = plain(valueAtMax, unit);
-  const scaled = rank < 8 ? ` (scaled to max rank from ${plain(stat.value, unit)} at rank ${rank})` : "";
-
-  if (!range || range.max_roll <= range.min_roll) {
-    return {
-      stat: stat.stat, valueAtMax, tier: null, pct: null, range: null, placeholder: false, outOfRange: false,
-      explanation: `${shown} ${name}${scaled}: no roll range on file for ${weaponName}, so it can’t be graded yet.`,
-    };
-  }
-
-  const { min_roll: min, max_roll: max } = range;
-  const raw = attr?.inverted ? (max - valueAtMax) / (max - min) : (valueAtMax - min) / (max - min);
-  const pct = Math.min(1, Math.max(0, raw));
-  const tier = tierForPct(pct);
-  const outOfRange = raw < -0.02 || raw > 1.02;
-  const r = fmtRange(min, max, unit);
-
-  let explanation: string;
-  if (stat.is_negative) {
-    const severity = pct >= 0.65 ? "a mild" : pct >= 0.35 ? "a moderate" : "a harsh";
-    explanation = `${shown} ${name}${scaled} is ${severity} penalty — ${position(pct)} this weapon’s ${r} penalty range (smaller is better) → ${tier}`;
-  } else {
-    explanation = `${shown} ${name}${scaled} is ${position(pct)} this weapon’s ${r} range → ${tier}`;
-  }
-  if (outOfRange) explanation += " (outside the known range — check the range data)";
-  return { stat: stat.stat, valueAtMax, tier, pct, range: { min, max }, placeholder: range.is_placeholder, outOfRange, explanation };
+function position(pct: number): string {
+  if (pct >= 0.975) return "at the very top of";
+  if (pct >= 0.875) return "near the top of";
+  if (pct >= 0.675) return "in the upper part of";
+  if (pct >= 0.575) return "slightly above the middle of";
+  if (pct >= 0.425) return "around the middle of";
+  if (pct >= 0.325) return "slightly below the middle of";
+  if (pct >= 0.125) return "in the lower part of";
+  if (pct >= 0.025) return "near the bottom of";
+  return "at the very bottom of";
 }
 
+const ungraded = (stat: RivenStat, valueAtMax: number, text: string, extra: Partial<StatGrade> = {}): StatGrade => ({
+  stat: stat.stat, valueAtMax, tier: null, pct: null, range: null, ends: null, bands: [], outOfRange: false, context: null, note: null, explanation: text, ...extra,
+});
+
+/**
+ * Grade every stat of a riven with the Codex calculator's method:
+ *   center = base(stat, weapon category) × layout multiplier;  range = center × 0.9 .. × 1.1;
+ *   grade  = the calculator's band that the roll's deviation from center falls in.
+ * Each stat is graded independently; there is no riven-wide grade.
+ */
 export function gradeRiven(
-  riven: { weapon_slug: string; rank: number; stats: RivenStat[] },
-  weaponName: string,
+  riven: { rank: number; stats: RivenStat[] },
+  weapon: { name: string; riven_type: string; group_name?: string | null },
   attrs: Map<string, RivenAttribute>,
-  ranges: GradeRange[],
+  data: CodexRivenData | null,
 ): StatGrade[] {
-  return riven.stats.map((s) => gradeStat(s, riven.rank, riven.weapon_slug, weaponName, attrs.get(s.stat), ranges));
+  const positives = riven.stats.filter((s) => !s.is_negative).length;
+  const negatives = riven.stats.length - positives;
+
+  return riven.stats.map((stat): StatGrade => {
+    const attr = attrs.get(stat.stat);
+    const name = attr?.name ?? stat.stat;
+    const wfmUnit = attr?.unit;
+    const valueAtMax = toMaxRank(stat.value, riven.rank, wfmUnit);
+    const shown = plain(valueAtMax, wfmUnit);
+    const scaled = riven.rank < 8 ? ` (scaled to max rank from ${plain(stat.value, wfmUnit)} at rank ${riven.rank})` : "";
+    const base = `${shown} ${name}${scaled}`;
+
+    if (!data) return ungraded(stat, valueAtMax, `${base}: grading data isn’t loaded yet.`);
+    const cat = categoryForWeapon(data, weapon);
+    if (!cat) return ungraded(stat, valueAtMax, `${base}: couldn’t work out ${weapon.name}’s weapon type, so it can’t be graded.`);
+    const catName = data.categories[cat.index];
+    const layout = layoutFor(data, positives, negatives);
+    if (!layout) return ungraded(stat, valueAtMax, `${base}: a riven with ${positives} positive and ${negatives} negative stats isn’t a layout the calculator covers.`, { note: cat.note });
+
+    const codexName = data.statSlugs[stat.stat];
+    const codexStat = codexName ? findStat(data, codexName) : undefined;
+    if (!codexStat) return ungraded(stat, valueAtMax, `${base}: no reference data for this stat.`, { note: cat.note });
+    const center = centerFor(data, codexStat, cat.index, layout, stat.is_negative);
+    if (center == null) return ungraded(stat, valueAtMax, `${base}: ${name} can’t roll on ${catName} weapons, so there’s no range to grade against. Check the weapon and stat.`, { note: cat.note });
+
+    const r = rollRange(data, center);
+    const dev = deviationPct(toCalcValue(valueAtMax, codexStat.unit), center);
+    const flip = stat.is_negative && NEGATIVE_STAT_GRADING === "benefit";
+    const effDev = flip ? -dev : dev;
+    const band = bandFor(data, effDev);
+    const lo = data.gradeBands[0].lower, hi = data.gradeBands[data.gradeBands.length - 1].upper;
+    const pct = Math.min(1, Math.max(0, (effDev - lo) / (hi - lo)));
+    const outOfRange = Math.abs(dev) > hi + OUT_OF_RANGE_TOLERANCE;
+
+    const dLo = toDisplayValue(r.lo, codexStat.unit), dHi = toDisplayValue(r.hi, codexStat.unit);
+    const range = { min: Math.min(dLo, dHi), max: Math.max(dLo, dHi) };
+    const ends = flip ? { worst: dHi, best: dLo } : { worst: dLo, best: dHi };
+    const bands = bandValueRanges(data, center, codexStat.unit).map((b) => ({ ...b, grade: b.grade as Tier }));
+    const rangeText = fmtRange(range.min, range.max, wfmUnit);
+
+    let explanation = `${base} is ${position(pct)} this weapon’s ${rangeText} range → ${band.grade}`;
+    if (stat.is_negative && !flip) explanation += " (on a negative stat the grade follows roll size: a high grade is a bigger penalty)";
+    if (outOfRange) explanation += " (outside the possible range — check the value and rank)";
+
+    return {
+      stat: stat.stat, valueAtMax, tier: band.grade as Tier, pct, range, ends, bands, outOfRange,
+      context: `${catName} · ${layout.positives} positive${layout.negatives ? ", 1 negative" : ""}`,
+      note: cat.note, explanation,
+    };
+  });
 }

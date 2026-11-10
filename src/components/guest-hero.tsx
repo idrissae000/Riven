@@ -1,24 +1,22 @@
 import Link from "next/link";
 import { RivenStats } from "@/components/riven-stats";
-import type { StatGrade } from "@/lib/grading/grade";
+import { gradeRiven, type StatGrade } from "@/lib/grading/grade";
+import { CODEX_FIXTURE } from "@/lib/codex/fixture";
 import type { RivenAttribute, RivenStat } from "@/lib/types";
 
-// A made-up example so the landing page shows what a result looks like. Clearly labelled as such.
+// An example result, computed with the real grading code on real Codex numbers (rifle, 2 positive + 1 negative).
+// The riven itself is made up and labelled "Example".
 const attr = (slug: string, name: string): [string, RivenAttribute] => [slug, { slug, name, unit: "percent", exclusive_to: null, positive_only: false, inverted: false, prefix: null, suffix: null }];
 const ATTRS = new Map([attr("critical_chance", "Critical Chance"), attr("critical_damage", "Critical Damage"), attr("zoom", "Zoom")]);
 const STATS: RivenStat[] = [
-  { stat: "critical_chance", value: 193.4, is_negative: false },
-  { stat: "critical_damage", value: 118.2, is_negative: false },
-  { stat: "zoom", value: -52.0, is_negative: true },
+  { stat: "critical_chance", value: 228.4, is_negative: false },
+  { stat: "critical_damage", value: 171.0, is_negative: false },
+  { stat: "zoom", value: -33.1, is_negative: true },
 ];
-const GRADES: StatGrade[] = [
-  { stat: "critical_chance", valueAtMax: 193.4, tier: "S", pct: 0.93, range: { min: 160, max: 196 }, placeholder: false, outOfRange: false, explanation: "193.4% Critical Chance is near the top of this weapon’s 160–196% range → S" },
-  { stat: "critical_damage", valueAtMax: 118.2, tier: "C", pct: 0.35, range: { min: 106, max: 140 }, placeholder: false, outOfRange: false, explanation: "118.2% Critical Damage is around the middle of this weapon’s 106–140% range → C" },
-  { stat: "zoom", valueAtMax: -52, tier: "F", pct: 0.08, range: { min: -60, max: -30 }, placeholder: false, outOfRange: false, explanation: "52% Zoom is a harsh penalty — near the bottom of this weapon’s -60% to -30% penalty range (smaller is better) → F" },
-];
+const GRADES: StatGrade[] = gradeRiven({ rank: 8, stats: STATS }, { name: "Soma", riven_type: "rifle" }, ATTRS, CODEX_FIXTURE);
 
 const FEATURES = [
-  { n: "01", title: "Every stat graded", body: "Not one vague grade for the whole riven. Each roll is placed between its weapon’s minimum and maximum, S down to F." },
+  { n: "01", title: "Every stat graded", body: "Not one vague grade for the whole riven. Each roll is placed between the lowest and highest it could have rolled, using the Codex calculator’s bands (S, A+ … F)." },
   { n: "02", title: "Real listings, no guesswork", body: "Price ranges come from live Warframe Market listings, and you can see exactly which ones. No listings, no number." },
   { n: "03", title: "Account optional", body: "Check as many rivens as you like without signing up. Make an account only if you want to save them." },
 ];

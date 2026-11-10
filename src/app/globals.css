@@ -158,6 +158,9 @@ main > *:nth-child(n + 5) { animation-delay: 0.2s; }
 .hex > span { position: relative; }
 .hex-md { width: 2.75rem; height: 2.5rem; font-size: 1.35rem; }
 .hex-sm { width: 1.7rem; height: 1.55rem; font-size: 0.85rem; }
+/* two-character grades (A+, B-, C+ …) */
+.hex-md.hex-long { font-size: 1.02rem; letter-spacing: -0.04em; }
+.hex-sm.hex-long { font-size: 0.62rem; letter-spacing: -0.06em; }
 @keyframes s-glow { 0%, 100% { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--tier) 40%, transparent)); } 50% { filter: drop-shadow(0 0 12px color-mix(in srgb, var(--tier) 75%, transparent)); } }
 .hex-wrap[data-tier="S"] { animation: s-glow 3.2s ease-in-out infinite; }
 

@@ -1,106 +1,98 @@
 import { describe, expect, it } from "vitest";
-import { gradeRiven, gradeStat, lookupRange, tierForPct, type GradeRange } from "./grade";
-import type { RivenAttribute } from "@/lib/types";
+import { gradeRiven } from "./grade";
+import { CODEX_FIXTURE } from "@/lib/codex/fixture";
+import type { RivenAttribute, RivenStat } from "@/lib/types";
 
 const attr = (slug: string, name: string, extra: Partial<RivenAttribute> = {}): RivenAttribute => ({
   slug, name, unit: "percent", exclusive_to: null, positive_only: false, inverted: false, prefix: null, suffix: null, ...extra,
 });
 const attrs = new Map([
+  ["base_damage_/_melee_damage", attr("base_damage_/_melee_damage", "Damage")],
   ["critical_chance", attr("critical_chance", "Critical Chance")],
-  ["toxin_damage", attr("toxin_damage", "Toxin")],
+  ["critical_damage", attr("critical_damage", "Critical Damage")],
   ["zoom", attr("zoom", "Zoom")],
   ["recoil", attr("recoil", "Weapon Recoil", { inverted: true })],
-  ["damage_vs_infested", attr("damage_vs_infested", "Damage to Infested", { unit: "multiply" })],
+  ["combo_duration", attr("combo_duration", "Combo Duration", { unit: "seconds" })],
 ]);
-const R = (stat: string, min: number, max: number, extra: Partial<GradeRange> = {}): GradeRange =>
-  ({ weapon_slug: "soma", stat_slug: stat, is_negative: false, min_roll: min, max_roll: max, is_placeholder: false, ...extra });
+const S = (stat: string, value: number, is_negative = false): RivenStat => ({ stat, value, is_negative });
+const SOMA = { name: "Soma", riven_type: "rifle" };
 
-const grade = (stat: string, value: number, ranges: GradeRange[], opts: { neg?: boolean; rank?: number } = {}) =>
-  gradeStat({ stat, value, is_negative: !!opts.neg }, opts.rank ?? 8, "soma", "Soma", attrs.get(stat), ranges);
+// Rifle, 3 positive + 1 negative (layout 3/1, +0.9375 / −0.75): damage centre 198 × 0.9375 = 185.625 (the calculator's own example).
+const filler = [S("critical_chance", 168.73875), S("critical_damage", 134.99663), S("zoom", -53.991, true)];
+const gradeDamage = (value: number, rank = 8, weapon = SOMA) =>
+  gradeRiven({ rank, stats: [S("base_damage_/_melee_damage", value), ...filler] }, weapon, attrs, CODEX_FIXTURE)[0];
 
-describe("tierForPct", () => {
-  it.each([[1, "S"], [0.9, "S"], [0.89, "A"], [0.75, "A"], [0.6, "B"], [0.4, "C"], [0.2, "D"], [0.14, "F"], [0, "F"]])(
-    "%f -> %s", (pct, tier) => expect(tierForPct(pct)).toBe(tier));
-});
-
-describe("gradeStat (linear between min and max)", () => {
-  it("spec example: 100–150 range, 150 = S and 100 = F", () => {
-    const ranges = [R("critical_chance", 100, 150)];
-    expect(grade("critical_chance", 150, ranges).tier).toBe("S");
-    expect(grade("critical_chance", 100, ranges).tier).toBe("F");
-    expect(grade("critical_chance", 125, ranges).pct).toBeCloseTo(0.5);
-    expect(grade("critical_chance", 125, ranges).tier).toBe("C");
+describe("gradeRiven with the real Codex method", () => {
+  it("reproduces the calculator's worked example range", () => {
+    const g = gradeDamage(185.625);
+    expect(g.range!.min).toBeCloseTo(167.0625, 3);
+    expect(g.range!.max).toBeCloseTo(204.1875, 3);
+    expect(g.tier).toBe("B");
+    expect(g.pct).toBeCloseTo(0.5, 2);
   });
 
-  it("produces the spec's one-line explanation", () => {
-    const g = grade("toxin_damage", 112, [R("toxin_damage", 56, 115)]);
-    expect(g.tier).toBe("S");
-    expect(g.explanation).toBe("112% Toxin is near the top of this weapon’s 56–115% range → S");
+  it("top and bottom of the range are S and F", () => {
+    expect(gradeDamage(204.1875).tier).toBe("S");
+    expect(gradeDamage(167.0625).tier).toBe("F");
   });
 
-  it("clamps values outside the range and flags them", () => {
-    const g = grade("critical_chance", 170, [R("critical_chance", 100, 150)]);
-    expect(g.tier).toBe("S");
-    expect(g.pct).toBe(1);
+  it("uses the calculator's band edges", () => {
+    // +5.5% of centre is the A- / A edge; just inside A
+    expect(gradeDamage(185.625 * 1.056).tier).toBe("A");
+    expect(gradeDamage(185.625 * 1.054).tier).toBe("A-");
+  });
+
+  it("explains the grade in one sentence", () => {
+    const g = gradeDamage(185.625);
+    expect(g.explanation).toContain("Damage is around the middle of this weapon’s");
+    expect(g.explanation).toContain("→ B");
+    expect(g.context).toBe("Rifle · 3 positives, 1 negative".replace("positives", "positive"));
+  });
+
+  it("exposes the full band table for the stat", () => {
+    const g = gradeDamage(185.625);
+    expect(g.bands).toHaveLength(11);
+    expect(g.bands.map((b) => b.grade)).toContain("A+");
+  });
+
+  it("flags values outside the possible range", () => {
+    const g = gradeDamage(260);
     expect(g.outOfRange).toBe(true);
-    expect(g.explanation).toContain("check the range data");
+    expect(g.tier).toBe("S");
+    expect(g.explanation).toContain("outside the possible range");
   });
 
   it("normalises to max rank before grading", () => {
-    const ranges = [R("critical_chance", 100, 150)];
-    const g = grade("critical_chance", 150 / 9, ranges, { rank: 0 });
-    expect(g.valueAtMax).toBeCloseTo(150);
-    expect(g.tier).toBe("S");
+    const g = gradeDamage(185.625 / 9, 0);
+    expect(g.valueAtMax).toBeCloseTo(185.625);
+    expect(g.tier).toBe("B");
     expect(g.explanation).toContain("scaled to max rank");
   });
 
-  it("curse: a smaller penalty is better", () => {
-    const ranges = [R("zoom", -60, -30, { is_negative: true })];
-    expect(grade("zoom", -30, ranges, { neg: true }).tier).toBe("S");
-    expect(grade("zoom", -60, ranges, { neg: true }).tier).toBe("F");
-    expect(grade("zoom", -30, ranges, { neg: true }).explanation).toContain("mild penalty");
+  it("negative stats: grade follows roll size (magnitude)", () => {
+    const grades = gradeRiven({ rank: 8, stats: [S("base_damage_/_melee_damage", 185.625), S("critical_chance", 168.73875), S("critical_damage", 134.99663), S("zoom", -59.39, true)] }, SOMA, attrs, CODEX_FIXTURE);
+    expect(grades[3].tier).toBe("S");
+    expect(grades[3].explanation).toContain("negative stat");
   });
 
-  it("inverted stat (recoil): more negative is better, as bonus AND the positive curse is smaller-is-better", () => {
-    const bonus = [R("recoil", -90, -70)];
-    expect(grade("recoil", -90, bonus).tier).toBe("S");
-    expect(grade("recoil", -70, bonus).tier).toBe("F");
-    const curse = [R("recoil", 30, 55, { is_negative: true })];
-    expect(grade("recoil", 30, curse, { neg: true }).tier).toBe("S");
-    expect(grade("recoil", 55, curse, { neg: true }).tier).toBe("F");
+  it("weapon recoil is inverted (a positive recoil stat is a negative number)", () => {
+    const g = gradeRiven({ rank: 8, stats: [S("recoil", -101.25), S("critical_chance", 168.73875), S("critical_damage", 134.99663), S("zoom", -53.991, true)] }, SOMA, attrs, CODEX_FIXTURE)[0];
+    expect(g.tier).toBe("B");
   });
 
-  it("multiplier stats grade on the displayed xN value", () => {
-    const g = grade("damage_vs_infested", 1.59, [R("damage_vs_infested", 1.48, 1.59)]);
-    expect(g.tier).toBe("S");
-    expect(g.explanation).toContain("x1.48–x1.59");
+  it("falls back to the weapon's riven type when the name isn't in the list", () => {
+    expect(gradeDamage(185.625, 8, { name: "Totally New Gun", riven_type: "rifle" }).tier).toBe("B");
   });
 
-  it("is ungraded (not wrong) when there is no range", () => {
-    const g = grade("toxin_damage", 100, []);
-    expect(g).toMatchObject({ tier: null, pct: null, range: null });
-    expect(g.explanation).toContain("no roll range on file");
+  it("ungraded with an explanation when the stat can't roll on this weapon type", () => {
+    const g = gradeRiven({ rank: 8, stats: [S("combo_duration", 10), S("critical_chance", 100)] }, SOMA, attrs, CODEX_FIXTURE)[0];
+    expect(g.tier).toBeNull();
+    expect(g.explanation).toContain("can’t roll on Rifle");
   });
 
-  it("carries the placeholder flag through", () => {
-    expect(grade("critical_chance", 120, [R("critical_chance", 100, 150, { is_placeholder: true })]).placeholder).toBe(true);
-  });
-});
-
-describe("lookupRange / gradeRiven", () => {
-  it("prefers the weapon row, falls back to '*', and separates curse rows", () => {
-    const rs = [R("zoom", 1, 2, { weapon_slug: "*" }), R("zoom", 10, 20), R("zoom", -9, -1, { is_negative: true })];
-    expect(lookupRange(rs, "soma", "zoom", false)?.min_roll).toBe(10);
-    expect(lookupRange(rs, "boltor", "zoom", false)?.min_roll).toBe(1);
-    expect(lookupRange(rs, "soma", "zoom", true)?.min_roll).toBe(-9);
-    expect(lookupRange(rs, "soma", "toxin_damage", false)).toBeNull();
-  });
-
-  it("grades every stat independently — no riven-wide grade", () => {
-    const rs = [R("critical_chance", 100, 150), R("toxin_damage", 56, 115)];
-    const out = gradeRiven(
-      { weapon_slug: "soma", rank: 8, stats: [{ stat: "critical_chance", value: 100, is_negative: false }, { stat: "toxin_damage", value: 115, is_negative: false }] },
-      "Soma", attrs, rs);
-    expect(out.map((g) => g.tier)).toEqual(["F", "S"]);
+  it("ungraded when data isn't loaded or the layout isn't covered", () => {
+    expect(gradeRiven({ rank: 8, stats: [S("critical_chance", 100)] }, SOMA, attrs, null)[0].explanation).toContain("isn’t loaded");
+    const one = gradeRiven({ rank: 8, stats: [S("critical_chance", 100)] }, SOMA, attrs, CODEX_FIXTURE)[0];
+    expect(one.tier).toBeNull();
   });
 });

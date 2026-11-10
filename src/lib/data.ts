@@ -29,16 +29,19 @@ export async function currentUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
-import type { GradeRange } from "@/lib/grading/grade";
+import type { CodexRivenData } from "@/lib/codex/types";
 
-/** Range rows for the given weapons plus the '*' default. */
-export async function getGradeRanges(weaponSlugs: string[]): Promise<GradeRange[]> {
+let gradingCache: { at: number; data: CodexRivenData | null } | null = null;
+
+/** The real riven grading data (synced from the Codex Riven Calculator). Cached briefly per server instance. */
+export async function getGradingData(): Promise<CodexRivenData | null> {
+  if (gradingCache && Date.now() - gradingCache.at < 10 * 60 * 1000) return gradingCache.data;
   const sb = await createClient();
-  const { data } = await sb
-    .from("riven_grade_ranges")
-    .select("weapon_slug,stat_slug,is_negative,min_roll,max_roll,is_placeholder")
-    .in("weapon_slug", [...new Set([...weaponSlugs, "*"])]);
-  return (data ?? []).map((r) => ({ ...r, min_roll: Number(r.min_roll), max_roll: Number(r.max_roll) })) as GradeRange[];
+  const { data } = await sb.from("riven_grading_data").select("data").eq("id", "codex").maybeSingle();
+  const d = (data?.data ?? null) as CodexRivenData | null;
+  const ok = !!d && Array.isArray(d.stats) && Array.isArray(d.layouts) && Array.isArray(d.gradeBands) && d.gradeBands.length > 0;
+  gradingCache = { at: Date.now(), data: ok ? d : null };
+  return gradingCache.data;
 }
 
 export interface ArcaneRow {

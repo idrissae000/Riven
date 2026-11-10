@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { currentUserId, getGradeRanges, getReferenceData } from "@/lib/data";
+import { currentUserId, getGradingData, getReferenceData } from "@/lib/data";
 import { gradeRiven } from "@/lib/grading/grade";
 import { decodeRiven } from "@/lib/riven-share";
 import { MarketEstimate } from "@/components/market-estimate";
@@ -19,10 +19,10 @@ export default async function CheckPage({ searchParams }: { searchParams: Promis
       </div>
     );
 
-  const [ref, ranges, userId] = await Promise.all([getReferenceData(), getGradeRanges([riven.weapon_slug]), currentUserId()]);
+  const [ref, gradingData, userId] = await Promise.all([getReferenceData(), getGradingData(), currentUserId()]);
   const weapon = ref.weapons.find((w) => w.slug === riven.weapon_slug);
   const attr = new Map(ref.attributes.map((a) => [a.slug, a]));
-  const grades = gradeRiven(riven, weapon?.name ?? riven.weapon_slug, attr, ranges);
+  const grades = weapon ? gradeRiven(riven, weapon, attr, gradingData) : [];
 
   return (
     <div className="space-y-5">

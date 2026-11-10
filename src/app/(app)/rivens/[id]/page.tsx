@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getGradeRanges, getReferenceData, getRiven } from "@/lib/data";
+import { getGradingData, getReferenceData, getRiven } from "@/lib/data";
 import { gradeRiven } from "@/lib/grading/grade";
 import { PushToWfm } from "@/components/push-to-wfm";
 import { RivenStats } from "@/components/riven-stats";
@@ -13,7 +13,7 @@ export default async function RivenDetailPage({ params }: { params: Promise<{ id
   if (!riven) notFound();
   const weapon = ref.weapons.find((w) => w.slug === riven.weapon_slug);
   const attr = new Map(ref.attributes.map((a) => [a.slug, a]));
-  const grades = gradeRiven(riven, weapon?.name ?? riven.weapon_slug, attr, await getGradeRanges([riven.weapon_slug]));
+  const grades = weapon ? gradeRiven(riven, weapon, attr, await getGradingData()) : [];
 
   return (
     <div className="space-y-5">

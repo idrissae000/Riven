@@ -11,9 +11,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "price-check": "tsx --conditions=react-server scripts/price-check.ts",
-    "import:grading": "tsx scripts/import-grade-ranges.ts",
-    "seed:grading-placeholder": "tsx scripts/import-grade-ranges.ts data/grading/placeholder-ranges.json",
-    "sync:wiki-arcanes": "tsx scripts/sync-wiki-arcanes.ts"
+    "sync:wiki-arcanes": "tsx scripts/sync-wiki-arcanes.ts",
+    "sync:codex-riven": "tsx scripts/sync-codex-riven.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
