@@ -80,7 +80,7 @@ export function RivenForm({
     attributes.filter((a) => usable(a) && (!negative || !a.positive_only) && (a.slug === current || !used.has(a.slug)));
 
   const [dragOver, setDragOver] = useState(false);
-  const [readLog, setReadLog] = useState<{ weapon: string | null; weaponOk: boolean; riven: string | null; stats: { read: string; as: string | null; curse: boolean }[] } | null>(null);
+  const [readLog, setReadLog] = useState<{ weapon: string | null; weaponOk: boolean; riven: string | null; rank: number | null; stats: { read: string; as: string | null; curse: boolean }[] } | null>(null);
   const [scanState, setScanState] = useState<{ busy: boolean; msg: string | null; kind: "ok" | "err" }>({ busy: false, msg: null, kind: "ok" });
 
   // Ctrl/⌘+V anywhere on the page: if the clipboard holds an image, scan it.
@@ -142,7 +142,7 @@ export function RivenForm({
       return setScanState({ busy: false, msg: json.error ?? (tooBig ? "That image is too large — crop it closer to the card." : "The scan didn’t work. You can still enter the stats by hand below."), kind: "err" });
     }
     const r = json as MappedScan;
-    setReadLog({ weapon: r.weapon_name, weaponOk: !!r.weapon_slug, riven: r.riven_name, stats: r.stats.map((st) => ({ read: `${st.scanned.shown} ${st.scanned.name}`, as: st.attribute?.name ?? null, curse: st.is_negative })) });
+    setReadLog({ weapon: r.weapon_name, weaponOk: !!r.weapon_slug, riven: r.riven_name, rank: r.rank, stats: r.stats.map((st) => ({ read: `${st.scanned.shown} ${st.scanned.name}`, as: st.attribute?.name ?? null, curse: st.is_negative })) });
     const w = weapons.find((x) => x.slug === r.weapon_slug);
     if (w) setWeaponText(w.name); else if (r.weapon_name) setWeaponText(r.weapon_name);
     if (r.riven_name) setRivenName(r.riven_name);
@@ -226,6 +226,7 @@ export function RivenForm({
               <summary className="cursor-pointer font-display text-xs font-semibold uppercase tracking-[0.16em] text-gold">What the scan read</summary>
               <ul className="mt-2 space-y-1 font-mono text-xs">
                 <li>Weapon: {readLog.weapon ?? "—"} {readLog.weapon && (readLog.weaponOk ? <span className="text-ok">✓</span> : <span className="text-orange">not in the weapon list — pick it below</span>)}{readLog.riven && <span className="text-dim"> · name {readLog.riven}</span>}</li>
+                <li>Rank: {readLog.rank != null ? <>{readLog.rank} <span className="text-dim">(top-right number {readLog.rank + 10})</span> <span className="text-ok">✓</span></> : <span className="text-orange">couldn’t read the top-right number — set the rank below</span>}</li>
                 {readLog.stats.map((st, i) => (
                   <li key={i} className={st.curse ? "text-danger" : ""}>
                     {st.read} {st.as ? <span className="text-ok">→ {st.as} ✓</span> : <span className="text-orange">→ no match, choose the stat below</span>}{st.curse && <span className="text-dim"> (negative)</span>}

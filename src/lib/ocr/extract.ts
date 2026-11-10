@@ -16,13 +16,13 @@ export const MAX_BYTES = 4 * 1024 * 1024;
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["weapon_name", "riven_name", "polarity", "mastery_rank", "rank", "rerolls", "stats", "notes"],
+  required: ["weapon_name", "riven_name", "polarity", "mastery_rank", "drain", "rerolls", "stats", "notes"],
   properties: {
-    weapon_name: { type: "string", description: "Weapon the riven is for, e.g. 'Soma' (title line without the word 'Riven'). Empty string if unreadable." },
-    riven_name: { type: "string", description: "The riven's generated name, e.g. 'Crita-cron'. Empty string if unreadable." },
+    weapon_name: { type: "string", description: "ONLY the weapon the riven is for, e.g. 'Soma'. The title line prints the weapon first, then the riven's generated name. Empty string if unreadable." },
+    riven_name: { type: "string", description: "ONLY the generated name after the weapon, e.g. 'Crita-cron' (no weapon name in it). Empty string if unreadable." },
     polarity: { type: "string", enum: ["madurai", "vazarin", "naramon", "unknown"], description: "Polarity symbol: V = madurai, D = vazarin, a dash '-' = naramon." },
     mastery_rank: { type: "integer", description: "The 'MR' number (8-16), or -1 if unreadable." },
-    rank: { type: "integer", description: "Mod rank 0-8 from the filled rank pips, or -1 if unclear." },
+    drain: { type: "integer", description: "The number in the TOP-RIGHT corner of the card (between 10 and 18), or -1 if unreadable." },
     rerolls: { type: "integer", description: "Re-roll count shown beside the re-roll icon, or -1 if unreadable." },
     stats: {
       type: "array",
@@ -49,11 +49,13 @@ The image may be a clean screenshot OR a photo taken with a phone: a monitor or 
 
 Rules:
 - Copy stat names and numbers exactly as printed; never invent a value you can't read. If a number is unreadable, leave that stat out and say so in "notes".
+- The title line shows the weapon name followed by the riven's generated name (for example "Soma Crita-cron" means weapon_name "Soma", riven_name "Crita-cron"). Put only the weapon in weapon_name and only the generated name in riven_name.
+- "drain" is the number in the top-right corner of the card, between 10 and 18. Read it carefully.
 - List every stat line, top to bottom. The curse (negative) stat is the last line and is usually red.
 - Use "" for unreadable text and -1 for unreadable numbers; never leave a field out.
 - If this is not a Riven card at all, return no stats and explain in "notes".`;
 
-const PLAIN_SUFFIX = `\n\nReply with ONLY a JSON object, no prose, with exactly these keys: weapon_name (string), riven_name (string), polarity ("madurai" | "vazarin" | "naramon" | "unknown"), mastery_rank (integer or -1), rank (integer 0-8 or -1), rerolls (integer or -1), stats (array of {name, value (number), shown (string), is_curse (boolean)}), notes (string).`;
+const PLAIN_SUFFIX = `\n\nReply with ONLY a JSON object, no prose, with exactly these keys: weapon_name (string), riven_name (string), polarity ("madurai" | "vazarin" | "naramon" | "unknown"), mastery_rank (integer or -1), drain (integer 10-18 or -1), rerolls (integer or -1), stats (array of {name, value (number), shown (string), is_curse (boolean)}), notes (string).`;
 
 export class ScanRefused extends Error {}
 /** An error with a message that is safe and useful to show to the user. */

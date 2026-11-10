@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapScan, mapStat, matchAttribute, matchWeapon } from "./map";
+import { mapScan, mapStat, matchAttribute, matchWeapon, resolveWeapon } from "./map";
 import type { RivenAttribute, Weapon } from "@/lib/types";
 
 const A = (slug: string, name: string, extra: Partial<RivenAttribute> = {}): RivenAttribute =>
@@ -54,5 +54,46 @@ describe("mapScan", () => {
       stats: [{ name: "Critical Chance", value: 150, shown: "+150%", is_curse: false }, { name: "Mystery", value: 1, shown: "+1%", is_curse: false }] }, weapons, attrs);
     expect(r.weapon_slug).toBe("soma");
     expect(r.stats.map((s) => s.stat)).toEqual(["critical_chance", null]);
+  });
+});
+
+describe("resolveWeapon (title line = weapon + riven name)", () => {
+  const W = (name: string, type = "rifle") => ({ slug: name.toLowerCase().replace(/[^a-z]+/g, "_"), name, riven_type: type }) as Weapon;
+  const list = [W("Soma"), W("Boltor"), W("Dual Cestra", "pistol"), W("Cestra", "pistol"), W("Kuva Bramma"), W("Ack & Brunt", "melee")];
+
+  it("clean read: weapon in weapon_name, name in riven_name", () => {
+    expect(resolveWeapon("Soma", "Crita-cron", list)).toMatchObject({ weapon: { name: "Soma" }, rivenName: "Crita-cron" });
+  });
+  it("THE BUG: weapon missing but the whole title is in riven_name", () => {
+    const r = resolveWeapon("", "Soma Crita-cron", list);
+    expect(r.weapon?.name).toBe("Soma");
+    expect(r.rivenName).toBe("Crita-cron");
+  });
+  it("whole title in weapon_name", () => {
+    const r = resolveWeapon("Soma Crita-cron", null, list);
+    expect(r.weapon?.name).toBe("Soma");
+    expect(r.rivenName).toBe("Crita-cron");
+  });
+  it("weapon_name right AND riven_name repeats the weapon", () => {
+    expect(resolveWeapon("Soma", "Soma Crita-cron", list).rivenName).toBe("Crita-cron");
+  });
+  it("is case-insensitive, ignores 'Riven' noise, and prefers the longest weapon name", () => {
+    expect(resolveWeapon("SOMA RIVEN", "CRITA-CRON", list).weapon?.name).toBe("Soma");
+    expect(resolveWeapon(null, "Dual Cestra Acri-tis", list)).toMatchObject({ weapon: { name: "Dual Cestra" }, rivenName: "Acri-tis" });
+    expect(resolveWeapon(null, "Kuva Bramma Crita-cron", list).weapon?.name).toBe("Kuva Bramma");
+  });
+  it("handles weapon names with symbols", () => {
+    expect(resolveWeapon("Ack & Brunt", "Visi-ata", list).weapon?.name).toBe("Ack & Brunt");
+  });
+  it("tolerates a one-letter OCR typo, but never guesses between two close matches", () => {
+    expect(resolveWeapon("Boltar", "Crita-cron", list).weapon?.name).toBe("Boltor");
+    expect(resolveWeapon("Cestre", null, list).weapon?.name).toBe("Cestra"); // unique close match
+    const twins = [W("Braton"), W("Bratom")];
+    expect(resolveWeapon("Bratoo", null, twins).weapon).toBeNull(); // equally close to both: don't guess
+  });
+  it("returns no weapon (and keeps the riven name) when nothing matches", () => {
+    const r = resolveWeapon("Zzzz", "Crita-cron", list);
+    expect(r.weapon).toBeNull();
+    expect(r.rivenName).toBe("Crita-cron");
   });
 });

@@ -36,8 +36,12 @@ export interface Listing {
   polarity: string;
   masteryRank: number;
   stats: { stat: string; value: number; positive: boolean }[]; // as displayed on the listing
+  /** "exact" = the listing has every one of our stats (same stats); "similar" = it shares enough of them. */
   matchKind: MatchKind;
-  score: number; // 0..1 similarity of the stat spread
+  /** How many of our stats (and how many in total) the listing shares. */
+  matched: number;
+  total: number;
+  score: number; // 0..1 closeness of the matching stats' values (used only to rank)
 }
 
 export interface Estimate {
@@ -47,8 +51,6 @@ export interface Estimate {
   basis: MatchKind;
   sampleSize: number;
 }
-
-const normName = (s: string | null | undefined) => (s ?? "").toLowerCase().replace(/[^a-z]/g, "");
 
 /** Listings we can trust as real, current, buy-it-now offers. */
 export function usable(a: WfmAuction): boolean {
@@ -83,32 +85,51 @@ export function similarity(
 }
 
 export interface FindOptions {
-  /** Minimum similarity (default 0.7, and >= 2 matched stats) for a non-name match to count. */
-  minScore?: number;
   /** Max listings returned. */
   limit?: number;
 }
 
 /**
- * Pick comparable listings: same weapon AND same riven name = "exact";
- * same weapon with a close stat spread = "similar". De-duplicated by auction id.
+ * Stat-sharing rule (the riven NAME is deliberately not considered):
+ *   2 stats  -> both must match
+ *   3 stats  -> at least 2 must match
+ *   4 stats  -> at least 2 of the POSITIVE stats must match
+ * A stat "matches" when the listing has the same stat in the same role (bonus vs curse).
+ */
+export function sharedStats(mine: RivenStat[], listing: WfmAuction["item"]): { matched: number; matchedPositive: number; qualifies: boolean } {
+  let matched = 0;
+  let matchedPositive = 0;
+  for (const s of mine) {
+    if (listing.attributes.some((a) => a.url_name === s.stat && a.positive === !s.is_negative)) {
+      matched++;
+      if (!s.is_negative) matchedPositive++;
+    }
+  }
+  const n = mine.length;
+  const qualifies = n <= 2 ? matched === n : n === 3 ? matched >= 2 : matchedPositive >= 2;
+  return { matched, matchedPositive, qualifies };
+}
+
+/**
+ * Pick comparable listings for the same weapon whose stats satisfy `sharedStats`. Listings carrying ALL our
+ * stats are "exact" (same stats) and sort first; the rest are "similar", ranked by how many stats they share,
+ * then by how close the matching values are (compared at max rank). De-duplicated by auction id.
  */
 export function findComparables(
-  riven: { weapon_slug: string; riven_name: string | null; stats: RivenStat[]; rank: number },
+  riven: { weapon_slug: string; stats: RivenStat[]; rank: number },
   auctions: WfmAuction[],
   unitOf: (slug: string) => string | null | undefined,
-  { minScore = 0.7, limit = 12 }: FindOptions = {},
+  { limit = 12 }: FindOptions = {},
 ): Listing[] {
-  const mineName = normName(riven.riven_name);
   const seen = new Set<string>();
   const out: Listing[] = [];
 
   for (const a of auctions) {
     if (seen.has(a.id) || !usable(a) || a.item.weapon_url_name !== riven.weapon_slug) continue;
     seen.add(a.id);
-    const { score, matched } = similarity(riven, a.item, unitOf);
-    const exact = mineName !== "" && normName(a.item.name) === mineName;
-    if (!exact && !(matched >= 2 && score >= minScore)) continue;
+    const { matched, qualifies } = sharedStats(riven.stats, a.item);
+    if (!qualifies) continue;
+    const { score } = similarity(riven, a.item, unitOf);
     out.push({
       id: a.id,
       url: `https://warframe.market/auction/${a.id}`,
@@ -123,12 +144,14 @@ export function findComparables(
       polarity: a.item.polarity,
       masteryRank: a.item.mastery_level,
       stats: a.item.attributes.map((t) => ({ stat: t.url_name, value: t.value, positive: t.positive })),
-      matchKind: exact ? "exact" : "similar",
+      matchKind: matched === riven.stats.length ? "exact" : "similar",
+      matched,
+      total: riven.stats.length,
       score,
     });
   }
 
-  out.sort((x, y) => (x.matchKind === y.matchKind ? 0 : x.matchKind === "exact" ? -1 : 1) || y.score - x.score || x.price - y.price);
+  out.sort((x, y) => (x.matchKind === y.matchKind ? 0 : x.matchKind === "exact" ? -1 : 1) || y.matched - x.matched || y.score - x.score || x.price - y.price);
   return out.slice(0, limit);
 }
 

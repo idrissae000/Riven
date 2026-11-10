@@ -26,6 +26,15 @@ const POLARITY: Record<string, ScannedRiven["polarity"]> = {
   madurai: "madurai", v: "madurai", vazarin: "vazarin", d: "vazarin", naramon: "naramon", "-": "naramon", dash: "naramon", "–": "naramon",
 };
 
+/**
+ * The number in the card's top-right corner is the mod's drain: 10 when unranked, +1 per rank, 18 at rank 8.
+ * So rank = drain - 10. (Much easier to read reliably than counting rank pips.)
+ */
+export function rankFromDrain(v: unknown): number | null {
+  const d = int(v, 10, 18);
+  return d == null ? null : d - 10;
+}
+
 export function normalizeScan(raw: unknown): ScannedRiven {
   const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const stats: ScannedStat[] = [];
@@ -49,7 +58,7 @@ export function normalizeScan(raw: unknown): ScannedRiven {
     riven_name: str(o.riven_name),
     polarity: POLARITY[String(o.polarity ?? "").trim().toLowerCase()] ?? null,
     mastery_rank: int(o.mastery_rank, 8, 16),
-    rank: int(o.rank, 0, 8),
+    rank: rankFromDrain(o.drain) ?? int(o.rank, 0, 8),
     rerolls: int(o.rerolls, 0, 999),
     stats,
     notes: str(o.notes),

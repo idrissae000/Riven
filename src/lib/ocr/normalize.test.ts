@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractJson, normalizeScan, parseNumber } from "./normalize";
+import { extractJson, normalizeScan, parseNumber, rankFromDrain } from "./normalize";
 import { fitWithin } from "../image-prep";
 
 describe("parseNumber", () => {
@@ -67,5 +67,18 @@ describe("normalizeBox", () => {
     expect(normalizeBox({ found: true, x: 0.5, y: 0.5, w: 0.01, h: 0.01 })).toBeNull();
     expect(normalizeBox({ found: true, x: 0, y: 0, w: 1, h: 1 })).toBeNull();
     expect(normalizeBox(null)).toBeNull();
+  });
+});
+
+describe("rank from the top-right drain number (10 = unranked ... 18 = rank 8)", () => {
+  it.each([[10, 0], [11, 1], [14, 4], [18, 8]])("drain %d -> rank %d", (d, r) => expect(rankFromDrain(d)).toBe(r));
+  it("rejects anything outside 10-18 (including the -1 'unreadable' sentinel)", () => {
+    for (const bad of [-1, 0, 9, 19, 99, "abc", null]) expect(rankFromDrain(bad)).toBeNull();
+  });
+  it("normalizeScan uses drain, accepts numeric strings, and falls back to a plain rank field", () => {
+    expect(normalizeScan({ drain: 18 }).rank).toBe(8);
+    expect(normalizeScan({ drain: "14" }).rank).toBe(4);
+    expect(normalizeScan({ drain: -1, rank: 3 }).rank).toBe(3);
+    expect(normalizeScan({ drain: -1 }).rank).toBeNull();
   });
 });

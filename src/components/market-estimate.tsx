@@ -66,7 +66,7 @@ export function MarketEstimate({ endpoint, attrs }: { endpoint: string; attrs: R
             <div className="rounded-lg border border-orange/30 bg-orange/5 p-4">
               <div className="font-display text-[0.66rem] font-semibold uppercase tracking-[0.22em] text-dim">Estimated range</div>
               <div className="h-display flex items-center gap-2 text-4xl text-plat">{est.low}–{est.high} <Plat size={26} /></div>
-              <div className="text-sm text-dim">median {est.median} plat · from {est.sampleSize} {est.basis === "exact" ? "exact-name" : "similar-spread"} listings below</div>
+              <div className="text-sm text-dim">median {est.median} plat · from {est.sampleSize} {est.basis === "exact" ? "same-stat" : "similar-stat"} listings below</div>
             </div>
           ) : (
             <p className="rounded-lg border border-line bg-panel-2 p-3 text-sm text-dim">No price estimate. {data.note}</p>
@@ -89,7 +89,7 @@ export function MarketEstimate({ endpoint, attrs }: { endpoint: string; attrs: R
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
                     <span className="text-violet">{l.rivenName}</span>
-                    <span className={`chip ${l.matchKind === "exact" ? "border-teal/50 text-teal" : ""}`}>{l.matchKind === "exact" ? "same name" : `similar ${Math.round(l.score * 100)}%`}</span>
+                    <span className={`chip ${l.matchKind === "exact" ? "border-teal/50 text-teal" : ""}`}>{l.matchKind === "exact" ? "same stats" : `${l.matched} of ${l.total} stats`}</span>
                     <span className="chip">rank {l.rank}</span>
                     <span className="chip">{l.rerolls} rerolls</span>
                   </div>

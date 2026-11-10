@@ -66,6 +66,68 @@ export function matchWeapon(name: string | null, weapons: Weapon[]): Weapon | nu
   return weapons.find((w) => norm(w.name) === n) ?? null;
 }
 
+function editDistance(a: string, b: string): number {
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...new Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) dp[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++) dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return dp[a.length][b.length];
+}
+
+/** Words that sometimes get read along with the weapon name but aren't part of it. */
+const NOISE = new Set(["riven", "mod", "rivenmod"]);
+
+/**
+ * Finds the weapon in the card's TITLE, which prints the weapon and the riven's generated name together
+ * ("Soma Crita-cron"). The model sometimes files the whole title under riven_name (or leaves weapon_name
+ * empty), so we look at the leading words of both fields: longest exact weapon name first, then a close
+ * (typo-tolerant) match. Whatever follows the weapon becomes the riven name.
+ */
+export function resolveWeapon(
+  weaponName: string | null,
+  rivenName: string | null,
+  weapons: Weapon[],
+): { weapon: Weapon | null; rivenName: string | null } {
+  const byNorm = new Map(weapons.map((w) => [norm(w.name), w]));
+  const words = (t: string | null) => (t ?? "").split(/\s+/).filter((x) => x && !NOISE.has(norm(x)));
+
+  const tryTokens = (tokens: string[]): { weapon: Weapon; used: number } | null => {
+    for (let k = Math.min(4, tokens.length); k >= 1; k--) { // longest first, so "Kuva Bramma" beats a shorter name
+      const w = byNorm.get(norm(tokens.slice(0, k).join(" ")));
+      if (w) return { weapon: w, used: k };
+    }
+    // typo tolerance: a unique close match only
+    for (let k = Math.min(4, tokens.length); k >= 1; k--) {
+      const cand = norm(tokens.slice(0, k).join(" "));
+      if (cand.length < 3) continue;
+      const maxDist = cand.length <= 5 ? 1 : 2;
+      const close = [...byNorm].filter(([n]) => Math.abs(n.length - cand.length) <= maxDist && editDistance(n, cand) <= maxDist);
+      if (close.length === 1) return { weapon: close[0][1], used: k };
+    }
+    return null;
+  };
+
+  const fromWeapon = tryTokens(words(weaponName));
+  if (fromWeapon) {
+    // The weapon field may also contain the riven name ("Soma Crita-cron"): treat the rest as the riven name.
+    const rest = words(weaponName).slice(fromWeapon.used).join(" ");
+    return { weapon: fromWeapon.weapon, rivenName: rivenName?.trim() ? stripWeapon(rivenName, fromWeapon.weapon) : rest || null };
+  }
+  const rt = words(rivenName);
+  const fromRiven = tryTokens(rt);
+  if (fromRiven) return { weapon: fromRiven.weapon, rivenName: rt.slice(fromRiven.used).join(" ") || null };
+  return { weapon: null, rivenName: rivenName?.trim() || null };
+}
+
+/** If the riven name also starts with the weapon's name ("Soma Crita-cron"), drop that part. */
+function stripWeapon(rivenName: string, weapon: Weapon): string | null {
+  const toks = rivenName.split(/\s+/).filter(Boolean);
+  const n = weapon.name.split(/\s+/).length;
+  const lead = norm(toks.slice(0, n).join(" "));
+  const out = lead === norm(weapon.name) ? toks.slice(n).join(" ") : rivenName.trim();
+  return out || null;
+}
+
 /**
  * Converts one scanned stat into what the entry form needs. The card shows "x1.54" or "+54%"
  * for faction-damage stats; WFM stores the multiplier, so a percent is converted.
@@ -83,11 +145,11 @@ export function mapStat(s: ScannedStat, attrs: RivenAttribute[], weapon: Weapon 
 }
 
 export function mapScan(scan: ScannedRiven, weapons: Weapon[], attrs: RivenAttribute[]) {
-  const weapon = matchWeapon(scan.weapon_name, weapons);
+  const { weapon, rivenName } = resolveWeapon(scan.weapon_name, scan.riven_name, weapons);
   return {
     weapon_slug: weapon?.slug ?? null,
-    weapon_name: scan.weapon_name,
-    riven_name: scan.riven_name,
+    weapon_name: weapon?.name ?? scan.weapon_name,
+    riven_name: rivenName,
     polarity: scan.polarity,
     mastery_rank: scan.mastery_rank,
     rank: scan.rank,
