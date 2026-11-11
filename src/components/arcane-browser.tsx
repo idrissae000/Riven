@@ -12,7 +12,7 @@ export type ArcaneListPrice = ArcanePriceView;
 export interface ArcaneListItem {
   slug: string; name: string; slot: string; rarity: string | null; description: string;
   categories: string[]; ability_scaling: boolean; scales_with: string[];
-  /** Unranked market price (rank-0 average, or max-rank ÷ copies when rank-0 is too thin); null until the first fetch lands. */
+  /** Unranked market price (average of the 5 cheapest rank-0 listings, or cheapest max-rank listing ÷ copies when there are fewer than 5); null until the first fetch lands. */
   price: ArcaneListPrice | null;
   /** Where to get it, e.g. "Buy: The Quills". */
   source: string | null;
@@ -43,7 +43,7 @@ function PriceBlock({ price }: { price: ArcaneListPrice | null }) {
     <div className="shrink-0 text-right" title={price.note ?? "Average of the 5 cheapest online rank-0 listings"}>
       <p className="h-display flex items-center justify-end gap-1.5 text-2xl text-plat">{shown} <Plat size={18} /></p>
       <p className="text-xs text-dim">
-        {price.basis === "derived" ? <span className="text-teal">worked out from max rank</span> : price.basis === "thin" ? <span className="text-orange">thin market</span> : `low ${price.low}`}
+        {price.basis === "derived" ? <span className="text-teal">from max rank ÷ copies</span> : price.basis === "thin" ? <span className="text-orange">thin market</span> : `low ${price.low}`}
         {sales && <> · {sales}</>}
       </p>
     </div>
@@ -88,12 +88,12 @@ export function ArcaneBrowser({ items }: { items: ArcaneListItem[] }) {
           </div>
           <label className="flex items-center gap-2 text-xs text-dim">
             <input type="checkbox" checked={solid} onChange={(e) => setSolid(e.target.checked)} />
-            Hide thin markets (too few listings and no max-rank price to cross-check)
+            Hide thin markets (fewer than 5 listings and no max-rank listing to work from)
           </label>
         </Filters>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-dim">{shown.length} of {items.length} arcanes</p>
-          <About>Price = average of the 5 cheapest online rank-0 listings, or max-rank price ÷ copies when rank-0 is too thin (asking prices, not sales).</About>
+          <About>Price = the average of the 5 cheapest online rank-0 listings. If there are fewer than 5, it’s the cheapest max-rank listing ÷ the copies a max-rank arcane is made of (21 for rank 5, 10 for rank 3). Asking prices, not sales.</About>
         </div>
       </div>
 

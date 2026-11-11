@@ -1,12 +1,12 @@
 import type { CollectionRarity } from "./collections";
 
 export interface ArcanePrice {
-  /** The unranked price used (rank-0 average, or the derived max-rank ÷ copies price). */
+  /** The unranked price used (average of the 5 cheapest rank-0 listings, or the cheapest max-rank listing ÷ copies when there are fewer than 5). */
   avg5: number | null;
   low: number | null;
   /** Rank-0 listings behind it. */
   listings?: number;
-  /** Where the price came from; "thin" = shaky, "derived" = max-rank price ÷ copies. */
+  /** Where the price came from; "thin" = shaky, "derived" = cheapest max-rank listing ÷ copies. */
   basis?: "listings" | "derived" | "thin" | "none";
 }
 

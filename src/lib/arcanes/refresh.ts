@@ -25,7 +25,7 @@ export async function fetchTop(get: WfmGet, wfmSlug: string, rank: number) {
 
 /**
  * Cheapest + average-of-cheapest-5 online sell prices at rank 0 AND at max rank (`GET /v2/orders/item/{slug}/top?rank=N`,
- * ≈3 KB each). The max-rank price lets us work out an unranked price when the rank-0 market is too thin to trust.
+ * ≈3 KB each). The cheapest max-rank listing lets us work out an unranked price when there are fewer than 5 rank-0 listings.
  */
 export async function fetchPriceRow(get: WfmGet, slug: string, wfmSlug: string, nowIso: string, maxRank: number | null = null): Promise<PriceRow> {
   const r0 = await fetchTop(get, wfmSlug, 0);
