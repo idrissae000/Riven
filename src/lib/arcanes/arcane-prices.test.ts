@@ -17,6 +17,10 @@ describe("reduceTopOrders", () => {
     ]);
     expect(r).toEqual({ low: 100, avg5: 105, listings: 2 });
   });
+  it("can read listings at another rank (max rank)", () => {
+    const r = reduceTopOrders([o(50, { rank: 5 }), o(60, { rank: 5 }), o(2, { rank: 0 })], 5, 5);
+    expect(r).toEqual({ low: 50, avg5: 55, listings: 2 });
+  });
   it("no listings → nulls", () => { expect(reduceTopOrders([])).toEqual({ low: null, avg5: null, listings: 0 }); expect(reduceTopOrders(null).avg5).toBeNull(); });
   it("rounds the average to one decimal", () => expect(reduceTopOrders([o(10), o(11), o(11)]).avg5).toBe(10.7));
 });

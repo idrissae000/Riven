@@ -5,11 +5,12 @@ import { useMemo, useState } from "react";
 import { rarityClass } from "@/lib/arcanes/style";
 import { Plat } from "@/components/brand";
 
-export interface ArcaneListPrice { avg5: number | null; low: number | null; listings: number; volume48h: number | null; fetched: boolean }
+import type { ArcanePriceView } from "@/lib/arcanes/price-view";
+export type ArcaneListPrice = ArcanePriceView;
 export interface ArcaneListItem {
   slug: string; name: string; slot: string; rarity: string | null; description: string;
   categories: string[]; ability_scaling: boolean; scales_with: string[];
-  /** Rank-0 market price (average of the 5 cheapest online listings); null until the first fetch lands. */
+  /** Unranked market price (rank-0 average, or max-rank ÷ copies when rank-0 is too thin); null until the first fetch lands. */
   price: ArcaneListPrice | null;
   /** Where to get it, e.g. "Buy: The Quills". */
   source: string | null;
@@ -20,7 +21,7 @@ const RARITY_ORDER: Record<string, number> = { Legendary: 0, Rare: 1, Uncommon: 
 const SORTS: [Sort, string][] = [["price-desc", "Price: high to low"], ["price-asc", "Price: low to high"], ["volume", "Most sold (48h)"], ["name", "Name"], ["rarity", "Rarity"]];
 
 function compare(sort: Sort): (a: ArcaneListItem, b: ArcaneListItem) => number {
-  const price = (x: ArcaneListItem) => x.price?.avg5 ?? null;
+  const price = (x: ArcaneListItem) => x.price?.price ?? null;
   const nullsLast = (x: number | null, y: number | null, dir: 1 | -1) => (x == null && y == null ? 0 : x == null ? 1 : y == null ? -1 : (x - y) * dir);
   switch (sort) {
     case "price-desc": return (a, b) => nullsLast(price(a), price(b), -1) || a.name.localeCompare(b.name);
@@ -32,14 +33,19 @@ function compare(sort: Sort): (a: ArcaneListItem, b: ArcaneListItem) => number {
 }
 
 function PriceBlock({ price }: { price: ArcaneListPrice | null }) {
-  if (!price || (!price.fetched && price.avg5 == null)) return <span className="text-xs text-dim">pricing…</span>;
-  if (price.avg5 == null) return <span className="text-xs text-dim">no online listings</span>;
+  if (!price || (!price.fetched && price.price == null)) return <span className="text-xs text-dim">pricing…</span>;
+  if (price.price == null) return <span className="text-xs text-dim">no online listings</span>;
+  const shown = Number.isInteger(price.price) ? String(price.price) : price.price.toFixed(1);
   return (
-    <div className="text-right" title="Average of the 5 cheapest online rank-0 listings">
-      <p className="h-display flex items-center justify-end gap-1.5 text-xl text-plat">≈ {Math.round(price.avg5)} <Plat size={16} /></p>
-      <p className="font-mono text-[0.65rem] text-dim">
-        low {price.low}{price.listings < 3 ? " · thin market" : ""}{price.volume48h != null ? ` · ${price.volume48h === 0 ? "no sales in 48h" : `${price.volume48h} sold/48h`}` : ""}
-      </p>
+    <div className="text-right" title={price.note ?? "Average of the 5 cheapest online rank-0 listings"}>
+      <p className="h-display flex items-center justify-end gap-1.5 text-xl text-plat">≈ {shown} <Plat size={16} /></p>
+      {price.basis === "derived" ? (
+        <p className="font-mono text-[0.65rem] text-teal">{price.note}</p>
+      ) : (
+        <p className="font-mono text-[0.65rem] text-dim">
+          low {price.low}{price.basis === "thin" ? " · thin market" : ""}{price.volume48h != null ? ` · ${price.volume48h === 0 ? "no sales in 48h" : `${price.volume48h} sold/48h`}` : ""}
+        </p>
+      )}
     </div>
   );
 }
@@ -57,7 +63,7 @@ export function ArcaneBrowser({ items }: { items: ArcaneListItem[] }) {
     const needle = q.trim().toLowerCase();
     return items
       .filter((i) =>
-        (!slot || i.slot === slot) && (!cat || i.categories.includes(cat)) && (!solid || (i.price?.listings ?? 0) >= 3) &&
+        (!slot || i.slot === slot) && (!cat || i.categories.includes(cat)) && (!solid || (i.price != null && i.price.basis !== "thin" && i.price.basis !== "none")) &&
         (!needle || i.name.toLowerCase().includes(needle) || i.description.toLowerCase().includes(needle) || i.scales_with.some((s) => s.toLowerCase().includes(needle))))
       .sort(compare(sort));
   }, [items, q, slot, cat, sort, solid]);
@@ -81,9 +87,9 @@ export function ArcaneBrowser({ items }: { items: ArcaneListItem[] }) {
         </div>
         <label className="flex items-center gap-2 text-xs text-dim">
           <input type="checkbox" checked={solid} onChange={(e) => setSolid(e.target.checked)} />
-          Hide thin markets (fewer than 3 online listings — one odd ask can set the “price”)
+          Hide thin markets (too few listings and no max-rank price to cross-check)
         </label>
-        <p className="text-xs text-dim">{shown.length} of {items.length} arcanes · price = average of the 5 cheapest online rank-0 listings (asking prices, not sales)</p>
+        <p className="text-xs text-dim">{shown.length} of {items.length} arcanes · price = average of the 5 cheapest online rank-0 listings, or max-rank price ÷ copies when rank-0 is too thin (asking prices, not sales)</p>
       </div>
 
       <ul className="grid gap-3 sm:grid-cols-2">

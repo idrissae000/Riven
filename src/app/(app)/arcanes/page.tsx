@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/page-header";
 import { listArcanePrices, listArcanes } from "@/lib/data";
 import { ArcaneTabs } from "@/components/arcane-tabs";
 import { ArcanePriceRefresher } from "@/components/arcane-price-refresher";
+import { priceView } from "@/lib/arcanes/price-view";
 import { sourceLabel } from "@/lib/arcanes/source-label";
 import { arcanesDue } from "@/lib/arcanes/due";
 import { timeAgo } from "@/lib/format";
@@ -17,7 +18,7 @@ export default async function ArcanesPage() {
     return {
       slug: a.slug, name: a.name, slot: a.slot, rarity: a.rarity, description: a.description,
       categories: a.compatibility?.categories ?? [], ability_scaling: !!a.compatibility?.ability_scaling, scales_with: a.compatibility?.scales_with ?? [],
-      price: p ? { avg5: p.avg5, low: p.low, listings: p.listings, volume48h: p.volume_48h, fetched: !!p.fetched_at } : null,
+      price: p ? priceView(p, a.max_rank) : null,
       source: sourceLabel(a.drop_sources),
     };
   });

@@ -4,6 +4,7 @@ import { ArcaneTabs } from "@/components/arcane-tabs";
 import { ArcanePriceRefresher } from "@/components/arcane-price-refresher";
 import { VosforCollections, type CollectionCard } from "@/components/vosfor-collections";
 import { valueCollection } from "@/lib/arcanes/collection-value";
+import { priceView } from "@/lib/arcanes/price-view";
 import { arcanesDue } from "@/lib/arcanes/due";
 
 export const metadata = { title: "Vosfor collections" };
@@ -12,9 +13,13 @@ export default async function VosforPage() {
   const [collections, arcanes, prices] = await Promise.all([listArcaneCollections(), listArcanes(), listArcanePrices()]);
   const priceOf = new Map(prices.map((p) => [p.slug, p]));
   const names = Object.fromEntries(arcanes.map((a) => [a.slug, a.name]));
+  const maxRankOf = new Map(arcanes.map((a) => [a.slug, a.max_rank]));
   const cards: CollectionCard[] = collections.map((c) => ({
     id: c.id, name: c.name, vosfor: c.vosfor, credits: c.credits, picks: c.picks,
-    value: valueCollection(c, (slug) => { const p = priceOf.get(slug); return p ? { avg5: p.avg5, low: p.low, listings: p.listings } : undefined; }),
+    value: valueCollection(c, (slug) => {
+      const v = priceView(priceOf.get(slug), maxRankOf.get(slug) ?? null);
+      return v ? { avg5: v.price, low: v.low, listings: v.listings, basis: v.basis } : undefined;
+    }),
   }));
   const due = arcanesDue(arcanes, prices);
 

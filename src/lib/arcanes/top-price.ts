@@ -16,10 +16,10 @@ export interface TopPrice {
 
 const online = (s?: string) => s === "ingame" || s === "online";
 
-/** From `GET /v2/orders/item/{slug}/top?rank=0` (its `data.sell` list). */
-export function reduceTopOrders(sell: TopOrder[] | null | undefined, cheapest = 5): TopPrice {
+/** From `GET /v2/orders/item/{slug}/top?rank=N` (its `data.sell` list); `rank` is the rank the listings must be at (0 = unranked). */
+export function reduceTopOrders(sell: TopOrder[] | null | undefined, cheapest = 5, rank = 0): TopPrice {
   const ok = (sell ?? [])
-    .filter((o) => (o.type ?? "sell") === "sell" && o.visible !== false && (o.quantity ?? 1) > 0 && (o.rank ?? 0) === 0 && online(o.user?.status) && (o.user?.platform === "pc" || o.user?.crossplay === true || o.user?.platform === undefined))
+    .filter((o) => (o.type ?? "sell") === "sell" && o.visible !== false && (o.quantity ?? 1) > 0 && (o.rank ?? 0) === rank && online(o.user?.status) && (o.user?.platform === "pc" || o.user?.crossplay === true || o.user?.platform === undefined))
     .map((o) => o.platinum)
     .filter((p) => Number.isFinite(p) && p > 0)
     .sort((a, b) => a - b)

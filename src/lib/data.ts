@@ -57,15 +57,16 @@ export async function listArcanes(): Promise<ArcaneRow[]> {
   return (data ?? []) as ArcaneRow[];
 }
 
-export interface ArcanePriceRow { slug: string; low: number | null; avg5: number | null; listings: number; fetched_at: string | null; volume_48h: number | null; sold_avg_48h: number | null; stats_at: string | null }
+export interface ArcanePriceRow { slug: string; low: number | null; avg5: number | null; listings: number; max_low: number | null; max_avg5: number | null; max_listings: number; fetched_at: string | null; volume_48h: number | null; sold_avg_48h: number | null; stats_at: string | null }
 
 /** Latest rank-0 market price row per arcane (refreshed in the background by /api/arcanes/prices/refresh). */
 export async function listArcanePrices(): Promise<ArcanePriceRow[]> {
   const sb = await createClient();
-  const { data } = await sb.from("arcane_prices").select("slug,low,avg5,listings,fetched_at,volume_48h,sold_avg_48h,stats_at");
+  const { data } = await sb.from("arcane_prices").select("slug,low,avg5,listings,max_low,max_avg5,max_listings,fetched_at,volume_48h,sold_avg_48h,stats_at");
   // numeric columns arrive as strings from PostgREST in some configurations; normalise
   return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
     slug: r.slug as string, low: r.low as number | null, avg5: r.avg5 == null ? null : Number(r.avg5), listings: Number(r.listings ?? 0),
+    max_low: r.max_low as number | null, max_avg5: r.max_avg5 == null ? null : Number(r.max_avg5), max_listings: Number(r.max_listings ?? 0),
     fetched_at: (r.fetched_at as string | null) ?? null, volume_48h: r.volume_48h == null ? null : Number(r.volume_48h),
     sold_avg_48h: r.sold_avg_48h == null ? null : Number(r.sold_avg_48h), stats_at: (r.stats_at as string | null) ?? null,
   }));

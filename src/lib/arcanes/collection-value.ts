@@ -1,6 +1,14 @@
 import type { CollectionRarity } from "./collections";
 
-export interface ArcanePrice { avg5: number | null; low: number | null; /** How many listings avg5 is of (fewer than 3 = a thin market). */ listings?: number }
+export interface ArcanePrice {
+  /** The unranked price used (rank-0 average, or the derived max-rank ÷ copies price). */
+  avg5: number | null;
+  low: number | null;
+  /** Rank-0 listings behind it. */
+  listings?: number;
+  /** Where the price came from; "thin" = shaky, "derived" = max-rank price ÷ copies. */
+  basis?: "listings" | "derived" | "thin" | "none";
+}
 
 export interface ValuedCollectionInput {
   picks: number;
@@ -14,7 +22,7 @@ export interface ValuedTier {
   priced: number;
   /** Mean price of the tier's priced arcanes. */
   avg: number | null;
-  arcanes: { slug: string; avg5: number | null; low: number | null; /** Listings behind avg5 (0–5). */ listings: number; /** Share of the collection's expected value this arcane carries (0…1). */ share: number }[];
+  arcanes: { slug: string; avg5: number | null; low: number | null; /** Listings behind avg5 (0–5). */ listings: number; basis: "listings" | "derived" | "thin" | "none"; /** Share of the collection's expected value this arcane carries (0…1). */ share: number }[];
 }
 
 export interface CollectionValue {
@@ -64,7 +72,7 @@ export function valueCollection(c: ValuedCollectionInput, price: (slug: string) 
         .map((slug) => {
           const p = price(slug);
           const share = odds && x.avg != null && p?.avg5 != null && mass > 0 ? (x.t.chance / mass) * (p.avg5 / Math.max(1, x.priced.length)) / odds : 0;
-          return { slug, avg5: p?.avg5 ?? null, low: p?.low ?? null, listings: p?.listings ?? 0, share };
+          return { slug, avg5: p?.avg5 ?? null, low: p?.low ?? null, listings: p?.listings ?? 0, basis: p?.basis ?? "none", share };
         })
         .sort((a, b) => (b.avg5 ?? -1) - (a.avg5 ?? -1)),
     })),

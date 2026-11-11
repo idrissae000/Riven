@@ -31,11 +31,11 @@ const get: WfmGet = async (path) => {
 
 async function main() {
   if (dry) {
-    const arcanes = (JSON.parse(readFileSync("data/generated/arcanes.json", "utf8")) as { slug: string; wfm_slug: string | null }[]).filter((a) => a.wfm_slug);
+    const arcanes = (JSON.parse(readFileSync("data/generated/arcanes.json", "utf8")) as { slug: string; wfm_slug: string | null; max_rank: number | null }[]).filter((a) => a.wfm_slug);
     const now = new Date().toISOString();
     const out: (PriceRow & Partial<StatsRow>)[] = [];
     for (const [i, a] of arcanes.entries()) {
-      const price = await fetchPriceRow(get, a.slug, a.wfm_slug!, now);
+      const price = await fetchPriceRow(get, a.slug, a.wfm_slug!, now, a.max_rank);
       const stats = await fetchStatsRow(get, a.slug, a.wfm_slug!, now);
       out.push({ ...price, volume_48h: stats.volume_48h, sold_avg_48h: stats.sold_avg_48h, stats_at: stats.stats_at });
       if ((i + 1) % 20 === 0) console.log(`  ${i + 1}/${arcanes.length}`);

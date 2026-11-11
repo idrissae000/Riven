@@ -7,20 +7,29 @@ export type WfmGet = (path: string) => Promise<Response>;
 export const PRICE_TTL_MS = 45 * 60_000; // arcane prices move slowly; this keeps ~166 items cheap to keep fresh
 export const STATS_TTL_MS = 12 * 60 * 60_000;
 
-export interface PriceRow { slug: string; low: number | null; avg5: number | null; listings: number; fetched_at: string }
+export interface PriceRow { slug: string; low: number | null; avg5: number | null; listings: number; max_low: number | null; max_avg5: number | null; max_listings: number; fetched_at: string }
 export interface StatsRow { slug: string; volume_48h: number | null; sold_avg_48h: number | null; stats_at: string }
 
 export class WfmFetchError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
 }
 
-/** Cheapest + average-of-cheapest-5 online rank-0 sell prices: `GET /v2/orders/item/{slug}/top?rank=0` (≈3 KB). */
-export async function fetchPriceRow(get: WfmGet, slug: string, wfmSlug: string, nowIso: string): Promise<PriceRow> {
-  const path = `/v2/orders/item/${encodeURIComponent(wfmSlug)}/top?rank=0`;
+async function fetchTop(get: WfmGet, wfmSlug: string, rank: number) {
+  const path = `/v2/orders/item/${encodeURIComponent(wfmSlug)}/top?rank=${rank}`;
   const res = await get(path);
   if (!res.ok) throw new WfmFetchError(`Warframe Market ${res.status} for ${path.split("?")[0]}`, res.status);
   const json = (await res.json()) as { data?: { sell?: Parameters<typeof reduceTopOrders>[0] } };
-  return { slug, ...reduceTopOrders(json.data?.sell), fetched_at: nowIso };
+  return reduceTopOrders(json.data?.sell, 5, rank);
+}
+
+/**
+ * Cheapest + average-of-cheapest-5 online sell prices at rank 0 AND at max rank (`GET /v2/orders/item/{slug}/top?rank=N`,
+ * ≈3 KB each). The max-rank price lets us work out an unranked price when the rank-0 market is too thin to trust.
+ */
+export async function fetchPriceRow(get: WfmGet, slug: string, wfmSlug: string, nowIso: string, maxRank: number | null = null): Promise<PriceRow> {
+  const r0 = await fetchTop(get, wfmSlug, 0);
+  const max = maxRank && maxRank > 0 ? await fetchTop(get, wfmSlug, maxRank) : { low: null, avg5: null, listings: 0 };
+  return { slug, ...r0, max_low: max.low, max_avg5: max.avg5, max_listings: max.listings, fetched_at: nowIso };
 }
 
 /** Rank-0 sales in the last 48h: `GET /v1/items/{slug}/statistics` (≈200 KB, so fetched rarely). */
@@ -51,15 +60,15 @@ export async function refreshArcaneBatch(
   get: WfmGet,
   opts: { priceLimit?: number; statsLimit?: number; now?: number } = {},
 ): Promise<BatchResult> {
-  const { priceLimit = 6, statsLimit = 2, now = Date.now() } = opts;
+  const { priceLimit = 4, statsLimit = 2, now = Date.now() } = opts;
   const nowIso = new Date(now).toISOString();
   const [{ data: arcanes, error: e1 }, { data: prices, error: e2 }] = await Promise.all([
-    sb.from("arcanes").select("slug,wfm_slug").not("wfm_slug", "is", null),
+    sb.from("arcanes").select("slug,wfm_slug,max_rank").not("wfm_slug", "is", null),
     sb.from("arcane_prices").select("slug,fetched_at,stats_at"),
   ]);
   if (e1 || e2) throw new Error((e1 ?? e2)!.message);
   const have = new Map((prices ?? []).map((p) => [p.slug as string, p as { fetched_at: string | null; stats_at: string | null }]));
-  const items = (arcanes ?? []) as { slug: string; wfm_slug: string }[];
+  const items = (arcanes ?? []) as { slug: string; wfm_slug: string; max_rank: number | null }[];
 
   const duePrices = pickStale(items, (a) => have.get(a.slug)?.fetched_at, now, PRICE_TTL_MS, Infinity);
   const dueStats = pickStale(items, (a) => have.get(a.slug)?.stats_at, now, STATS_TTL_MS, Infinity);
@@ -67,7 +76,7 @@ export async function refreshArcaneBatch(
 
   try {
     for (const a of duePrices.slice(0, priceLimit)) {
-      const row = await fetchPriceRow(get, a.slug, a.wfm_slug, nowIso);
+      const row = await fetchPriceRow(get, a.slug, a.wfm_slug, nowIso, a.max_rank);
       const { error } = await sb.from("arcane_prices").upsert(row, { onConflict: "slug" });
       if (error) throw new Error(error.message);
       out.prices++; out.remaining.prices--;
