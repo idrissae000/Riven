@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Keeps arcane prices current: while any are out of date it asks the server to refresh a few at a time (the server
+ * Keeps market prices current (arcanes, Prime parts, …): while any are out of date it asks the server to refresh a few at a time (the server
  * throttles Warframe Market calls and only touches stale rows), reloads the page data as results land, and stops
  * when everything is fresh or Warframe Market pushes back. Renders nothing when there's nothing to do.
  */
-export function ArcanePriceRefresher({ due }: { due: number }) {
+export function PriceRefresher({ due, endpoint = "/api/arcanes/prices/refresh" }: { due: number; endpoint?: string }) {
   const router = useRouter();
   const [left, setLeft] = useState(due);
   const [state, setState] = useState<"running" | "done" | "limited" | "error">("running");
@@ -21,15 +21,15 @@ export function ArcanePriceRefresher({ due }: { due: number }) {
     (async () => {
       let busy = 0;
       for (let i = 0; i < 150 && alive; i++) {
-        let j: { busy?: boolean; rateLimited?: boolean; remaining?: { prices: number; stats: number } };
+        let j: { busy?: boolean; rateLimited?: boolean; remaining?: number | { prices: number; stats: number } };
         try {
-          const res = await fetch("/api/arcanes/prices/refresh", { method: "POST" });
+          const res = await fetch(endpoint, { method: "POST" });
           if (!res.ok) throw new Error(String(res.status));
           j = await res.json();
         } catch { if (alive) setState("error"); return; }
         if (!alive) return;
         if (j.busy) { if (++busy > 10) { setState("error"); return; } await sleep(3000); continue; }
-        const remaining = (j.remaining?.prices ?? 0) + (j.remaining?.stats ?? 0);
+        const remaining = typeof j.remaining === "number" ? j.remaining : (j.remaining?.prices ?? 0) + (j.remaining?.stats ?? 0);
         setLeft(remaining);
         const finished = remaining === 0 || !!j.rateLimited;
         if (finished || i % 3 === 2) router.refresh();
@@ -38,7 +38,7 @@ export function ArcanePriceRefresher({ due }: { due: number }) {
       }
     })();
     return () => { alive = false; };
-  }, [due, router]);
+  }, [due, router, endpoint]);
 
   if (due <= 0 || state === "done") return null;
   return (

@@ -72,6 +72,26 @@ export async function listArcanePrices(): Promise<ArcanePriceRow[]> {
   }));
 }
 
+export interface ItemPriceRow { slug: string; low: number | null; avg5: number | null; listings: number; fetched_at: string | null }
+
+/** Latest prices for Prime parts / sets (refreshed in the background by /api/primes/prices/refresh). */
+export async function listItemPrices(): Promise<ItemPriceRow[]> {
+  const sb = await createClient();
+  const { data } = await sb.from("item_prices").select("slug,low,avg5,listings,fetched_at").limit(5000);
+  return ((data ?? []) as Record<string, unknown>[]).map((r) => ({
+    slug: r.slug as string, low: r.low as number | null, avg5: r.avg5 == null ? null : Number(r.avg5), listings: Number(r.listings ?? 0), fetched_at: (r.fetched_at as string | null) ?? null,
+  }));
+}
+
+export interface WeaponRivenRow { slug: string; listings: number; saturated: boolean; low: number | null; median: number | null; p75: number | null; stats: { stat: string; withMedian: number; withoutMedian: number; n: number }[]; fetched_at: string | null }
+
+/** Per-weapon riven market summaries (refreshed in the background by /api/weapons/prices/refresh). */
+export async function listWeaponRivenPrices(): Promise<WeaponRivenRow[]> {
+  const sb = await createClient();
+  const { data } = await sb.from("weapon_riven_prices").select("slug,listings,saturated,low,median,p75,stats,fetched_at").limit(2000);
+  return (data ?? []) as WeaponRivenRow[];
+}
+
 export interface ArcaneCollectionRow { id: string; name: string; vosfor: number; credits: number; picks: number; tiers: { rarity: "Common" | "Uncommon" | "Rare" | "Legendary"; chance: number; arcanes: string[] }[] }
 
 export async function listArcaneCollections(): Promise<ArcaneCollectionRow[]> {

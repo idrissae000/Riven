@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/page-header";
 import { listArcaneCollections, listArcanePrices, listArcanes } from "@/lib/data";
 import { ArcaneTabs } from "@/components/arcane-tabs";
-import { ArcanePriceRefresher } from "@/components/arcane-price-refresher";
+import { PriceRefresher } from "@/components/price-refresher";
 import { VosforCollections, type CollectionCard } from "@/components/vosfor-collections";
 import { valueCollection } from "@/lib/arcanes/collection-value";
 import { priceView } from "@/lib/arcanes/price-view";
@@ -27,7 +27,7 @@ export default async function VosforPage() {
     <div className="space-y-5">
       <PageHeader kicker="Loid · Albrecht’s Laboratories" title="Vosfor collections" />
       <ArcaneTabs active="vosfor" />
-      <ArcanePriceRefresher due={due} />
+      <PriceRefresher due={due} />
       {cards.length === 0 ? (
         <p className="card border-orange/40 text-sm text-orange">No collections loaded yet. Run <code>npm run sync:wiki-arcanes</code> to import them from the Warframe Wiki.</p>
       ) : (

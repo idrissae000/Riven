@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/page-header";
 import { listArcanePrices, listArcanes } from "@/lib/data";
 import { ArcaneTabs } from "@/components/arcane-tabs";
-import { ArcanePriceRefresher } from "@/components/arcane-price-refresher";
+import { PriceRefresher } from "@/components/price-refresher";
 import { priceView } from "@/lib/arcanes/price-view";
 import { sourceLabel } from "@/lib/arcanes/source-label";
 import { arcanesDue } from "@/lib/arcanes/due";
@@ -30,7 +30,7 @@ export default async function ArcanesPage() {
       <PageHeader kicker="Arcane archive" title="Arcanes" />
       <ArcaneTabs active="arcanes" />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <ArcanePriceRefresher due={due} />
+        <PriceRefresher due={due} />
         {oldest && <p className="ml-auto text-xs text-dim">Prices as of {timeAgo(oldest)}</p>}
       </div>
       {arcanes.length === 0 ? (

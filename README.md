@@ -13,13 +13,15 @@ Price, grade and manage Warframe riven mods; look up arcanes. Next.js (App Route
 ## Setup
 
 1. `npm install`
-2. Create a Supabase project, run `supabase/migrations/0001…0013` in order (SQL editor or `supabase db push`).
+2. Create a Supabase project, run `supabase/migrations/0001…0015` in order (SQL editor or `supabase db push`).
 3. `cp .env.example .env.local` and fill it in (Supabase URL/keys; `WFM_TOKEN_ENCRYPTION_KEY` via `openssl rand -base64 32`; optional `ANTHROPIC_API_KEY` for screenshot scanning).
 4. Load reference data (re-runnable any time):
    ```bash
    npm run sync:wfm-static          # weapons (+disposition) and riven stat definitions, from Warframe Market
    npm run sync:wiki-arcanes        # arcanes, drop sources, compatibility, Vosfor collections, from the Warframe Wiki (+ WFM ids)
    npm run sync:arcane-prices       # rank-0 market prices + 48h sales for every arcane (the app also keeps these fresh by itself)
+   npm run sync:primes              # data/primes.json: every Prime part/set and Lith–Axi relic (drops, vaulted) — commit the result
+   npm run sync:item-prices         # Prime part/set prices (the app also keeps these fresh by itself)
    ```
    `-- --dry-run` on the sync scripts writes JSON to `data/generated/` instead of touching the DB.
 5. `npm run dev`
@@ -31,6 +33,9 @@ Price, grade and manage Warframe riven mods; look up arcanes. Next.js (App Route
 | Riven roll ranges (every stat × weapon category × layout), ±10% roll, grade bands, weapon categories | `data/rivencalc.json` (committed) | `npm run sync:rivencalc` re-scrapes browse.wf/rivencalc (formulas are confirmed from its source; it fails loudly if they change) and rewrites the file; `-- --check` only compares. `npm run verify:rivencalc` cross-checks the stored numbers against the live page in headless Chromium. Disposition is locked at 1.2. WFM stat → calculator stat map: `data/rivencalc-stat-map.json`. Stats browse.wf has no range for are filled from the Unified-Codex calculator (`fallback` in the file; map: `data/codex-stat-map.json`). |
 | Arcane prices (rank 0) | `arcane_prices` | Refreshed in the background while anyone has the Arcanes page open (a few at a time, only stale rows, shared by everyone); `npm run sync:arcane-prices` does a full pass. |
 | Vosfor collections (Loid) | `arcane_collections` | `npm run sync:wiki-arcanes` reads the wiki's table and cross-checks each pool's size and the odds; it fails loudly if the page changes. |
+| Prime parts & relics | `data/primes.json` (committed) | `npm run sync:primes` (Warframe Market items + the game's relic/reward export). Relic refinement odds are in `src/lib/primes/relic-value.ts` (from the wiki's Void Relic page). |
+| Prime part / set prices | `item_prices` | Refreshed in the background (a few at a time, only stale rows) while anyone has the Primes pages open; `npm run sync:item-prices` does a full pass. |
+| Weapon riven market | `weapon_riven_prices` | Refreshed in the background by the Weapon ranking page: for each weapon, the median ask of its cheapest ≤99 buy-it-now rivens and the stats that ask more. |
 | Per-ability arcane compatibility, drop-source corrections | `data/arcane-overrides.json` | Wins over the wiki; re-run `sync:wiki-arcanes`. |
 | Readable labels for wiki stat tags | `data/arcane-upgrade-types.json` | Sync prints any unmapped tags. |
 | Stats that are good when negative (Recoil) | `data/riven-attribute-overrides.json` | Re-run `sync:wfm-static`. |
@@ -44,6 +49,9 @@ Price, grade and manage Warframe riven mods; look up arcanes. Next.js (App Route
 - **Vault worth:** My Rivens shows each riven's last estimate (stored on the row, migration 0011), re-prices stale ones one at a time in the background, and totals them. Editing a riven clears its estimate.
 - **Arcane prices:** an arcane's price is the average of the 5 cheapest *online* rank-0 sell listings (Warframe Market's `/top` endpoint, ~3 KB each), with the cheapest listing shown beside it and the last 48 hours' sales volume from the statistics endpoint. When the rank-0 market is too thin to trust (fewer than 3 listings, none, or priced at/above the max-rank price) the price is derived instead: **max-rank price ÷ copies**, because a max-rank arcane is built from 21 unranked ones (10 for a rank-3 arcane) — see `src/lib/arcanes/effective-price.ts`. On arcanes that really sell, that derived price came out at a median 0.7× the actual sold price, while rank-0 asking averages ran ~1.4× it. These are asking prices, not sales.
 - **Vosfor collections:** each of Loid's 9 collections costs 200 Vosfor + 50,000 credits for 3 arcanes. The page ranks them by the plain average price of the arcanes in the collection, and also shows an odds-weighted figure (rarity chances × the average price within each rarity) — the closest thing to "platinum per pack".
+- **Primes:** the Prime parts page ranks parts and sets by price (average of the 5 cheapest online listings) with ducats and vault status; the Best relics page values each relic as the expected platinum from one reward pick at each refinement (odds × price; Forma counts as 0). A part is "vaulted" only if every relic that drops it is.
+- **Weapon ranking:** Warframe Market publishes no riven sales data, so weapons are ranked by the median *asking* price of their cheapest buy-it-now rivens (up to 99 per weapon). For popular weapons that describes the low end of the market. "Stats that ask more" compares listings with and without a stat in that same sample.
+- **Live:** `/live` shows the world state (cycles, fissures, Baro, sortie, archon hunt, Teshin, Darvo, Nightwave, invasions) from api.warframestat.us, cached for a minute per server instance.
 - **Rate limiting:** one shared 350 ms throttle per server instance + a 12-minute cache (memory + `market_cache` table, stale-on-error). The throttle is per lambda; the shared cache is what keeps combined volume low.
 - **Grading:** per stat, from browse.wf's Riven Calculator at a fixed 1.2 disposition: a ±10% roll around each stat's center, 11 bands (S … F). **Curses are different:** a curse's grade is a fixed rating for the stat (and weapon) from `data/curse-ratings.json`, not its roll — the gauge and band table still show where the roll sits, as information. A curse with no rating falls back to roll grading (a milder penalty grades higher, as on the calculator), and says so. Stats browse.wf doesn't list (combined elements, weak point stats, Zoom on shotguns …) are graded from the Unified-Codex calculator's ranges instead, and the result says so; they have no 1+/1- layout. 
 - **Rank scaling:** riven stats scale with rank ((rank+1)/9). All comparisons and grading are normalised to rank 8.

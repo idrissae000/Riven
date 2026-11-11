@@ -53,6 +53,22 @@ export function IconArcane({ size = 22 }: { size?: number }) {
     </svg>
   );
 }
+export function IconPrime({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+      <path d="M12 2.5 21 9l-9 12.5L3 9l9-6.5Z" />
+      <path d="M3 9h18M8.5 9 12 2.5 15.5 9M8.5 9 12 21.5 15.5 9" />
+    </svg>
+  );
+}
+export function IconLive({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 6.5V12l3.5 2" />
+    </svg>
+  );
+}
 export function IconMarket({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>

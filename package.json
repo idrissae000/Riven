@@ -14,6 +14,8 @@
     "sync:wiki-arcanes": "tsx scripts/sync-wiki-arcanes.ts",
     "sync:rivencalc": "tsx scripts/sync-rivencalc.ts",
     "sync:arcane-prices": "tsx scripts/sync-arcane-prices.ts",
+    "sync:primes": "tsx scripts/sync-primes.ts",
+    "sync:item-prices": "tsx scripts/sync-item-prices.ts",
     "verify:rivencalc": "node scripts/verify-rivencalc.mjs"
   },
   "dependencies": {

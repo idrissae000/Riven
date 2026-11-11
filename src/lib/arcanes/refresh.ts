@@ -14,7 +14,8 @@ export class WfmFetchError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
 }
 
-async function fetchTop(get: WfmGet, wfmSlug: string, rank: number) {
+/** The 5 cheapest online sell listings at `rank` (0 for unranked items), reduced to low / average / count. */
+export async function fetchTop(get: WfmGet, wfmSlug: string, rank: number) {
   const path = `/v2/orders/item/${encodeURIComponent(wfmSlug)}/top?rank=${rank}`;
   const res = await get(path);
   if (!res.ok) throw new WfmFetchError(`Warframe Market ${res.status} for ${path.split("?")[0]}`, res.status);

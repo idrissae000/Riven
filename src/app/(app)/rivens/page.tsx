@@ -5,6 +5,7 @@ import { GradeBadge } from "@/components/grade-badge";
 import { fmtStat } from "@/lib/format";
 import { GuestHero } from "@/components/guest-hero";
 import { PageHeader } from "@/components/page-header";
+import { RivensTabs } from "@/components/rivens-tabs";
 import { RivenPrice, VaultProvider, VaultWorth } from "@/components/vault";
 import type { VaultEstimate } from "@/lib/vault";
 
@@ -30,6 +31,7 @@ export default async function RivensPage() {
       <PageHeader kicker="Your vault" title="My Rivens">
         <Link href="/rivens/new" className="btn-primary">+ New riven</Link>
       </PageHeader>
+      <RivensTabs active="mine" />
 
       {ref.weapons.length === 0 && (
         <p className="card border-orange/40 text-sm text-orange">
