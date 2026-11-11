@@ -53,6 +53,11 @@ describe("buildPrimes", () => {
     expect(by("baro_only_prime_blueprint")).toMatchObject({ vaulted: null, relics: [] });
     expect(by("frost_prime_set").vaulted).toBeNull();
   });
+  it("records how many of a part its set needs (default 1)", () => {
+    const withQty = buildPrimes({ items, relics, rewards, setQuantities: { lex_prime_barrel: 2 } }).parts;
+    expect(withQty.find((p) => p.slug === "lex_prime_barrel")!.perSet).toBe(2);
+    expect(withQty.find((p) => p.slug === "lex_prime_blueprint")!.perSet).toBe(1);
+  });
   it("refuses a relic that doesn't drop 3/2/1", () => {
     const bad = { a1: [[R("/Lotus/StoreItems/Types/Recipes/Weapons/LexPrimeBlueprint", "RARE"), ...drops("x")[0].slice(1)]] };
     expect(() => buildPrimes({ items, relics, rewards: bad as ExportRewards })).toThrow(/expected 3 common/);

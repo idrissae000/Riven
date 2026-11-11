@@ -24,7 +24,21 @@ async function text(url: string, headers: Record<string, string> = {}) {
 async function main() {
   console.log("Fetching Warframe Market items and the game's relic data …");
   const [items, relics, rewards] = await Promise.all([text(ITEMS, { Accept: "application/json", Language: "en" }), text(RELICS), text(REWARDS)]);
-  const built = buildPrimes({ items: (JSON.parse(items) as { data: WfmItem[] }).data, relics: JSON.parse(relics) as Record<string, ExportRelic>, rewards: JSON.parse(rewards) as ExportRewards });
+  const wfmItems = (JSON.parse(items) as { data: WfmItem[] }).data;
+
+  // how many of each part a set needs: GET /v2/item/{set}/set (one small request per set)
+  console.log("Reading set compositions …");
+  const setQuantities: Record<string, number> = {};
+  const sets = wfmItems.filter((i) => i.tags?.includes("prime") && i.tags.includes("set"));
+  for (const [n, set] of sets.entries()) {
+    const body = JSON.parse(await text(`https://api.warframe.market/v2/item/${set.slug}/set`, { Accept: "application/json", Language: "en" })) as { data?: { items?: { slug: string; quantityInSet?: number; setRoot?: boolean }[] } };
+    for (const part of body.data?.items ?? []) if (!part.setRoot && (part.quantityInSet ?? 1) > 1) setQuantities[part.slug] = part.quantityInSet as number;
+    await new Promise((r) => setTimeout(r, 400));
+    if ((n + 1) % 40 === 0) console.log(`  ${n + 1}/${sets.length}`);
+  }
+  console.log(`  ${Object.keys(setQuantities).length} parts need more than one copy per set`);
+
+  const built = buildPrimes({ items: wfmItems, relics: JSON.parse(relics) as Record<string, ExportRelic>, rewards: JSON.parse(rewards) as ExportRewards, setQuantities });
   const data: PrimeCatalogue = {
     source: { itemsUrl: ITEMS, relicsUrl: RELICS, rewardsUrl: REWARDS, sha256: { items: sha(items), relics: sha(relics), rewards: sha(rewards) }, fetchedAt: new Date().toISOString() },
     ...built,

@@ -26,7 +26,7 @@ const itemRef = (type: string) => type.replace("/StoreItems", "");
  * Builds the catalogue: every Prime part / blueprint / set tradable on Warframe Market, and every Lith–Axi relic with the
  * six things it drops. Throws if the export no longer looks like 3 commons + 2 uncommons + 1 rare per relic.
  */
-export function buildPrimes(src: { items: WfmItem[]; relics: Record<string, ExportRelic>; rewards: ExportRewards }): Pick<PrimeCatalogue, "parts" | "relics"> {
+export function buildPrimes(src: { items: WfmItem[]; relics: Record<string, ExportRelic>; rewards: ExportRewards; /** part slug → copies a set needs (from the market's set endpoint); missing = 1 */ setQuantities?: Record<string, number> }): Pick<PrimeCatalogue, "parts" | "relics"> {
   const items = src.items;
   const bySlug = new Map(items.map((i) => [i.slug, i]));
   const byRef = new Map(items.map((i) => [i.gameRef, i]));
@@ -75,6 +75,7 @@ export function buildPrimes(src: { items: WfmItem[]; relics: Record<string, Expo
         type: partType(tags),
         ducats: i.ducats ?? null,
         setSlug: setSlug && bySlug.has(setSlug) ? setSlug : null,
+        perSet: src.setQuantities?.[i.slug] ?? 1,
         relics: from,
         vaulted: isSet || !from.length ? null : from.every((id) => vaultedOf.get(id)),
       };

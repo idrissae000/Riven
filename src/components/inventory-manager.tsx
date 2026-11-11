@@ -1,0 +1,138 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plat } from "@/components/brand";
+import type { SetAdvice, ValuedRow } from "@/lib/inventory/value";
+
+export interface AddOption { slug: string; kind: "prime" | "arcane"; name: string; maxRank: number | null }
+
+const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+
+/** Add what you own, see what it's worth, and what's best to sell. */
+export function InventoryManager({ options, rows, total, priced, advice }: { options: AddOption[]; rows: ValuedRow[]; total: number; priced: number; advice: SetAdvice[] }) {
+  const router = useRouter();
+  const [text, setText] = useState("");
+  const [qty, setQty] = useState(1);
+  const [maxRank, setMaxRank] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const byName = new Map(options.map((o) => [o.name.toLowerCase(), o]));
+  const chosen = byName.get(text.trim().toLowerCase());
+
+  async function call(url: string, init: RequestInit) {
+    setBusy(true); setError(null);
+    const res = await fetch(url, { ...init, headers: { "Content-Type": "application/json" } });
+    const json = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (!res.ok) { setError(json.error ?? "Something went wrong"); return false; }
+    router.refresh();
+    return true;
+  }
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    if (!chosen) return setError("Pick an item from the list.");
+    const ok = await call("/api/inventory", { method: "POST", body: JSON.stringify({ kind: chosen.kind, slug: chosen.slug, rank: chosen.kind === "arcane" && maxRank ? chosen.maxRank : 0, qty }) });
+    if (ok) { setText(""); setQty(1); setMaxRank(false); }
+  }
+
+  const sells = rows.filter((r) => r.total != null).slice(0, 5);
+
+  return (
+    <div className="space-y-5">
+      <section className="card flex flex-wrap items-center justify-between gap-3" aria-live="polite">
+        <div>
+          <p className="kicker">Inventory worth</p>
+          <p className="h-display flex items-center gap-2 text-4xl text-plat">{priced ? <>≈ {fmt(total)} <Plat size={26} /></> : <span className="text-dim">—</span>}</p>
+          <p className="mt-1 text-xs text-dim">{priced} of {rows.length} items priced · market asking prices (average of the 5 cheapest online listings)</p>
+        </div>
+      </section>
+
+      <form onSubmit={add} className="card space-y-3">
+        <h2 className="kicker">Add to your inventory</h2>
+        <div className="grid gap-3 sm:grid-cols-[1fr_6rem]">
+          <div>
+            <label className="label" htmlFor="inv-item">Prime part, set or arcane</label>
+            <input id="inv-item" className="input" list="inv-options" value={text} onChange={(e) => setText(e.target.value)} placeholder="Start typing… e.g. Frost Prime Chassis" autoComplete="off" />
+            <datalist id="inv-options">{options.map((o) => <option key={`${o.kind}:${o.slug}`} value={o.name} />)}</datalist>
+          </div>
+          <div>
+            <label className="label" htmlFor="inv-qty">Quantity</label>
+            <input id="inv-qty" className="input" type="number" min={1} max={9999} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))} />
+          </div>
+        </div>
+        {chosen?.kind === "arcane" && chosen.maxRank != null && (
+          <label className="flex items-center gap-2 text-sm text-dim"><input type="checkbox" checked={maxRank} onChange={(e) => setMaxRank(e.target.checked)} /> These are max rank ({chosen.maxRank})</label>
+        )}
+        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+        <button className="btn-primary" disabled={busy}>{busy ? "Adding…" : "Add"}</button>
+      </form>
+
+      {(sells.length > 0 || advice.length > 0) && (
+        <section className="card space-y-3">
+          <h2 className="kicker">What to sell</h2>
+          {advice.length > 0 && (
+            <ul className="space-y-2 text-sm">
+              {advice.map((a) => (
+                <li key={a.setSlug} className="rounded-lg border border-line bg-void/40 p-3">
+                  {a.kind === "complete" ? (
+                    <>
+                      <p><b>{a.name}</b> — you can make {a.count}. {a.gain > 0
+                        ? <>Sell it as a set: <span className="text-plat">{fmt(a.setPrice * a.count)}p</span> vs {fmt(a.partsValue)}p as loose parts (<b className="text-ok">+{fmt(a.gain)}p</b>).</>
+                        : <>The parts sell for more separately: {fmt(a.partsValue)}p vs {fmt(a.setPrice * a.count)}p as a set.</>}</p>
+                    </>
+                  ) : (
+                    <p><b>{a.name}</b> — one part short. Buy {a.missing[0].qty}× {a.missing[0].name} (~{fmt(a.missingCost)}p), then sell the set for <span className="text-plat">{fmt(a.setPrice)}p</span> instead of {fmt(a.partsValue)}p for the parts you hold (<b className="text-ok">+{fmt(a.gain)}p</b>).</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {sells.length > 0 && (
+            <div>
+              <p className="label">Your most valuable stacks</p>
+              <ol className="space-y-1 text-sm">
+                {sells.map((r) => (
+                  <li key={r.id} className="flex items-baseline justify-between gap-3">
+                    <span className="truncate">{r.qty}× {r.name}{r.kind === "arcane" && r.rank > 0 ? " (max rank)" : ""}</span>
+                    <span className="shrink-0 font-mono text-plat">{fmt(r.total as number)}p</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+        </section>
+      )}
+
+      <section className="space-y-2">
+        <h2 className="kicker">Your items</h2>
+        {rows.length === 0 && <p className="card text-center text-dim">Nothing here yet. Add the Prime parts and arcanes you own above.</p>}
+        <ul className="space-y-2">
+          {rows.map((r) => (
+            <li key={r.id} className="card flex flex-wrap items-center justify-between gap-3 !py-3">
+              <div className="min-w-0">
+                <p className="truncate font-display text-[0.95rem] font-semibold">{r.name}{r.kind === "arcane" && <span className="ml-2 text-xs font-normal text-dim">{r.rank > 0 ? "max rank" : "unranked"}</span>}</p>
+                <p className="mt-0.5 font-mono text-[0.7rem] text-dim">
+                  {r.unit != null ? `${fmt(r.unit)}p each` : "no price yet"}
+                  {r.ducatsTotal != null && ` · ${r.ducatsTotal} ducats${r.ducatsPerPlat ? ` (${r.ducatsPerPlat}/p)` : ""}`}
+                  {r.note && ` · ${r.note}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center">
+                  <button className="btn min-h-9 w-9 px-0" aria-label="One fewer" disabled={busy || r.qty <= 1} onClick={() => call(`/api/inventory/${r.id}`, { method: "PATCH", body: JSON.stringify({ qty: r.qty - 1 }) })}>−</button>
+                  <span className="w-10 text-center font-mono">{r.qty}</span>
+                  <button className="btn min-h-9 w-9 px-0" aria-label="One more" disabled={busy || r.qty >= 9999} onClick={() => call(`/api/inventory/${r.id}`, { method: "PATCH", body: JSON.stringify({ qty: r.qty + 1 }) })}>+</button>
+                </div>
+                <p className="h-display flex w-20 items-center justify-end gap-1 text-lg text-plat">{r.total != null ? <>{fmt(r.total)} <Plat size={14} /></> : <span className="text-sm text-dim">—</span>}</p>
+                <button className="text-xs text-dim hover:text-danger" disabled={busy} onClick={() => call(`/api/inventory/${r.id}`, { method: "DELETE" })} aria-label={`Remove ${r.name}`}>remove</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
+}

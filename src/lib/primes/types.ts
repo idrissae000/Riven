@@ -11,6 +11,8 @@ export interface PrimePart {
   ducats: number | null;
   /** The set this part belongs to (its slug), when it has one. */
   setSlug: string | null;
+  /** How many of this part the set needs (most need 1; some, like Akbolto Prime's barrel, need 2). */
+  perSet: number;
   /** Relics (ids) that drop it. Empty = not a relic drop (Baro Ki'Teer, a Prime Access exclusive, …). */
   relics: string[];
   /** true = every relic that drops it is vaulted; false = at least one is in the drop tables; null = not a relic drop / a set. */
