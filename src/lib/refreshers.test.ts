@@ -20,7 +20,7 @@ function fakeSb(tables: Record<string, Record<string, unknown>[]>) {
   return { sb: sb as unknown as SupabaseClient, upserts };
 }
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
-const sell = (...p: number[]) => ({ data: { sell: p.map((platinum) => ({ type: "sell", platinum, quantity: 1, rank: 0, visible: true, user: { status: "ingame", platform: "pc" } })) } });
+const sell = (...p: number[]) => ({ data: p.map((platinum) => ({ type: "sell", platinum, quantity: 1, rank: 0, visible: true, user: { status: "ingame", platform: "pc" } })) });
 const NOW = Date.parse("2026-11-11T12:00:00Z");
 
 describe("refreshItemBatch (Prime parts)", () => {
@@ -29,7 +29,7 @@ describe("refreshItemBatch (Prime parts)", () => {
     const asked: string[] = [];
     const r = await refreshItemBatch(sb, async (path) => { asked.push(path); return json(sell(10, 20)); }, ["a", "b", "c"], { limit: 1, now: NOW });
     expect(r).toEqual({ refreshed: 1, remaining: 1, rateLimited: false });
-    expect(asked).toEqual(["/v2/orders/item/b/top?rank=0"]);
+    expect(asked).toEqual(["/v2/orders/item/b"]);
     expect(upserts.item_prices[0]).toMatchObject({ slug: "b", low: 10, avg5: 15, listings: 2 });
   });
   it("stops cleanly when Warframe Market rate-limits", async () => {
@@ -58,15 +58,15 @@ describe("refreshArcaneBatch (rank 0 + max rank + sales)", () => {
   it("fetches both ranks for each stale arcane and saves them together", async () => {
     const { sb, upserts } = fakeSb({ arcanes: [{ slug: "arcane_x", wfm_slug: "arcane_x", max_rank: 5 }], arcane_prices: [] });
     const asked: string[] = [];
+    const o = (platinum: number, rank: number, status = "ingame") => ({ type: "sell", platinum, quantity: 1, rank, visible: true, user: { status, platform: "pc" } });
     const get = async (path: string) => {
       asked.push(path);
-      if (path.endsWith("rank=0")) return json({ data: { sell: [{ type: "sell", platinum: 4, quantity: 1, rank: 0, visible: true, user: { status: "ingame", platform: "pc" } }] } });
-      if (path.endsWith("rank=5")) return json({ data: { sell: [{ type: "sell", platinum: 84, quantity: 1, rank: 5, visible: true, user: { status: "ingame", platform: "pc" } }] } });
-      return json({ payload: { statistics_closed: { "48hours": [{ mod_rank: 0, volume: 10, avg_price: 4 }] } } });
+      if (path.includes("/statistics")) return json({ payload: { statistics_closed: { "48hours": [{ mod_rank: 0, volume: 10, avg_price: 4 }] } } });
+      return json({ data: [o(90, 0), o(4, 0), o(84, 5), o(2, 0, "offline"), o(5, 0), o(90, 5)] });
     };
     const r = await refreshArcaneBatch(sb, get, { now: NOW });
-    expect(asked.slice(0, 2)).toEqual(["/v2/orders/item/arcane_x/top?rank=0", "/v2/orders/item/arcane_x/top?rank=5"]);
-    expect(upserts.arcane_prices[0]).toMatchObject({ slug: "arcane_x", avg5: 4, listings: 1, max_avg5: 84, max_listings: 1 });
+    expect(asked[0]).toBe("/v2/orders/item/arcane_x"); // one request covers both ranks
+    expect(upserts.arcane_prices[0]).toMatchObject({ slug: "arcane_x", low: 4, avg5: 33, listings: 3, max_low: 84, max_avg5: 87, max_listings: 2 });
     expect(upserts.arcane_prices[1]).toMatchObject({ slug: "arcane_x", volume_48h: 10, sold_avg_48h: 4 }); // sales come once prices are current
     expect(r).toMatchObject({ prices: 1, stats: 1, rateLimited: false });
   });

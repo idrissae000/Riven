@@ -16,7 +16,7 @@ export interface TopPrice {
 
 const online = (s?: string) => s === "ingame" || s === "online";
 
-/** From `GET /v2/orders/item/{slug}/top?rank=N` (its `data.sell` list); `rank` is the rank the listings must be at (0 = unranked). */
+/** From `GET /v2/orders/item/{slug}` (the full `data` order list); `rank` is the rank the listings must be at (0 = unranked). */
 export function reduceTopOrders(sell: TopOrder[] | null | undefined, cheapest = 5, rank = 0): TopPrice {
   const ok = (sell ?? [])
     .filter((o) => (o.type ?? "sell") === "sell" && o.visible !== false && (o.quantity ?? 1) > 0 && (o.rank ?? 0) === rank && online(o.user?.status) && (o.user?.platform === "pc" || o.user?.crossplay === true || o.user?.platform === undefined))

@@ -14,22 +14,31 @@ export class WfmFetchError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
 }
 
+/**
+ * Every order for an item (`GET /v2/orders/item/{slug}`, 100–850 KB). We deliberately do NOT use `/top`: despite the name it is
+ * not "the 5 cheapest" and routinely includes 60–90p outliers, which inflated every price we stored.
+ */
+export async function fetchOrders(get: WfmGet, wfmSlug: string) {
+  const path = `/v2/orders/item/${encodeURIComponent(wfmSlug)}`;
+  const res = await get(path);
+  if (!res.ok) throw new WfmFetchError(`Warframe Market ${res.status} for ${path}`, res.status);
+  const json = (await res.json()) as { data?: Parameters<typeof reduceTopOrders>[0] };
+  return Array.isArray(json.data) ? json.data : [];
+}
+
 /** The 5 cheapest online sell listings at `rank` (0 for unranked items), reduced to low / average / count. */
 export async function fetchTop(get: WfmGet, wfmSlug: string, rank: number) {
-  const path = `/v2/orders/item/${encodeURIComponent(wfmSlug)}/top?rank=${rank}`;
-  const res = await get(path);
-  if (!res.ok) throw new WfmFetchError(`Warframe Market ${res.status} for ${path.split("?")[0]}`, res.status);
-  const json = (await res.json()) as { data?: { sell?: Parameters<typeof reduceTopOrders>[0] } };
-  return reduceTopOrders(json.data?.sell, 5, rank);
+  return reduceTopOrders(await fetchOrders(get, wfmSlug), 5, rank);
 }
 
 /**
- * Cheapest + average-of-cheapest-5 online sell prices at rank 0 AND at max rank (`GET /v2/orders/item/{slug}/top?rank=N`,
- * ≈3 KB each). The cheapest max-rank listing lets us work out an unranked price when there are fewer than 5 rank-0 listings.
+ * Cheapest + average-of-cheapest-5 online sell prices at rank 0 AND at max rank, from one full order list. The cheapest
+ * max-rank listing lets us work out an unranked price when there are fewer than 5 rank-0 listings.
  */
 export async function fetchPriceRow(get: WfmGet, slug: string, wfmSlug: string, nowIso: string, maxRank: number | null = null): Promise<PriceRow> {
-  const r0 = await fetchTop(get, wfmSlug, 0);
-  const max = maxRank && maxRank > 0 ? await fetchTop(get, wfmSlug, maxRank) : { low: null, avg5: null, listings: 0 };
+  const orders = await fetchOrders(get, wfmSlug);
+  const r0 = reduceTopOrders(orders, 5, 0);
+  const max = maxRank && maxRank > 0 ? reduceTopOrders(orders, 5, maxRank) : { low: null, avg5: null, listings: 0 };
   return { slug, ...r0, max_low: max.low, max_avg5: max.avg5, max_listings: max.listings, fetched_at: nowIso };
 }
 
@@ -61,7 +70,7 @@ export async function refreshArcaneBatch(
   get: WfmGet,
   opts: { priceLimit?: number; statsLimit?: number; now?: number } = {},
 ): Promise<BatchResult> {
-  const { priceLimit = 4, statsLimit = 2, now = Date.now() } = opts;
+  const { priceLimit = 3, statsLimit = 2, now = Date.now() } = opts;
   const nowIso = new Date(now).toISOString();
   const [{ data: arcanes, error: e1 }, { data: prices, error: e2 }] = await Promise.all([
     sb.from("arcanes").select("slug,wfm_slug,max_rank").not("wfm_slug", "is", null),
