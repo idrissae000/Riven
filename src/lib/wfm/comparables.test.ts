@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimate, findComparables, sharedStats, similarity, type WfmAuction } from "./comparables";
+import { findComparables, sharedStats, similarity, type WfmAuction } from "./comparables";
 import { auctionQueries } from "./pricing";
 import { toMaxRank } from "@/lib/rank";
 import type { RivenStat } from "@/lib/types";
@@ -150,28 +150,5 @@ describe("auctionQueries (finds listings that share only some stats)", () => {
     const r = q([stat("a"), stat("b"), stat("c"), stat("z", true)]);
     expect(r).toHaveLength(4);
     expect(r.every((u) => !u.includes("negative_stats"))).toBe(true);
-  });
-});
-
-describe("estimate", () => {
-  // exact = carries all 3 of our stats; similar = shares only 2 of them
-  const mk = (prices: number[], kind: "exact" | "similar" = "exact") =>
-    findComparables(mine, prices.map((p) => auction({ price: p, attrs: kind === "exact" ? [["critical_damage", 120], ["critical_chance", 150], ["zoom", -40]] : [["critical_damage", 120], ["critical_chance", 150]] })), unitOf);
-
-  it("never produces an estimate without enough listings backing it", () => {
-    expect(estimate([])).toBeNull();
-    expect(estimate(mk([100, 120]))).toBeNull();
-  });
-
-  it("uses quartiles of the cited listings", () => {
-    const e = estimate(mk([100, 200, 300, 400, 500]))!;
-    expect(e).toMatchObject({ low: 200, median: 300, high: 400, basis: "exact", sampleSize: 5 });
-  });
-
-  it("falls back to similar-spread listings when exact matches are too few", () => {
-    const listings = [...mk([100, 120], "exact"), ...mk([150, 180, 210], "similar")];
-    const e = estimate(listings)!;
-    expect(e.basis).toBe("similar");
-    expect(e.sampleSize).toBe(5);
   });
 });

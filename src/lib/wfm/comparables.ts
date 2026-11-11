@@ -43,16 +43,29 @@ export interface Listing {
   matched: number;
   total: number;
   score: number; // 0..1 closeness of the matching stats' values (used only to rank)
+  /** 0 (worst) … 1 (best) overall roll quality of this listing, from its per-stat grades; null when it couldn't be graded. */
+  quality?: number | null;
+  /** Set by the valuation: how much this listing counted (0 for an excluded outlier), what it counted as after adjusting for roll quality, and whether it was dropped as an outlier. */
+  weight?: number;
+  adjustedPrice?: number;
+  outlier?: boolean;
   /** Grade of each entry in `stats` (same order), graded for this weapon; null = can't be graded. */
   grades?: (Tier | null)[];
 }
 
 export interface Estimate {
+  /** 25th percentile, weighted median and 75th percentile of the comparable asking prices (after adjustments). */
   low: number;
   median: number;
   high: number;
   basis: MatchKind;
+  /** Listings that counted (outliers excluded). */
   sampleSize: number;
+  /** Listings dropped as price outliers (troll or mispriced asks). */
+  outliers: number;
+  /** Whether asking prices were adjusted for the difference in roll quality between each listing and the riven. */
+  adjusted: boolean;
+  confidence: "high" | "medium" | "low";
 }
 
 /** Listings we can trust as real, current, buy-it-now offers. */
@@ -122,7 +135,7 @@ export function findComparables(
   riven: { weapon_slug: string; stats: RivenStat[]; rank: number },
   auctions: WfmAuction[],
   unitOf: (slug: string) => string | null | undefined,
-  { limit = 12 }: FindOptions = {},
+  { limit = 16 }: FindOptions = {},
 ): Listing[] {
   const seen = new Set<string>();
   const out: Listing[] = [];
@@ -156,37 +169,4 @@ export function findComparables(
 
   out.sort((x, y) => (x.matchKind === y.matchKind ? 0 : x.matchKind === "exact" ? -1 : 1) || y.matched - x.matched || y.score - x.score || x.price - y.price);
   return out.slice(0, limit);
-}
-
-function percentile(sorted: number[], p: number): number {
-  if (sorted.length === 1) return sorted[0];
-  const idx = (sorted.length - 1) * p;
-  const lo = Math.floor(idx);
-  const hi = Math.ceil(idx);
-  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
-}
-
-/**
- * Estimate from the cited listings ONLY. Returns null when fewer than `minSamples`
- * listings back it — callers must never display a price without the listings.
- * Prefers exact-name listings when there are enough of them.
- */
-export function estimate(listings: Listing[], minSamples = 3): Estimate | null {
-  const exact = listings.filter((l) => l.matchKind === "exact");
-  const pool = exact.length >= minSamples ? exact : listings;
-  if (pool.length < minSamples) return null;
-  const prices = pool.map((l) => l.price).sort((a, b) => a - b);
-  return {
-    low: Math.round(percentile(prices, 0.25)),
-    median: Math.round(percentile(prices, 0.5)),
-    high: Math.round(percentile(prices, 0.75)),
-    basis: exact.length >= minSamples ? "exact" : "similar",
-    sampleSize: pool.length,
-  };
-}
-
-/** The listings that actually back an estimate (so the UI cites exactly those). */
-export function citedListings(listings: Listing[], est: Estimate | null): Listing[] {
-  if (!est) return listings;
-  return est.basis === "exact" ? listings.filter((l) => l.matchKind === "exact") : listings;
 }

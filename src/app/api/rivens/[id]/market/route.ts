@@ -19,6 +19,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     const force = new URL(request.url).searchParams.get("refresh") === "1";
     const result = await priceRiven(riven as Riven, (attrs ?? []) as RivenAttribute[], { force, grading: weapon ? { weapon, data: gradingData } : undefined });
+    // Remember the estimate so My Rivens can show it instantly (RLS: the owner's own row). Never blocks the response on failure.
+    const e = result.estimate;
+    await sb.from("rivens").update({
+      est_low: e?.low ?? null, est_median: e?.median ?? null, est_high: e?.high ?? null,
+      est_confidence: e?.confidence ?? null, est_samples: e?.sampleSize ?? null, est_at: new Date().toISOString(),
+    }).eq("id", id);
     return NextResponse.json(result);
   } catch (e) {
     const status = e instanceof WfmError && e.status === 429 ? 429 : 502;

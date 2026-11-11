@@ -5,6 +5,8 @@ import { GradeBadge } from "@/components/grade-badge";
 import { fmtStat } from "@/lib/format";
 import { GuestHero } from "@/components/guest-hero";
 import { PageHeader } from "@/components/page-header";
+import { RivenPrice, VaultProvider, VaultWorth } from "@/components/vault";
+import type { VaultEstimate } from "@/lib/vault";
 
 export const metadata = { title: "Rivens" };
 
@@ -18,7 +20,12 @@ export default async function RivensPage() {
     rivens.map((r) => [r.id, weapon.has(r.weapon_slug) ? gradeRiven(r, weapon.get(r.weapon_slug)!, attr, gradingData) : []]),
   );
 
+  const initialEstimates: Record<string, VaultEstimate> = Object.fromEntries(
+    rivens.map((r) => [r.id, { low: r.est_low ?? null, median: r.est_median ?? null, high: r.est_high ?? null, confidence: r.est_confidence ?? null, at: r.est_at ?? null }]),
+  );
+
   return (
+    <VaultProvider initial={initialEstimates}>
     <div className="space-y-5">
       <PageHeader kicker="Your vault" title="My Rivens">
         <Link href="/rivens/new" className="btn-primary">+ New riven</Link>
@@ -29,6 +36,8 @@ export default async function RivensPage() {
           No weapons loaded yet. Run <code>npm run sync:wfm-static</code> to import weapons and riven stats.
         </p>
       )}
+
+      {rivens.length > 0 && <VaultWorth />}
 
       {rivens.length === 0 ? (
         <div className="card text-center text-dim">
@@ -61,11 +70,13 @@ export default async function RivensPage() {
                     );
                   })}
                 </ul>
+                <RivenPrice id={r.id} />
               </Link>
             </li>
           ))}
         </ul>
       )}
     </div>
+    </VaultProvider>
   );
 }

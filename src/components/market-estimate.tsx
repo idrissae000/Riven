@@ -68,6 +68,11 @@ export function MarketEstimate({ endpoint, attrs }: { endpoint: string; attrs: R
               <div className="font-display text-[0.66rem] font-semibold uppercase tracking-[0.22em] text-dim">Estimated range</div>
               <div className="h-display flex items-center gap-2 text-4xl text-plat">{est.low}–{est.high} <Plat size={26} /></div>
               <div className="text-sm text-dim">median {est.median} plat · from {est.sampleSize} {est.basis === "exact" ? "same-stat" : "similar-stat"} listings below</div>
+              <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
+                <span className={`chip ${est.confidence === "high" ? "border-teal/50 text-teal" : est.confidence === "low" ? "border-orange/50 text-orange" : ""}`}>{est.confidence} confidence</span>
+                {est.adjusted && <span className="chip" title="Each listing’s asking price is adjusted for how its roll quality compares with yours">adjusted for roll quality</span>}
+                {est.outliers > 0 && <span className="chip" title="Troll or mispriced asks, found statistically and left out">{est.outliers} price outlier{est.outliers === 1 ? "" : "s"} excluded</span>}
+              </div>
             </div>
           ) : (
             <p className="rounded-lg border border-line bg-panel-2 p-3 text-sm text-dim">No price estimate. {data.note}</p>
@@ -79,9 +84,13 @@ export function MarketEstimate({ endpoint, attrs }: { endpoint: string; attrs: R
             <h3 className="label">Listings used {data.listings.length > 0 && `(${data.listings.length})`}</h3>
             <ul className="space-y-2">
               {data.listings.map((l) => (
-                <li key={l.id} className="rounded-lg border border-line bg-void/40 p-3">
+                <li key={l.id} className={`rounded-lg border border-line bg-void/40 p-3 ${l.outlier ? "opacity-50" : ""}`}>
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="h-display flex items-center gap-1.5 text-2xl text-plat">{l.price}<Plat size={16} /></span>
+                    <span className="flex items-baseline gap-2">
+                      <span className={`h-display flex items-center gap-1.5 text-2xl text-plat ${l.outlier ? "line-through" : ""}`}>{l.price}<Plat size={16} /></span>
+                      {l.outlier ? <span className="text-xs text-orange">excluded: price outlier</span>
+                        : l.adjustedPrice != null && l.adjustedPrice !== l.price && <span className="text-xs text-dim" title="What this ask counts as once adjusted for roll quality">counts as ≈{l.adjustedPrice}</span>}
+                    </span>
                     <span className="flex items-center gap-1.5 text-xs text-dim">
                       <span className={`inline-block size-2 rounded-full ${statusColor[l.sellerStatus] ?? "bg-dim/50"}`} />
                       <a className="text-teal hover:underline" href={l.sellerUrl} target="_blank" rel="noopener noreferrer">{l.seller}</a>
@@ -108,7 +117,7 @@ export function MarketEstimate({ endpoint, attrs }: { endpoint: string; attrs: R
             </ul>
           </div>
           <p className="text-xs text-dim">
-            Live buy-it-now asking prices, not completed sales. Values compared at max rank. Data fetched {timeAgo(data.fetchedAt)}{data.fromCache ? " (cached ≤12 min)" : ""}.
+            Live buy-it-now asking prices, not completed sales. Each ask is adjusted for roll quality, price outliers are dropped, and fresher, closer-matching, in-game sellers count more. Values compared at max rank. Data fetched {timeAgo(data.fetchedAt)}{data.fromCache ? " (cached ≤12 min)" : ""}.
           </p>
         </>
       )}

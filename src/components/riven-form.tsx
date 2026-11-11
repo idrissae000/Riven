@@ -244,7 +244,7 @@ export function RivenForm({
           <label className="label" htmlFor="weapon">Weapon</label>
           <input id="weapon" className="input" list="weapon-list" placeholder="Start typing… e.g. Soma" value={weaponText} onChange={(e) => setWeaponText(e.target.value)} autoComplete="off" required />
           <datalist id="weapon-list">{weapons.map((w) => <option key={w.slug} value={w.name} />)}</datalist>
-          {weapon && <p className="mt-1 text-xs text-dim">{weapon.riven_type} · disposition {weapon.disposition ?? "?"}</p>}
+          {weapon && <p className="mt-1 text-xs text-dim">{weapon.riven_type}</p>}
         </div>
         <div>
           <label className="label" htmlFor="rname">Riven name <span className="normal-case text-dim/70">(optional, e.g. Acria-da)</span></label>

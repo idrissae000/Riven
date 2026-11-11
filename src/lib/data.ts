@@ -5,7 +5,7 @@ import type { Riven, RivenAttribute, Weapon } from "@/lib/types";
 export async function getReferenceData() {
   const sb = await createClient();
   const [w, a] = await Promise.all([
-    sb.from("weapons").select("slug,name,riven_type,group_name,disposition,req_mastery,icon").order("name"),
+    sb.from("weapons").select("slug,name,riven_type,group_name,req_mastery,icon").order("name"),
     sb.from("riven_attributes").select("slug,name,unit,exclusive_to,positive_only,inverted,prefix,suffix").order("name"),
   ]);
   return { weapons: (w.data ?? []) as Weapon[], attributes: (a.data ?? []) as RivenAttribute[] };

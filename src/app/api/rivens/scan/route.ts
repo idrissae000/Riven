@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     if (stage === "locate") return NextResponse.json({ box: await locateRivenCard(bytes, file.type as AllowedType) });
     const scan = await scanRivenImage(bytes, file.type as AllowedType);
     const [w, a] = await Promise.all([
-      sb.from("weapons").select("slug,name,riven_type,group_name,disposition,req_mastery,icon"),
+      sb.from("weapons").select("slug,name,riven_type,group_name,req_mastery,icon"),
       sb.from("riven_attributes").select("slug,name,unit,exclusive_to,positive_only,inverted,prefix,suffix"),
     ]);
     return NextResponse.json(mapScan(scan, (w.data ?? []) as Weapon[], (a.data ?? []) as RivenAttribute[]));

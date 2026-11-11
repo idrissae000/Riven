@@ -6,7 +6,6 @@ export interface Weapon {
   name: string;
   riven_type: string;
   group_name: string | null;
-  disposition: number | null;
   req_mastery: number | null;
   icon: string | null;
 }
@@ -46,4 +45,11 @@ export interface Riven {
   wfm_auction_id?: string | null;
   wfm_listed_at?: string | null;
   wfm_price?: number | null;
+  /** Last market estimate (see migration 0011); est_at is set even when there was no estimate. */
+  est_low?: number | null;
+  est_median?: number | null;
+  est_high?: number | null;
+  est_confidence?: string | null;
+  est_samples?: number | null;
+  est_at?: string | null;
 }

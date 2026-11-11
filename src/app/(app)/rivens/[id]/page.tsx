@@ -27,7 +27,6 @@ export default async function RivenDetailPage({ params }: { params: Promise<{ id
           <span className="chip">MR {riven.mastery_rank}</span>
           <span className="chip">Rank {riven.rank}</span>
           <span className="chip">{riven.rerolls} re-rolls</span>
-          {weapon?.disposition != null && <span className="chip">disposition {weapon.disposition}</span>}
         </div>
         <RivenStats stats={riven.stats} attrs={attr} grades={grades} />
         {riven.notes && <p className="mt-3 text-sm text-dim">{riven.notes}</p>}

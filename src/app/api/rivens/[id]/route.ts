@@ -13,8 +13,9 @@ export async function PUT(request: Request, { params }: Ctx) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid riven" }, { status: 400 });
   const signError = await checkRivenSigns(sb, parsed.data.stats);
   if (signError) return NextResponse.json({ error: signError }, { status: 400 });
-  // RLS guarantees we can only touch our own rows.
-  const { data, error } = await sb.from("rivens").update(parsed.data).eq("id", id).select("id").maybeSingle();
+  // RLS guarantees we can only touch our own rows. An edited riven also drops its old price estimate so it gets re-priced.
+  const cleared = { est_low: null, est_median: null, est_high: null, est_confidence: null, est_samples: null, est_at: null };
+  const { data, error } = await sb.from("rivens").update({ ...parsed.data, ...cleared }).eq("id", id).select("id").maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ id: data.id });

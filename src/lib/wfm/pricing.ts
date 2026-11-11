@@ -1,6 +1,8 @@
 import "server-only";
 import { wfmGet } from "./client";
-import { citedListings, estimate, findComparables, type Estimate, type Listing, type WfmAuction } from "./comparables";
+import { findComparables, type Estimate, type Listing, type WfmAuction } from "./comparables";
+import { valuate } from "./valuation";
+import { rivenQuality } from "@/lib/grading/quality";
 import { gradeRiven } from "@/lib/grading/grade";
 import type { RivenCalcData } from "@/lib/rivencalc/types";
 import type { Riven, RivenAttribute } from "@/lib/types";
@@ -65,22 +67,26 @@ export async function priceRiven(
   }
 
   const auctions = results.flatMap((r) => r.data.payload?.auctions ?? []);
-  const listings = findComparables(riven, auctions, (s) => unit.get(s));
-  const est = estimate(listings);
   const attrMap = new Map(attributes.map((a) => [a.slug, a]));
-  // Rate every stat on every listing the same way as the user's own riven.
-  const cited = citedListings(listings, est).map((l) => !opts.grading ? l : {
-    ...l,
-    grades: gradeRiven(
+  // Grade every stat on every comparable listing the same way as our own riven, and boil each down to a 0…1 quality.
+  const comparables = findComparables(riven, auctions, (s) => unit.get(s)).map((l): Listing => {
+    if (!opts.grading) return l;
+    const grades = gradeRiven(
       { rank: l.rank, stats: l.stats.map((x) => ({ stat: x.stat, value: x.value, is_negative: !x.positive })) },
       opts.grading.weapon, attrMap, opts.grading.data,
-    ).map((g) => g.tier),
+    );
+    return { ...l, grades: grades.map((g) => g.tier), quality: rivenQuality(grades, l.stats.map((x) => ({ is_negative: !x.positive }))) };
   });
+  const ourQuality = opts.grading ? rivenQuality(gradeRiven(riven, opts.grading.weapon, attrMap, opts.grading.data), riven.stats) : null;
+  const valuation = valuate(comparables, ourQuality);
+  const est = valuation.estimate;
+  const cited = valuation.listings;
+  const listings = comparables;
 
   const oldest = results.reduce((a, r) => (Date.parse(r.fetchedAt) < Date.parse(a) ? r.fetchedAt : a), results[0].fetchedAt);
   let note: string | null = null;
   if (listings.length === 0) note = "No live listings share enough of these stats.";
-  else if (!est) note = `Only ${listings.length} comparable listing${listings.length === 1 ? "" : "s"} — too few for a price estimate.`;
+  else if (!est) note = `Only ${cited.filter((l) => !l.outlier).length} usable comparable listing${cited.filter((l) => !l.outlier).length === 1 ? "" : "s"}${cited.some((l) => l.outlier) ? " after dropping price outliers" : ""} — too few for a price estimate.`;
   else if (est.basis === "similar") note = "Few listings have every one of these stats, so the range also uses ones that share most of them.";
 
   return {

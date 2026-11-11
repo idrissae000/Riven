@@ -13,7 +13,7 @@ Price, grade and manage Warframe riven mods; look up arcanes. Next.js (App Route
 ## Setup
 
 1. `npm install`
-2. Create a Supabase project, run `supabase/migrations/0001…0010` in order (SQL editor or `supabase db push`).
+2. Create a Supabase project, run `supabase/migrations/0001…0011` in order (SQL editor or `supabase db push`).
 3. `cp .env.example .env.local` and fill it in (Supabase URL/keys; `WFM_TOKEN_ENCRYPTION_KEY` via `openssl rand -base64 32`; optional `ANTHROPIC_API_KEY` for screenshot scanning).
 4. Load reference data (re-runnable any time):
    ```bash
@@ -37,6 +37,8 @@ Price, grade and manage Warframe riven mods; look up arcanes. Next.js (App Route
 ## Things worth knowing
 
 - **Riven auctions are v1-only.** Warframe Market v2 has no riven auction endpoint, so pricing and listing use `/v1/auctions/*`; everything else uses v2. Closing a listing is `PUT …/close` (DELETE returns 405).
+- **Pricing:** `src/lib/wfm/valuation.ts` turns the comparable listings into a range: each ask is adjusted for how its roll quality (from the per-stat grades, curse rating included) compares with yours, troll and mispriced asks are dropped statistically (log-price median ± 3 robust deviations), exact-stat, fresher, closer-valued, in-game listings weigh more, and each seller counts once. The result is the weighted 25th/50th/75th percentile plus a confidence label. Every constant is in `VALUATION`. The roll-quality elasticity (0.7: best roll ≈ 2× the worst) is a prior, not a fit — public asking prices cluster at round defaults, so it can't be measured from them. Asks are not sales; real sale prices are usually lower.
+- **Vault worth:** My Rivens shows each riven's last estimate (stored on the row, migration 0011), re-prices stale ones one at a time in the background, and totals them. Editing a riven clears its estimate.
 - **Rate limiting:** one shared 350 ms throttle per server instance + a 12-minute cache (memory + `market_cache` table, stale-on-error). The throttle is per lambda; the shared cache is what keeps combined volume low.
 - **Grading:** per stat, from browse.wf's Riven Calculator at a fixed 1.2 disposition: a ±10% roll around each stat's center, 11 bands (S … F). **Curses are different:** a curse's grade is a fixed rating for the stat (and weapon) from `data/curse-ratings.json`, not its roll — the gauge and band table still show where the roll sits, as information. A curse with no rating falls back to roll grading (a milder penalty grades higher, as on the calculator), and says so. Stats browse.wf doesn't list (combined elements, weak point stats, Zoom on shotguns …) are graded from the Unified-Codex calculator's ranges instead, and the result says so; they have no 1+/1- layout. 
 - **Rank scaling:** riven stats scale with rank ((rank+1)/9). All comparisons and grading are normalised to rank 8.
