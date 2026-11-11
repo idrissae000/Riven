@@ -10,9 +10,9 @@ type Tab = "now" | "fissures" | "missions" | "invasions";
 
 const Tile = ({ title, state, expiry, note }: { title: string; state: string; expiry: string; note?: string }) => (
   <div className="border border-line bg-panel-2/40 p-3">
-    <p className="text-[0.68rem] uppercase tracking-wider text-dim">{title}</p>
+    <p className="text-xs uppercase tracking-wider text-dim">{title}</p>
     <p className="mt-0.5 font-display text-lg font-semibold capitalize">{state}</p>
-    <p className="text-xs text-dim">{note ?? "changes in"} <Countdown to={expiry} /></p>
+    <p className="text-xs text-dim">{note ?? "changes in"} <Countdown to={expiry} expiredText="any moment" /></p>
   </div>
 );
 
@@ -125,7 +125,7 @@ export function LiveView({ ws }: { ws: WorldState }) {
           {ws.invasions.length === 0 && <p className="text-sm text-dim">No active invasions.</p>}
           <ul className="grid gap-2 md:grid-cols-2">
             {invasions.map((i) => (
-              <li key={i.id} className="card space-y-1.5 !py-3 text-sm">
+              <li key={i.id} className="tile space-y-1.5 text-sm">
                 <p><b>{i.node}</b> <span className="text-dim">· {i.title}</span></p>
                 <p className="text-xs text-dim"><span className="text-ink">{i.attacker.faction}</span> {i.attacker.reward ?? "—"} <span className="mx-1">vs</span> <span className="text-ink">{i.defender.faction}</span> {i.defender.reward ?? "—"}</p>
                 <div className="h-1.5 w-full bg-panel-2"><div className="h-full bg-teal" style={{ width: `${i.completion}%` }} /></div>

@@ -18,7 +18,7 @@ export function Wordmark({ href = "/rivens", compact = false }: { href?: string;
       <LogoMark size={compact ? 26 : 32} />
       <span className="leading-none">
         <span className={`block font-display font-bold tracking-[0.2em] text-gold ${compact ? "text-lg" : "text-[1.4rem]"}`}>RIVEN</span>
-        <span className="mt-0.5 block text-[0.6rem] font-semibold tracking-[0.5em] text-dim transition-colors group-hover:text-teal">BUDDY</span>
+        <span className="mt-0.5 block text-xs font-semibold tracking-[0.5em] text-dim transition-colors group-hover:text-teal">BUDDY</span>
       </span>
     </Link>
   );

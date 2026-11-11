@@ -108,11 +108,11 @@ export function RivenPrice({ id }: { id: string }) {
   const e = est[id];
   const busy = loading.has(id);
   return (
-    <div className="mt-3 flex min-h-9 items-end justify-end text-right">
+    <div className="flex min-h-9 items-end justify-end text-right">
       {e?.median != null ? (
         <div title={`${e.confidence ?? ""} confidence`}>
           <p className={`h-display flex items-center justify-end gap-1.5 text-xl text-plat ${busy ? "opacity-60" : ""}`}>≈ {fmt(e.median)} <Plat size={16} /></p>
-          <p className="font-mono text-[0.65rem] text-dim">{fmt(e.low ?? e.median)}–{fmt(e.high ?? e.median)}{e.confidence === "low" ? " · low confidence" : ""}</p>
+          <p className="text-xs text-dim">range {fmt(e.low ?? e.median)}–{fmt(e.high ?? e.median)}{e.confidence === "low" ? " · low confidence" : ""}</p>
         </div>
       ) : busy ? (
         <span className="h-5 w-20 animate-pulse bg-panel-2" aria-label="pricing" />

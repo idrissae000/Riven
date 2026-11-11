@@ -47,7 +47,7 @@ export function PrimeParts({ rows }: { rows: PartRow[] }) {
   return (
     <div className="space-y-4">
       <div className="card space-y-3">
-        <input className="input" type="search" placeholder="Search a part or set (e.g. “Saryn Prime”)…" value={q} onChange={(e) => reset(setQ)(e.target.value)} />
+        <input className="input" type="search" placeholder="Search a part or set…" value={q} onChange={(e) => reset(setQ)(e.target.value)} />
         <Filters active={(kind ? 1 : 0) + (type ? 1 : 0) + (vault ? 1 : 0) + (sort !== "price" ? 1 : 0)}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <select className="input" value={sort} onChange={(e) => reset(setSort)(e.target.value as Sort)} aria-label="Sort by">{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
@@ -68,24 +68,22 @@ export function PrimeParts({ rows }: { rows: PartRow[] }) {
 
       <ol className="grid gap-2 sm:grid-cols-2">
         {list.slice(0, shown).map((r, i) => (
-          <li key={r.slug} className="card flex items-center justify-between gap-3 !py-3">
+          <li key={r.slug} className="tile flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="truncate font-display text-[0.95rem] font-semibold">
-                <span className="mr-2 font-mono text-xs text-dim">{i + 1}</span>{r.name}
-              </p>
-              <p className="mt-0.5 flex flex-wrap gap-1.5 text-xs">
-                <span className="chip">{r.kind === "set" ? "set" : r.type}</span>
-                {r.vaulted === true && <span className="chip border-orange/50 text-orange">vaulted</span>}
-                {r.vaulted === false && <span className="chip border-teal/50 text-teal">in drop tables</span>}
-                {r.vaulted === null && r.kind === "part" && <span className="chip">not a relic drop</span>}
-                {r.ducats != null && <span className="chip">{r.ducats} ducats</span>}
+              <p className="font-display text-base font-semibold leading-snug"><span className="mr-2 font-mono text-sm font-normal text-dim">{i + 1}</span>{r.name}</p>
+              <p className="mt-0.5 text-sm text-dim">
+                {r.kind === "set" ? "Set" : r.type[0].toUpperCase() + r.type.slice(1)}
+                {r.vaulted === true && <> · <span className="font-semibold text-orange">vaulted</span></>}
+                {r.vaulted === false && <> · <span className="font-semibold text-teal">farmable</span></>}
+                {r.vaulted === null && r.kind === "part" && <> · not a relic drop</>}
+                {r.ducats != null && <> · {r.ducats} ducats</>}
               </p>
             </div>
             <div className="shrink-0 text-right">
               {r.price != null ? (
                 <>
                   <p className="h-display flex items-center justify-end gap-1.5 text-xl text-plat">{fmt(r.price)} <Plat size={16} /></p>
-                  <p className="font-mono text-[0.65rem] text-dim">low {r.low}{r.listings < 3 ? " · thin" : ""}{r.ducats != null && r.price > 0 ? ` · ${(r.ducats / r.price).toFixed(1)} ducats/p` : ""}</p>
+                  <p className="text-xs text-dim">low {r.low}{r.listings < 3 ? " · thin market" : ""}</p>
                 </>
               ) : <span className="text-xs text-dim">{r.fetched ? "no online listings" : "pricing…"}</span>}
             </div>

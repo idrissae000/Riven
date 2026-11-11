@@ -21,7 +21,7 @@ export function formatRemaining(ms: number): string {
 }
 
 /** Time left until an ISO timestamp, ticking every second. */
-export function Countdown({ to, className = "" }: { to: string; className?: string }) {
+export function Countdown({ to, className = "", expiredText }: { to: string; className?: string; expiredText?: string }) {
   const now = useSyncExternalStore(subscribe, snapshot, () => 0);
-  return <span className={`font-mono tabular-nums ${className}`} suppressHydrationWarning>{now === 0 ? "…" : formatRemaining(Date.parse(to) - now * 1000)}</span>;
+  return <span className={`font-mono tabular-nums ${className}`} suppressHydrationWarning>{now === 0 ? "…" : expiredText && Date.parse(to) <= now * 1000 ? expiredText : formatRemaining(Date.parse(to) - now * 1000)}</span>;
 }

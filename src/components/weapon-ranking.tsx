@@ -61,17 +61,17 @@ export function WeaponRanking({ rows }: { rows: WeaponRow[] }) {
 
       <ol className="grid gap-2 sm:grid-cols-2">
         {list.slice(0, shown).map((r, i) => (
-          <li key={r.slug} className="card !py-3">
+          <li key={r.slug} className="tile">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="truncate font-display text-[0.95rem] font-semibold"><span className="mr-2 font-mono text-xs text-dim">{i + 1}</span>{r.name}</p>
-                <p className="mt-0.5 flex flex-wrap gap-1.5 text-xs"><span className="chip">{r.type}</span><span className="chip">{r.saturated ? "99+" : r.listings} listed</span></p>
+                <p className="font-display text-base font-semibold leading-snug"><span className="mr-2 font-mono text-xs text-dim">{i + 1}</span>{r.name}</p>
+                <p className="mt-0.5 text-sm text-dim">{r.type[0].toUpperCase() + r.type.slice(1)} · {r.saturated ? "99+" : r.listings} listed</p>
               </div>
               <div className="shrink-0 text-right">
                 {r.median != null ? (
                   <>
                     <p className="h-display flex items-center justify-end gap-1.5 text-xl text-plat">{r.median} <Plat size={16} /></p>
-                    <p className="font-mono text-[0.65rem] text-dim">low {r.low} · top quarter {r.p75}+</p>
+                    <p className="font-mono text-xs text-dim">low {r.low} · top quarter {r.p75}+</p>
                   </>
                 ) : <span className="text-xs text-dim">{r.fetched ? "no listings" : "pricing…"}</span>}
               </div>

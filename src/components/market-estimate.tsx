@@ -65,7 +65,7 @@ export function MarketEstimate({ endpoint, attrs }: { endpoint: string; attrs: R
         <>
           {est ? (
             <div className="rounded-lg border border-orange/30 bg-orange/5 p-4">
-              <div className="font-display text-[0.66rem] font-semibold uppercase tracking-[0.22em] text-dim">Estimated range</div>
+              <div className="font-display text-xs font-semibold uppercase tracking-[0.12em] text-dim">Estimated range</div>
               <div className="h-display flex items-center gap-2 text-4xl text-plat">{est.low}–{est.high} <Plat size={26} /></div>
               <div className="text-sm text-dim">median {est.median} plat · from {est.sampleSize} {est.basis === "exact" ? "same-stat" : "similar-stat"} listings below</div>
               <div className="mt-2 flex flex-wrap gap-1.5 text-xs">

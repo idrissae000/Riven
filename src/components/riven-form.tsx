@@ -223,7 +223,7 @@ export function RivenForm({
           {scanState.msg && <p role="status" className={`mt-3 text-sm ${scanState.kind === "err" ? "text-orange" : scanState.busy ? "text-dim" : "text-ok"}`}>{scanState.msg}</p>}
           {readLog && (
             <details className="mt-3 text-sm" open>
-              <summary className="cursor-pointer font-display text-xs font-semibold uppercase tracking-[0.16em] text-gold">What the scan read</summary>
+              <summary className="cursor-pointer font-display text-xs font-semibold uppercase tracking-[0.1em] text-gold">What the scan read</summary>
               <ul className="mt-2 space-y-1 font-mono text-xs">
                 <li>Weapon: {readLog.weapon ?? "—"} {readLog.weapon && (readLog.weaponOk ? <span className="text-ok">✓</span> : <span className="text-orange">not in the weapon list — pick it below</span>)}{readLog.riven && <span className="text-dim"> · name {readLog.riven}</span>}</li>
                 <li>Rank: {readLog.rank != null ? <>{readLog.rank} <span className="text-dim">(top-right number {readLog.rank + 10})</span> <span className="text-ok">✓</span></> : <span className="text-orange">couldn’t read the top-right number — set the rank below</span>}</li>

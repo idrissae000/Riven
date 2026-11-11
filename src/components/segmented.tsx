@@ -10,8 +10,8 @@ export function Segmented<T extends string>({ value, onChange, options, label, s
         const on = o.value === value;
         return (
           <button key={o.value} role="tab" aria-selected={on} onClick={() => onChange(o.value)}
-            className={`whitespace-nowrap font-display font-semibold uppercase transition-colors ${size === "sm" ? "px-2 py-1 text-[0.64rem] sm:px-2.5 sm:text-[0.66rem]" : "px-2.5 py-1.5 text-[0.68rem] tracking-[0.08em] sm:px-3.5 sm:text-xs sm:tracking-[0.12em]"} ${on ? "bg-gold/15 text-gold" : "text-dim hover:text-ink"}`}>
-            {o.label}{o.count != null && <span className={`ml-1.5 font-mono text-[0.65rem] ${on ? "text-gold/80" : "text-dim/70"}`}>{o.count}</span>}
+            className={`whitespace-nowrap font-display font-semibold uppercase transition-colors ${size === "sm" ? "px-2 py-1 text-xs sm:px-2.5 sm:text-xs" : "px-2.5 py-1.5 text-xs tracking-[0.08em] sm:px-3.5 sm:text-xs sm:tracking-[0.12em]"} ${on ? "bg-gold/15 text-gold" : "text-dim hover:text-ink"}`}>
+            {o.label}{o.count != null && <span className={`ml-1.5 font-mono text-xs ${on ? "text-gold/80" : "text-dim/70"}`}>{o.count}</span>}
           </button>
         );
       })}

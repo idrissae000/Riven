@@ -44,7 +44,7 @@ export function FissureList({ fissures }: { fissures: Fissure[] }) {
       <div className="grid gap-x-8 gap-y-5 lg:grid-cols-2">
         {groups.map((g) => (
           <section key={g.tier}>
-            <h3 className={`mb-1 flex items-baseline gap-2 border-b border-line pb-1 font-display text-xs font-bold uppercase tracking-[0.2em] ${TIER_STYLE[g.tier] ?? ""}`}>{g.tier}<span className="font-mono text-[0.65rem] text-dim">{g.rows.length}</span></h3>
+            <h3 className={`mb-1 flex items-baseline gap-2 border-b border-line pb-1 font-display text-xs font-bold uppercase tracking-[0.12em] ${TIER_STYLE[g.tier] ?? ""}`}>{g.tier}<span className="font-mono text-xs text-dim">{g.rows.length}</span></h3>
             <ul>
               {g.rows.map((f) => (
                 <li key={f.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">

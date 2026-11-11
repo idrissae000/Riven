@@ -63,14 +63,14 @@ export function VosforCollections({ cards, names }: { cards: CollectionCard[]; n
                 <div className="text-right">
                   <p className="h-display flex items-center justify-end gap-1.5 text-3xl text-plat">≈ {fmt(main)} <Plat size={22} /></p>
                   <p className="text-xs text-dim">{metric === "avg" ? "average per arcane" : "odds-weighted per arcane"}</p>
-                  <p className="mt-0.5 font-mono text-[0.7rem] text-dim">
+                  <p className="mt-0.5 font-mono text-xs text-dim">
                     {metric === "avg" ? "odds-weighted" : "plain average"} {fmt(other)} · pack of {c.picks}: ≈ {fmt(v.perPack)} (odds-weighted)
                   </p>
                 </div>
               </div>
 
               <details className="mt-3 text-sm">
-                <summary className="cursor-pointer font-display text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-gold hover:text-ink">What’s inside</summary>
+                <summary className="cursor-pointer font-display text-xs font-semibold uppercase tracking-[0.1em] text-gold hover:text-ink">What’s inside</summary>
                 <div className="mt-3 space-y-4">
                   {v.tiers.map((t) => (
                     <div key={t.rarity}>
@@ -81,7 +81,7 @@ export function VosforCollections({ cards, names }: { cards: CollectionCard[]; n
                       <ul className="mt-1.5 grid gap-x-4 gap-y-0.5 font-mono text-xs sm:grid-cols-2">
                         {t.arcanes.map((a) => (
                           <li key={a.slug} className="flex items-baseline justify-between gap-2">
-                            <Link href={`/arcanes/${a.slug}`} className="truncate font-sans text-ink hover:text-teal">{names[a.slug] ?? a.slug}{a.basis === "thin" && <span className="ml-1.5 text-[0.65rem] text-orange" title="Few listings and no max-rank price to cross-check, so this price is shaky">thin</span>}{a.basis === "derived" && <span className="ml-1.5 text-[0.65rem] text-teal" title="Too few rank-0 listings, so priced as the max-rank price ÷ the copies a max-rank arcane takes">÷</span>}</Link>
+                            <Link href={`/arcanes/${a.slug}`} className="truncate font-sans text-ink hover:text-teal">{names[a.slug] ?? a.slug}{a.basis === "thin" && <span className="ml-1.5 text-xs text-orange" title="Few listings and no max-rank price to cross-check, so this price is shaky">thin</span>}{a.basis === "derived" && <span className="ml-1.5 text-xs text-teal" title="Too few rank-0 listings, so priced as the max-rank price ÷ the copies a max-rank arcane takes">÷</span>}</Link>
                             <span className="shrink-0 text-dim">{a.avg5 != null ? <><span className="text-plat">{fmt(a.avg5)}</span> · {a.share > 0 ? `${(a.share * 100).toFixed(0)}% of value` : ""}</> : "no listings"}</span>
                           </li>
                         ))}

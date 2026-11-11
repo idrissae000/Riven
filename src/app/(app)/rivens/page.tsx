@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { currentUserId, listRivens, getReferenceData, getGradingData } from "@/lib/data";
 import { gradeRiven } from "@/lib/grading/grade";
-import { GradeBadge } from "@/components/grade-badge";
+import { RivenCard } from "@/components/riven-card";
 import { fmtStat } from "@/lib/format";
 import { GuestHero } from "@/components/guest-hero";
 import { PageHeader } from "@/components/page-header";
 import { RivensTabs } from "@/components/rivens-tabs";
-import { RivenPrice, VaultProvider, VaultWorth } from "@/components/vault";
+import { VaultProvider, VaultWorth } from "@/components/vault";
 import type { VaultEstimate } from "@/lib/vault";
 
 export const metadata = { title: "Rivens" };
@@ -50,30 +50,16 @@ export default async function RivensPage() {
         <ul className="grid gap-3 sm:grid-cols-2">
           {rivens.map((r) => (
             <li key={r.id}>
-              <Link href={`/rivens/${r.id}`} className="card block">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="h-display text-xl">{weapon.get(r.weapon_slug)?.name ?? r.weapon_slug}</span>
-                  <span className="font-display text-sm font-semibold tracking-wide text-violet">{r.riven_name}</span>
-                </div>
-                <div className="mt-1 flex flex-wrap gap-1.5 text-xs text-dim">
-                  <span className="chip">{r.polarity}</span>
-                  <span className="chip">MR {r.mastery_rank}</span>
-                  <span className="chip">{r.rerolls} rerolls</span>
-                </div>
-                <ul className="mt-3 space-y-1 font-mono text-sm">
-                  {r.stats.map((s, i) => {
-                    const g = gradesById.get(r.id)![i];
-                    if (!g) return null;
-                    return (
-                      <li key={s.stat} className={`flex items-center gap-2 ${s.is_negative ? "text-danger" : "text-ink"}`}>
-                        <GradeBadge size="sm" tier={g.tier} />
-                        <span>{fmtStat(s.value, attr.get(s.stat)?.unit)} <span className="font-sans text-dim">{attr.get(s.stat)?.name ?? s.stat}</span></span>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <RivenPrice id={r.id} />
-              </Link>
+              <RivenCard
+                id={r.id}
+                weapon={weapon.get(r.weapon_slug)?.name ?? r.weapon_slug}
+                rivenName={r.riven_name}
+                meta={`${r.polarity[0].toUpperCase() + r.polarity.slice(1)} · MR ${r.mastery_rank} · ${r.rerolls} rerolls`}
+                stats={r.stats.flatMap((s, i) => {
+                  const g = gradesById.get(r.id)![i];
+                  return g ? [{ key: s.stat, tier: g.tier, name: attr.get(s.stat)?.name ?? s.stat, value: fmtStat(s.value, attr.get(s.stat)?.unit), negative: s.is_negative }] : [];
+                })}
+              />
             </li>
           ))}
         </ul>

@@ -26,7 +26,7 @@ export function ArcaneAbilities({ list }: { list: AbilityList }) {
   return (
     <div className="space-y-3">
       <div>
-        <h3 className={`font-display text-sm font-bold uppercase tracking-[0.14em] ${valid ? "text-teal" : "text-danger"}`}>
+        <h3 className={`font-display text-sm font-bold uppercase tracking-[0.1em] ${valid ? "text-teal" : "text-danger"}`}>
           {valid ? "Works with these abilities" : "Does not work with"} <span className="text-dim">· {list.abilities.length}</span>
         </h3>
         {list.intro && <p className="mt-1 text-xs leading-relaxed text-dim">{list.intro}</p>}

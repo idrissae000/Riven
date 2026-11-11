@@ -111,10 +111,10 @@ export function InventoryManager({ options, rows, total, priced, advice }: { opt
         {rows.length === 0 && <p className="card text-center text-dim">Nothing here yet. Add the Prime parts and arcanes you own above.</p>}
         <ul className="space-y-2">
           {rows.map((r) => (
-            <li key={r.id} className="card flex flex-wrap items-center justify-between gap-3 !py-3">
+            <li key={r.id} className="tile flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-display text-[0.95rem] font-semibold">{r.name}{r.kind === "arcane" && <span className="ml-2 text-xs font-normal text-dim">{r.rank > 0 ? "max rank" : "unranked"}</span>}</p>
-                <p className="mt-0.5 font-mono text-[0.7rem] text-dim">
+                <p className="mt-0.5 font-mono text-xs text-dim">
                   {r.unit != null ? `${fmt(r.unit)}p each` : "no price yet"}
                   {r.ducatsTotal != null && ` · ${r.ducatsTotal} ducats${r.ducatsPerPlat ? ` (${r.ducatsPerPlat}/p)` : ""}`}
                   {r.note && ` · ${r.note}`}

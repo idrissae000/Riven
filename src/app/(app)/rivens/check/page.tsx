@@ -27,7 +27,7 @@ export default async function CheckPage({ searchParams }: { searchParams: Promis
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <Link href="/rivens/new" className="font-display text-xs font-semibold uppercase tracking-[0.16em] text-dim hover:text-gold">← Check another</Link>
+        <Link href="/rivens/new" className="font-display text-xs font-semibold uppercase tracking-[0.1em] text-dim hover:text-gold">← Check another</Link>
         <span className="chip">not saved</span>
       </div>
 
