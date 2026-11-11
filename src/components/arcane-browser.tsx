@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { rarityClass } from "@/lib/arcanes/style";
 import { Plat } from "@/components/brand";
+import { About } from "@/components/about";
+import { Filters } from "@/components/filters";
 
 import type { ArcanePriceView } from "@/lib/arcanes/price-view";
 export type ArcaneListPrice = ArcanePriceView;
@@ -72,24 +74,29 @@ export function ArcaneBrowser({ items }: { items: ArcaneListItem[] }) {
     <div className="space-y-4">
       <div className="card space-y-3">
         <input className="input" type="search" placeholder="Search name, effect or stat (e.g. “ability strength”)…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <select className="input" value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort by">
-            {SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-          <select className="input" value={slot} onChange={(e) => setSlot(e.target.value)} aria-label="Slot">
-            <option value="">All slots</option>
-            {slots.map((s) => <option key={s}>{s}</option>)}
-          </select>
-          <select className="input" value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Scales with">
-            <option value="">Any scaling</option>
-            {CATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
+        <Filters active={(slot ? 1 : 0) + (cat ? 1 : 0) + (solid ? 1 : 0) + (sort !== "price-desc" ? 1 : 0)}>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <select className="input" value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort by">
+              {SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            <select className="input" value={slot} onChange={(e) => setSlot(e.target.value)} aria-label="Slot">
+              <option value="">All slots</option>
+              {slots.map((s) => <option key={s}>{s}</option>)}
+            </select>
+            <select className="input" value={cat} onChange={(e) => setCat(e.target.value)} aria-label="Scales with">
+              <option value="">Any scaling</option>
+              {CATS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-xs text-dim">
+            <input type="checkbox" checked={solid} onChange={(e) => setSolid(e.target.checked)} />
+            Hide thin markets (too few listings and no max-rank price to cross-check)
+          </label>
+        </Filters>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-dim">{shown.length} of {items.length} arcanes</p>
+          <About>Price = average of the 5 cheapest online rank-0 listings, or max-rank price ÷ copies when rank-0 is too thin (asking prices, not sales).</About>
         </div>
-        <label className="flex items-center gap-2 text-xs text-dim">
-          <input type="checkbox" checked={solid} onChange={(e) => setSolid(e.target.checked)} />
-          Hide thin markets (too few listings and no max-rank price to cross-check)
-        </label>
-        <p className="text-xs text-dim">{shown.length} of {items.length} arcanes · price = average of the 5 cheapest online rank-0 listings, or max-rank price ÷ copies when rank-0 is too thin (asking prices, not sales)</p>
       </div>
 
       <ul className="grid gap-3 sm:grid-cols-2">

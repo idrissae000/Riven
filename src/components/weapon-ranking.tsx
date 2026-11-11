@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Plat } from "@/components/brand";
+import { About } from "@/components/about";
+import { Filters } from "@/components/filters";
 
 export interface WeaponRow {
   slug: string; name: string; type: string; group: string | null;
@@ -41,6 +43,7 @@ export function WeaponRanking({ rows }: { rows: WeaponRow[] }) {
     <div className="space-y-4">
       <div className="card space-y-3">
         <input className="input" type="search" placeholder="Search a weapon…" value={q} onChange={(e) => reset(setQ)(e.target.value)} />
+        <Filters active={(sort !== "median" ? 1 : 0) + (type ? 1 : 0) + (!solid ? 1 : 0)}>
         <div className="grid grid-cols-2 gap-3">
           <select className="input" value={sort} onChange={(e) => reset(setSort)(e.target.value as Sort)} aria-label="Sort by">{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           <select className="input" value={type} onChange={(e) => reset(setType)(e.target.value)} aria-label="Weapon type">{TYPES.map((t) => <option key={t} value={t}>{t ? t[0].toUpperCase() + t.slice(1) : "All weapon types"}</option>)}</select>
@@ -49,10 +52,11 @@ export function WeaponRanking({ rows }: { rows: WeaponRow[] }) {
           <input type="checkbox" checked={solid} onChange={(e) => reset(setSolid)(e.target.checked)} />
           Hide weapons with fewer than 8 live riven listings (a few listings can’t tell you what a riven for it really asks)
         </label>
-        <p className="text-xs leading-relaxed text-dim">
-          {list.length} weapons · “typical” = the median asking price among the cheapest buy-it-now rivens for that weapon (Warframe Market shows up to 99 per weapon, cheapest first),
-          so for popular weapons it describes the low end of the market. These are asking prices, not sales — Warframe Market publishes no riven sales data.
-        </p>
+        </Filters>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-dim">{list.length} weapons</p>
+          <About>“Typical” is the median asking price among the cheapest buy-it-now rivens for that weapon (Warframe Market shows up to 99 per weapon, cheapest first), so for popular weapons it describes the low end of the market. These are asking prices, not sales — Warframe Market publishes no riven sales data.</About>
+        </div>
       </div>
 
       <ol className="grid gap-2 sm:grid-cols-2">

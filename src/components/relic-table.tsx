@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Plat } from "@/components/brand";
+import { About } from "@/components/about";
+import { Filters } from "@/components/filters";
 import { REFINEMENTS, type RefinementId } from "@/lib/primes/relic-value";
 
 export interface RelicRow {
@@ -41,6 +43,7 @@ export function RelicTable({ relics, names }: { relics: RelicRow[]; names: Recor
     <div className="space-y-4">
       <div className="card space-y-3">
         <input className="input" type="search" placeholder="Search a relic or a part it drops (e.g. “Saryn Prime Systems”)…" value={q} onChange={(e) => reset(setQ)(e.target.value)} />
+        <Filters active={(refine !== "radiant" ? 1 : 0) + (era ? 1 : 0) + (vault ? 1 : 0)}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <select className="input" value={refine} onChange={(e) => reset(setRefine)(e.target.value as RefinementId)} aria-label="Refinement">
             {REFINEMENTS.map((r) => <option key={r.id} value={r.id}>{r.label}{r.traces ? ` (${r.traces} traces)` : ""}</option>)}
@@ -50,10 +53,11 @@ export function RelicTable({ relics, names }: { relics: RelicRow[]; names: Recor
             <option value="">Vaulted and not</option><option value="unvaulted">In the drop tables (farmable)</option><option value="vaulted">Vaulted</option>
           </select>
         </div>
-        <p className="text-xs leading-relaxed text-dim">
-          {list.length} of {relics.length} relics · value = platinum you’d expect from one reward pick, from each drop’s odds at the chosen refinement and its current price (average of the 5 cheapest online listings).
-          Forma Blueprints can’t be traded and count as 0. Prices are asking prices, not sales.
-        </p>
+        </Filters>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-dim">{list.length} of {relics.length} relics</p>
+          <About>Value = the platinum you’d expect from one reward pick, from each drop’s odds at the chosen refinement and its current price (average of the 5 cheapest online listings). Forma Blueprints can’t be traded and count as 0. Prices are asking prices, not sales.</About>
+        </div>
       </div>
 
       <ol className="space-y-2">

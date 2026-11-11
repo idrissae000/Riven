@@ -51,7 +51,8 @@ const mission = (m: Raw): MissionLine => ({ node: str(m.node ?? m.nodeKey), type
 export function normalizeWorldState(raw: Raw, now: number = Date.now()): WorldState {
   const cycle = (id: string, name: string, key: string, labels?: Record<string, string>): Cycle[] => {
     const c = raw[key];
-    return c && future(c.expiry, now) ? [{ id, name, state: labels?.[str(c.state)] ?? str(c.state), expiry: c.expiry }] : [];
+    // kept even if its timer has just run out (the feed lags by a minute or so): the countdown then reads "now"
+    return c && typeof c.expiry === "string" ? [{ id, name, state: labels?.[str(c.state)] ?? str(c.state), expiry: c.expiry }] : [];
   };
   const cycles = [
     ...cycle("earth", "Earth", "earthCycle"), ...cycle("cetus", "Plains of Eidolon", "cetusCycle"),
@@ -59,7 +60,7 @@ export function normalizeWorldState(raw: Raw, now: number = Date.now()): WorldSt
     ...cycle("zariman", "Zariman", "zarimanCycle", { grineer: "Grineer-held", corpus: "Corpus-held" }),
   ];
 
-  const duviri = raw.duviriCycle && future(raw.duviriCycle.expiry, now)
+  const duviri = raw.duviriCycle && typeof raw.duviriCycle.expiry === "string"
     ? { expiry: raw.duviriCycle.expiry as string, choices: arr(raw.duviriCycle.choices).map((c) => ({ category: str(c.category), choices: (c.choices ?? []).map(String) })) }
     : null;
   if (duviri) cycles.push({ id: "duviri", name: "Duviri", state: str(raw.duviriCycle.state), expiry: duviri.expiry });

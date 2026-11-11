@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { About } from "@/components/about";
 import { Plat } from "@/components/brand";
 import { rarityClass } from "@/lib/arcanes/style";
 import type { CollectionValue } from "@/lib/arcanes/collection-value";
@@ -34,11 +35,11 @@ export function VosforCollections({ cards, names }: { cards: CollectionCard[]; n
             <button className={`btn min-h-9 px-3 text-xs ${metric === "odds" ? "border-gold text-gold" : ""}`} aria-pressed={metric === "odds"} onClick={() => setMetric("odds")}>Odds-weighted</button>
           </div>
         </div>
-        <p className="text-xs leading-relaxed text-dim">
+        <About label="What do these two numbers mean?">
           <b className="text-ink">Average arcane price</b>: add up the price of every arcane in the collection and divide by how many there are.{" "}
           <b className="text-ink">Odds-weighted</b>: the same, but counting how often each rarity actually drops (a 5% legendary counts for 5%, a 40% common for 40%) —
           the closest thing to “platinum per pack on average”. Prices are asking prices, not sales (average of the 5 cheapest online rank-0 listings); arcanes marked ÷ had too few rank-0 listings, so they’re priced as their max-rank price divided by the copies it takes to make one (21 for a rank-5 arcane); “thin” ones had too few listings and nothing to cross-check against.
-        </p>
+        </About>
       </div>
 
       <ol className="space-y-3">

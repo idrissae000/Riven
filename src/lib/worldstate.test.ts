@@ -15,6 +15,10 @@ describe("normalizeWorldState (real feed)", () => {
     expect(by("zariman").state).toBe("Grineer-held");
     expect(by("duviri").state).toBe("envy");
   });
+  it("keeps a cycle whose timer has just run out instead of hiding it", () => {
+    const later = normalizeWorldState(WORLD_STATE_FIXTURE, Date.parse("2026-11-12T00:00:00Z"));
+    expect(later.cycles.map((c) => c.id)).toEqual(expect.arrayContaining(["cetus", "vallis", "cambion", "earth", "zariman", "duviri"]));
+  });
   it("Duviri's Circuit choices", () => expect(ws.duviri?.choices.map((c) => c.category)).toEqual(["normal", "hard"]));
   it("fissures: planet, tier order, Steel Path and storm flags", () => {
     expect(ws.fissures.length).toBeGreaterThan(0);

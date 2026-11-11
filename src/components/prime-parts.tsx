@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Plat } from "@/components/brand";
+import { About } from "@/components/about";
+import { Filters } from "@/components/filters";
 import type { PartType } from "@/lib/primes/types";
 
 export interface PartRow {
@@ -46,6 +48,7 @@ export function PrimeParts({ rows }: { rows: PartRow[] }) {
     <div className="space-y-4">
       <div className="card space-y-3">
         <input className="input" type="search" placeholder="Search a part or set (e.g. “Saryn Prime”)…" value={q} onChange={(e) => reset(setQ)(e.target.value)} />
+        <Filters active={(kind ? 1 : 0) + (type ? 1 : 0) + (vault ? 1 : 0) + (sort !== "price" ? 1 : 0)}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <select className="input" value={sort} onChange={(e) => reset(setSort)(e.target.value as Sort)} aria-label="Sort by">{SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           <select className="input" value={kind} onChange={(e) => reset(setKind)(e.target.value as "" | "part" | "set")} aria-label="Parts or sets">
@@ -56,7 +59,11 @@ export function PrimeParts({ rows }: { rows: PartRow[] }) {
             <option value="">Any vault status</option><option value="vaulted">Vaulted</option><option value="unvaulted">In the drop tables</option><option value="other">Not a relic drop (Baro, exclusives)</option>
           </select>
         </div>
-        <p className="text-xs text-dim">{list.length} of {rows.length} · price = average of the 5 cheapest online sell listings (asking prices, not sales) · “vaulted” = every relic that drops it is vaulted</p>
+        </Filters>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-dim">{list.length} of {rows.length}</p>
+          <About>Price = average of the 5 cheapest online sell listings (asking prices, not sales). “Vaulted” means every relic that drops the part is vaulted.</About>
+        </div>
       </div>
 
       <ol className="grid gap-2 sm:grid-cols-2">
