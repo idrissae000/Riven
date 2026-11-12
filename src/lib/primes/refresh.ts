@@ -31,6 +31,7 @@ export async function refreshItemBatch(
       const top = await fetchTop(get, it.slug, 0);
       const { error: e } = await sb.from("item_prices").upsert({ slug: it.slug, low: top.low, avg5: top.avg5, listings: top.listings, fetched_at: nowIso }, { onConflict: "slug" });
       if (e) throw new Error(e.message);
+      if (top.avg5 != null) await sb.from("price_history").upsert({ slug: it.slug, day: nowIso.slice(0, 10), price: top.avg5, listings: top.listings }, { onConflict: "slug,day" });
       out.refreshed++; out.remaining--;
     }
   } catch (e) {

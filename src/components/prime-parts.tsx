@@ -4,12 +4,17 @@ import { useMemo, useState } from "react";
 import { Plat } from "@/components/brand";
 import { About } from "@/components/about";
 import { Filters } from "@/components/filters";
+import { TrendBadge } from "@/components/trend";
+import type { Trend } from "@/lib/history";
+import { ducatVerdict } from "@/lib/primes/ducats";
 import type { PartType } from "@/lib/primes/types";
 
 export interface PartRow {
   slug: string; name: string; kind: "part" | "set"; type: PartType; ducats: number | null; vaulted: boolean | null; relicCount: number;
   /** Average of the 5 cheapest online sell listings; null until priced / when there are none. */
   price: number | null; low: number | null; listings: number; fetched: boolean;
+  /** Price movement over the last week; null until we have two days of history. */
+  trend: Trend | null;
 }
 
 type Sort = "price" | "ducats" | "ratio" | "name";
@@ -62,7 +67,7 @@ export function PrimeParts({ rows }: { rows: PartRow[] }) {
         </Filters>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-dim">{list.length} of {rows.length}</p>
-          <About>Price = average of the 5 cheapest online sell listings (asking prices, not sales). “Vaulted” means every relic that drops the part is vaulted.</About>
+          <About>Price = average of the 5 cheapest online sell listings (asking prices, not sales). “Vaulted” means every relic that drops the part is vaulted. “Better as ducats” = 10+ ducats per platinum, so Baro Ki’Teer is worth more than selling.</About>
         </div>
       </div>
 
@@ -77,6 +82,7 @@ export function PrimeParts({ rows }: { rows: PartRow[] }) {
                 {r.vaulted === false && <> · <span className="font-semibold text-teal">farmable</span></>}
                 {r.vaulted === null && r.kind === "part" && <> · not a relic drop</>}
                 {r.ducats != null && <> · {r.ducats} ducats</>}
+                {r.kind === "part" && ducatVerdict(r.price, r.ducats) === "ducat" && <> · <span className="font-semibold text-violet">better as ducats</span></>}
               </p>
             </div>
             <div className="shrink-0 text-right">
@@ -84,6 +90,7 @@ export function PrimeParts({ rows }: { rows: PartRow[] }) {
                 <>
                   <p className="h-display flex items-center justify-end gap-1.5 text-xl text-plat">{fmt(r.price)} <Plat size={16} /></p>
                   <p className="text-xs text-dim">low {r.low}{r.listings < 3 ? " · thin market" : ""}</p>
+                  <TrendBadge trend={r.trend} />
                 </>
               ) : <span className="text-xs text-dim">{r.fetched ? "no online listings" : "pricing…"}</span>}
             </div>

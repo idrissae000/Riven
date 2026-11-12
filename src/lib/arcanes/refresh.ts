@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { effectivePrice } from "./effective-price";
 import { pickStale, reduceSold, reduceTopOrders } from "./top-price";
 
 /** A GET against Warframe Market: path includes the version ("/v2/…"). The app passes its throttled client; scripts pass their own. */
@@ -89,6 +90,9 @@ export async function refreshArcaneBatch(
       const row = await fetchPriceRow(get, a.slug, a.wfm_slug, nowIso, a.max_rank);
       const { error } = await sb.from("arcane_prices").upsert(row, { onConflict: "slug" });
       if (error) throw new Error(error.message);
+      // one point per day for the trend charts (the latest of the day wins); a failure here must not lose the price we just saved
+      const eff = effectivePrice({ avg5: row.avg5, listings: row.listings, maxLow: row.max_low }, a.max_rank);
+      if (eff.price != null) await sb.from("price_history").upsert({ slug: a.slug, day: nowIso.slice(0, 10), price: eff.price, listings: row.listings }, { onConflict: "slug,day" });
       out.prices++; out.remaining.prices--;
     }
     // sales stats are heavy, so only once the (cheap) prices are all current

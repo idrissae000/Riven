@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Plat } from "@/components/brand";
 import { READ_EDGE, ScanImage } from "@/lib/image-prep";
+import { ducatVerdict } from "@/lib/primes/ducats";
 import { mergeScans, valueScan, type MatchedItem, type ReadItem, type ScanMatch } from "@/lib/primes/scan-match";
 
 export interface PartInfo { name: string; price: number | null; ducats: number | null }
@@ -33,6 +34,14 @@ export function InventoryScan({ info, signedIn }: { info: Record<string, PartInf
     return [...m.values()].flatMap((i) => { const e = edits[i.slug]; return e === null ? [] : [{ ...i, qty: e ?? i.qty }]; });
   }, [merged, added, edits, info]);
   const value = useMemo(() => valueScan(items, (s) => info[s]?.price ?? null, (s) => info[s]?.ducats ?? null), [items, info]);
+  const plan = useMemo(() => {
+    let ducatParts = 0, ducats = 0, sellPlat = 0;
+    for (const r of value.rows) {
+      if (ducatVerdict(r.unit, r.ducats) === "ducat") { ducatParts += r.qty; ducats += r.qty * (r.ducats ?? 0); }
+      else if (r.total != null) sellPlat += r.total;
+    }
+    return { ducatParts, ducats, sellPlat: Math.round(sellPlat * 10) / 10 };
+  }, [value]);
   const busy = shots.some((s) => s.state === "reading" || s.state === "queued");
 
   async function readOne(id: number, file: File) {
@@ -100,6 +109,12 @@ export function InventoryScan({ info, signedIn }: { info: Record<string, PartInf
         )}
       </section>
 
+      {plan.ducatParts > 0 && (
+        <section className="card text-sm text-dim">
+          <p><span className="font-semibold text-ink">Plan:</span> sell the rest for <span className="text-plat">≈ {fmt(plan.sellPlat)}p</span>, and take <span className="font-semibold text-violet">{plan.ducatParts} cheap parts to Baro for {plan.ducats} ducats</span> — they’re worth more as ducats (10+ ducats per platinum) than as platinum.</p>
+        </section>
+      )}
+
       <section className="card space-y-3">
         <h2 className="kicker">Your screenshots</h2>
         <div
@@ -141,6 +156,7 @@ export function InventoryScan({ info, signedIn }: { info: Record<string, PartInf
                   <p className="text-xs text-dim">
                     {r.unit != null ? <><span className="text-plat">{fmt(r.unit)}p</span> each</> : "no price yet"}
                     {r.ducats != null && <> · {r.ducats} ducats</>}
+                    {ducatVerdict(r.unit, r.ducats) === "ducat" && <> · <span className="font-semibold text-violet">ducat it</span></>}
                     {r.readAs && <> · read as “{r.readAs}”</>}
                   </p>
                 </div>

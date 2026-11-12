@@ -105,3 +105,17 @@ export async function getArcane(slug: string): Promise<ArcaneRow | null> {
   const { data } = await sb.from("arcanes").select("*").eq("slug", slug).maybeSingle();
   return (data as ArcaneRow | null) ?? null;
 }
+
+/** Daily price points for the last `days` days, per slug (arcanes: unranked price; Prime parts: average of the 5 cheapest listings). */
+export async function listPriceHistory(days = 30): Promise<Map<string, { day: string; price: number }[]>> {
+  const sb = await createClient();
+  const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+  const { data } = await sb.from("price_history").select("slug,day,price").gte("day", since).limit(50_000);
+  const out = new Map<string, { day: string; price: number }[]>();
+  for (const r of (data ?? []) as { slug: string; day: string; price: number | string }[]) {
+    const list = out.get(r.slug) ?? [];
+    list.push({ day: r.day, price: Number(r.price) });
+    out.set(r.slug, list);
+  }
+  return out;
+}

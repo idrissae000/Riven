@@ -6,6 +6,8 @@ import { rarityText } from "@/lib/arcanes/style";
 import { Plat } from "@/components/brand";
 import { About } from "@/components/about";
 import { Filters } from "@/components/filters";
+import { TrendBadge } from "@/components/trend";
+import type { Trend } from "@/lib/history";
 
 import type { ArcanePriceView } from "@/lib/arcanes/price-view";
 export type ArcaneListPrice = ArcanePriceView;
@@ -16,11 +18,13 @@ export interface ArcaneListItem {
   price: ArcaneListPrice | null;
   /** Where to get it, e.g. "Buy: The Quills". */
   source: string | null;
+  /** Price movement over the last week; null until we have two days of history. */
+  trend: Trend | null;
 }
 
-type Sort = "price-desc" | "price-asc" | "volume" | "name" | "rarity";
+type Sort = "price-desc" | "price-asc" | "rising" | "falling" | "volume" | "name" | "rarity";
 const RARITY_ORDER: Record<string, number> = { Legendary: 0, Rare: 1, Uncommon: 2, Common: 3 };
-const SORTS: [Sort, string][] = [["price-desc", "Price: high to low"], ["price-asc", "Price: low to high"], ["volume", "Most sold (48h)"], ["name", "Name"], ["rarity", "Rarity"]];
+const SORTS: [Sort, string][] = [["price-desc", "Price: high to low"], ["price-asc", "Price: low to high"], ["rising", "Rising fastest"], ["falling", "Falling fastest"], ["volume", "Most sold (48h)"], ["name", "Name"], ["rarity", "Rarity"]];
 
 function compare(sort: Sort): (a: ArcaneListItem, b: ArcaneListItem) => number {
   const price = (x: ArcaneListItem) => x.price?.price ?? null;
@@ -28,6 +32,8 @@ function compare(sort: Sort): (a: ArcaneListItem, b: ArcaneListItem) => number {
   switch (sort) {
     case "price-desc": return (a, b) => nullsLast(price(a), price(b), -1) || a.name.localeCompare(b.name);
     case "price-asc": return (a, b) => nullsLast(price(a), price(b), 1) || a.name.localeCompare(b.name);
+    case "rising": return (a, b) => nullsLast(a.trend?.changePct ?? null, b.trend?.changePct ?? null, -1) || a.name.localeCompare(b.name);
+    case "falling": return (a, b) => nullsLast(a.trend?.changePct ?? null, b.trend?.changePct ?? null, 1) || a.name.localeCompare(b.name);
     case "volume": return (a, b) => nullsLast(a.price?.volume48h ?? null, b.price?.volume48h ?? null, -1) || a.name.localeCompare(b.name);
     case "rarity": return (a, b) => (RARITY_ORDER[a.rarity ?? ""] ?? 9) - (RARITY_ORDER[b.rarity ?? ""] ?? 9) || a.name.localeCompare(b.name);
     default: return (a, b) => a.name.localeCompare(b.name);
@@ -109,7 +115,12 @@ export function ArcaneBrowser({ items }: { items: ArcaneListItem[] }) {
                 <PriceBlock price={a.price} />
               </div>
               <p className="mt-2 line-clamp-2 text-sm leading-snug text-dim">{a.description.replace(/\n/g, " ")}</p>
-              {a.source && <p className="mt-2 text-sm text-dim">{a.source}</p>}
+              {(a.source || a.trend) && (
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm text-dim">
+                  <span>{a.source}</span>
+                  <TrendBadge trend={a.trend} />
+                </div>
+              )}
             </Link>
           </li>
         ))}
