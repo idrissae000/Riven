@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Plat } from "@/components/brand";
 import { About } from "@/components/about";
 import { Filters } from "@/components/filters";
@@ -75,7 +76,7 @@ export function PrimeParts({ rows }: { rows: PartRow[] }) {
         {list.slice(0, shown).map((r, i) => (
           <li key={r.slug} className="tile flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="font-display text-base font-semibold leading-snug"><span className="mr-2 font-mono text-sm font-normal text-dim">{i + 1}</span>{r.name}</p>
+              <p className="font-display text-base font-semibold leading-snug"><span className="mr-2 font-mono text-sm font-normal text-dim">{i + 1}</span><Link href={`/primes/${r.slug}`} className="hover:text-gold">{r.name}</Link></p>
               <p className="mt-0.5 text-sm text-dim">
                 {r.kind === "set" ? "Set" : r.type[0].toUpperCase() + r.type.slice(1)}
                 {r.vaulted === true && <> · <span className="font-semibold text-orange">vaulted</span></>}

@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { wfmRequest } from "@/lib/wfm/client";
 import { refreshArcaneBatch } from "@/lib/arcanes/refresh";
 
+export const maxDuration = 60;
+
 /**
  * Refreshes the most out-of-date arcane prices (a few per call) and reports what's left, so a page can keep calling
  * until everything is current. Public on purpose (guests browse arcanes too): it only ever refreshes what's stale,

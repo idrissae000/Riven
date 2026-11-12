@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { wfmRequest } from "@/lib/wfm/client";
 import { refreshWeaponBatch } from "@/lib/rivens/refresh";
 
+export const maxDuration = 60;
+
 /** Refreshes the stalest weapon riven-market summaries a few at a time and reports what's left (same contract as the other price refreshers). */
 let running: Promise<unknown> | null = null;
 

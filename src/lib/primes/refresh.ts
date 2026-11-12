@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchTop, WfmFetchError, type WfmGet } from "@/lib/arcanes/refresh";
 import { pickStale } from "@/lib/arcanes/top-price";
 
-export const ITEM_PRICE_TTL_MS = 60 * 60_000;
+export const ITEM_PRICE_TTL_MS = 90 * 60_000;
 
 export interface ItemBatchResult {
   refreshed: number;
@@ -19,7 +19,7 @@ export async function refreshItemBatch(
   universe: string[],
   opts: { limit?: number; now?: number } = {},
 ): Promise<ItemBatchResult> {
-  const { limit = 8, now = Date.now() } = opts;
+  const { limit = 10, now = Date.now() } = opts;
   const { data, error } = await sb.from("item_prices").select("slug,fetched_at");
   if (error) throw new Error(error.message);
   const have = new Map((data ?? []).map((r) => [r.slug as string, r.fetched_at as string | null]));

@@ -12,7 +12,7 @@ import { ArcaneBrowser, type ArcaneListItem } from "@/components/arcane-browser"
 export const metadata = { title: "Arcanes" };
 
 export default async function ArcanesPage() {
-  const [arcanes, prices, history] = await Promise.all([listArcanes(), listArcanePrices(), listPriceHistory()]);
+  const [arcanes, prices, history] = await Promise.all([listArcanes(), listArcanePrices(), listPriceHistory(14)]);
   const priceOf = new Map(prices.map((p) => [p.slug, p]));
   const items: ArcaneListItem[] = arcanes.map((a) => {
     const p = priceOf.get(a.slug);

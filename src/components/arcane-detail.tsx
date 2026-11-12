@@ -8,7 +8,7 @@ import { timeAgo } from "@/lib/format";
 const KIND_LABEL: Record<string, string> = { drop: "Drop", reward: "Reward", vendor: "Vendor", event: "Event", other: "Other" };
 const KIND_STYLE: Record<string, string> = { drop: "border-violet/50 text-violet", reward: "border-teal/50 text-teal", vendor: "border-orange/50 text-orange", event: "border-grade-c/50 text-grade-c", other: "" };
 
-export function ArcaneDetailView({ a }: { a: ArcaneRow }) {
+export function ArcaneDetailView({ a, chart }: { a: ArcaneRow; chart?: React.ReactNode }) {
   const c = a.compatibility;
   const overridden = (f: string) => a.overridden_fields.includes(f);
 
@@ -28,6 +28,7 @@ export function ArcaneDetailView({ a }: { a: ArcaneRow }) {
       </section>
 
       <ArcanePrice slug={a.slug} tradable={!!a.wfm_slug} />
+      {chart}
 
       <section className="card space-y-3">
         <h2 className="kicker">Compatibility</h2>

@@ -7,6 +7,8 @@ import type { PrimeCatalogue } from "@/lib/primes/types";
 
 const UNIVERSE = (primes as unknown as PrimeCatalogue).parts.map((p) => p.slug);
 
+export const maxDuration = 60;
+
 /** Same contract as the arcane refresher: refreshes the stalest Prime part / set prices a few at a time and reports what's left. */
 let running: Promise<unknown> | null = null;
 

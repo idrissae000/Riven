@@ -10,7 +10,7 @@ import { itemsDue } from "@/lib/primes/due";
 export const metadata = { title: "Prime parts" };
 
 export default async function PrimesPage() {
-  const [prices, history] = await Promise.all([listItemPrices(), listPriceHistory()]);
+  const [prices, history] = await Promise.all([listItemPrices(), listPriceHistory(14)]);
   const priceOf = new Map(prices.map((p) => [p.slug, p]));
   const rows: PartRow[] = primeCatalogue.parts.map((p) => {
     const price = priceOf.get(p.slug);

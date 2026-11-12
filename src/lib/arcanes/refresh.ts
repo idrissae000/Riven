@@ -5,7 +5,7 @@ import { pickStale, reduceSold, reduceTopOrders } from "./top-price";
 /** A GET against Warframe Market: path includes the version ("/v2/…"). The app passes its throttled client; scripts pass their own. */
 export type WfmGet = (path: string) => Promise<Response>;
 
-export const PRICE_TTL_MS = 45 * 60_000; // arcane prices move slowly; this keeps ~166 items cheap to keep fresh
+export const PRICE_TTL_MS = 60 * 60_000; // arcane prices move slowly; this keeps ~166 items cheap to keep fresh
 export const STATS_TTL_MS = 12 * 60 * 60_000;
 
 export interface PriceRow { slug: string; low: number | null; avg5: number | null; listings: number; max_low: number | null; max_avg5: number | null; max_listings: number; fetched_at: string }
@@ -71,7 +71,7 @@ export async function refreshArcaneBatch(
   get: WfmGet,
   opts: { priceLimit?: number; statsLimit?: number; now?: number } = {},
 ): Promise<BatchResult> {
-  const { priceLimit = 3, statsLimit = 2, now = Date.now() } = opts;
+  const { priceLimit = 4, statsLimit = 2, now = Date.now() } = opts;
   const nowIso = new Date(now).toISOString();
   const [{ data: arcanes, error: e1 }, { data: prices, error: e2 }] = await Promise.all([
     sb.from("arcanes").select("slug,wfm_slug,max_rank").not("wfm_slug", "is", null),

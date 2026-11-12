@@ -119,3 +119,18 @@ export async function listPriceHistory(days = 30): Promise<Map<string, { day: st
   }
   return out;
 }
+
+/** Everything the price chart needs for one item: 90 days of real sales + our own daily asking-price snapshots. */
+export async function getItemHistory(slug: string, days = 90) {
+  const sb = await createClient();
+  const since = new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
+  const [s, a] = await Promise.all([
+    sb.from("sales_history").select("day,avg_price,min_price,max_price,volume").eq("slug", slug).gte("day", since).order("day"),
+    sb.from("price_history").select("day,price,listings").eq("slug", slug).gte("day", since).order("day"),
+  ]);
+  const n = (v: unknown) => (v == null ? null : Number(v));
+  return {
+    sales: ((s.data ?? []) as Record<string, unknown>[]).map((r) => ({ day: r.day as string, avg: Number(r.avg_price), min: n(r.min_price), max: n(r.max_price), volume: Number(r.volume ?? 0) })),
+    asking: ((a.data ?? []) as Record<string, unknown>[]).map((r) => ({ day: r.day as string, price: Number(r.price), listings: Number(r.listings ?? 0) })),
+  };
+}
