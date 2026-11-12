@@ -87,7 +87,7 @@ const BOX_PLAIN = `\n\nReply with ONLY a JSON object: {"found": boolean, "x": nu
  * Ask the model for JSON. First with structured outputs (+ server-side refusal fallback); if that request is
  * rejected or comes back empty/truncated, retry as plain "reply with JSON" text. Throws ScanRefused on refusals.
  */
-async function askJson(client: Anthropic, image: ImageBlock, prompt: string, schema: object, plainSuffix: string, maxTokens = 8000): Promise<unknown> {
+export async function askJson(client: Anthropic, image: ImageBlock, prompt: string, schema: object, plainSuffix: string, maxTokens = 8000): Promise<unknown> {
   const run = async (structuredMode: boolean): Promise<{ text: string; stop: string | null }> => {
     const content = [image, { type: "text" as const, text: structuredMode ? prompt : prompt + plainSuffix }];
     const res = structuredMode
@@ -126,8 +126,8 @@ async function askJson(client: Anthropic, image: ImageBlock, prompt: string, sch
 const shouldFallBack = (e: unknown) =>
   !(e instanceof ScanRefused) && !(e instanceof Anthropic.AuthenticationError) && !(e instanceof Anthropic.PermissionDeniedError) && !(e instanceof Anthropic.RateLimitError);
 
-const makeClient = () => new Anthropic({ maxRetries: 2, timeout: 55_000 }); // ANTHROPIC_API_KEY (or an `ant auth login` profile)
-const toBlock = (bytes: Buffer, mediaType: AllowedType): ImageBlock => ({ type: "image", source: { type: "base64", media_type: mediaType, data: bytes.toString("base64") } });
+export const makeClient = () => new Anthropic({ maxRetries: 2, timeout: 55_000 }); // ANTHROPIC_API_KEY (or an `ant auth login` profile)
+export const toBlock = (bytes: Buffer, mediaType: AllowedType): ImageBlock => ({ type: "image", source: { type: "base64", media_type: mediaType, data: bytes.toString("base64") } });
 
 /** Stage 1 (big images): where is the riven card? Returns a normalised box, or null to mean "read the whole image". */
 export async function locateRivenCard(bytes: Buffer, mediaType: AllowedType): Promise<Box | null> {
