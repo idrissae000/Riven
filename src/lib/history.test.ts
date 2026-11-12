@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { trendOf } from "./history";
+import { trendFromWeekly, trendOf } from "./history";
 
 const pts = (...p: [string, number][]) => p.map(([day, price]) => ({ day, price }));
 describe("trendOf", () => {
@@ -11,5 +11,17 @@ describe("trendOf", () => {
   it("calls small moves flat and falls the other way", () => {
     expect(trendOf(pts(["2026-11-01", 20], ["2026-11-02", 20.5]))!.dir).toBe("flat");
     expect(trendOf(pts(["2026-11-01", 20], ["2026-11-02", 10]))).toMatchObject({ changePct: -50, dir: "down" });
+  });
+});
+
+describe("trendFromWeekly", () => {
+  it("compares the last week with 30 days ago", () => {
+    expect(trendFromWeekly({ slug: "x", weekly: [5, 6, 8, 9, 10, 12], p7: 12, p30: 8, p90: 5 })).toMatchObject({ changePct: 50, days: 30, dir: "up" });
+  });
+  it("falls back to 90 days, then the oldest week, and needs two weeks", () => {
+    expect(trendFromWeekly({ slug: "x", weekly: [10, 5], p7: 5, p30: null, p90: 10 })).toMatchObject({ changePct: -50, days: 90, dir: "down" });
+    expect(trendFromWeekly({ slug: "x", weekly: [10, 10.2, 10.1], p7: 10.1, p30: null, p90: null })).toMatchObject({ days: 14, dir: "flat" });
+    expect(trendFromWeekly({ slug: "x", weekly: [10], p7: 10, p30: null, p90: null })).toBeNull();
+    expect(trendFromWeekly(undefined)).toBeNull();
   });
 });

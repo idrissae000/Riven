@@ -23,3 +23,18 @@ export function trendOf(points: HistoryPoint[] | undefined, windowDays = 7): Tre
   const changePct = Math.round(((last.price - base.price) / base.price) * 100);
   return { prices: sorted.map((p) => p.price), changePct, days: Math.round((Date.parse(last.day) - Date.parse(base.day)) / 86_400_000), dir: Math.abs(changePct) < FLAT_PCT ? "flat" : changePct > 0 ? "up" : "down" };
 }
+
+export interface WeeklyTrendRow { slug: string; weekly: number[]; p7: number | null; p30: number | null; p90: number | null }
+
+/**
+ * A trend from the 90-day sales history: the chart is the weekly average price paid; the move compares the last week with
+ * ~30 days ago (or ~90 days ago / the oldest week when the item has less history). Null with fewer than two weeks of sales.
+ */
+export function trendFromWeekly(r: WeeklyTrendRow | undefined): Trend | null {
+  if (!r || r.weekly.length < 2) return null;
+  const cur = r.p7 ?? r.weekly[r.weekly.length - 1];
+  const [base, days] = r.p30 != null ? [r.p30, 30] : r.p90 != null ? [r.p90, 90] : [r.weekly[0], (r.weekly.length - 1) * 7];
+  if (!base || base <= 0) return null;
+  const changePct = Math.round(((cur - base) / base) * 100);
+  return { prices: r.weekly, changePct, days, dir: Math.abs(changePct) < FLAT_PCT ? "flat" : changePct > 0 ? "up" : "down" };
+}

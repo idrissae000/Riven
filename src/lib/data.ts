@@ -134,3 +134,11 @@ export async function getItemHistory(slug: string, days = 90) {
     asking: ((a.data ?? []) as Record<string, unknown>[]).map((r) => ({ day: r.day as string, price: Number(r.price), listings: Number(r.listings ?? 0) })),
   };
 }
+
+/** 90-day trend rows (weekly prices + last-week / 30-day / 90-day averages) for every item, from the `price_trends()` database function. */
+export async function listTrends(): Promise<Map<string, import("@/lib/history").WeeklyTrendRow>> {
+  const sb = await createClient();
+  const { data } = await sb.rpc("price_trends").limit(5000);
+  const n = (v: unknown) => (v == null ? null : Number(v));
+  return new Map(((data ?? []) as Record<string, unknown>[]).map((r) => [r.slug as string, { slug: r.slug as string, weekly: ((r.weekly as unknown[]) ?? []).map(Number), p7: n(r.p7), p30: n(r.p30), p90: n(r.p90) }]));
+}

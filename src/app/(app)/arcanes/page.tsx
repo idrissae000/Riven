@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/page-header";
-import { listArcanePrices, listArcanes, listPriceHistory } from "@/lib/data";
-import { trendOf } from "@/lib/history";
+import { listArcanePrices, listArcanes, listTrends } from "@/lib/data";
+import { trendFromWeekly } from "@/lib/history";
 import { ArcaneTabs } from "@/components/arcane-tabs";
 import { PriceRefresher } from "@/components/price-refresher";
 import { priceView } from "@/lib/arcanes/price-view";
@@ -12,7 +12,7 @@ import { ArcaneBrowser, type ArcaneListItem } from "@/components/arcane-browser"
 export const metadata = { title: "Arcanes" };
 
 export default async function ArcanesPage() {
-  const [arcanes, prices, history] = await Promise.all([listArcanes(), listArcanePrices(), listPriceHistory(14)]);
+  const [arcanes, prices, history] = await Promise.all([listArcanes(), listArcanePrices(), listTrends()]);
   const priceOf = new Map(prices.map((p) => [p.slug, p]));
   const items: ArcaneListItem[] = arcanes.map((a) => {
     const p = priceOf.get(a.slug);
@@ -21,7 +21,7 @@ export default async function ArcanesPage() {
       categories: a.compatibility?.categories ?? [], ability_scaling: !!a.compatibility?.ability_scaling, scales_with: a.compatibility?.scales_with ?? [],
       price: p ? priceView(p, a.max_rank) : null,
       source: sourceLabel(a.drop_sources),
-      trend: trendOf(history.get(a.slug)),
+      trend: trendFromWeekly(history.get(a.slug)),
     };
   });
   // how many arcanes are due a price / sales refresh (the client component works through them in the background)
