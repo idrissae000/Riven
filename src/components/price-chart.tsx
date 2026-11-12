@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { mergeDays, nearestIndex, niceTicks, rangeStats, type AskingDay } from "@/lib/chart";
 import type { SalesDay } from "@/lib/history-sales";
 
@@ -11,7 +12,9 @@ const fmt = (n: number | null | undefined) => (n == null ? "—" : Number.isInte
 const dayLabel = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
 /** Interactive price history: real sales (average, low–high band, units sold) plus our own asking-price snapshots. Hover or tap for a day; click to pin it. */
-export function PriceChart({ name, sales, asking }: { name: string; sales: SalesDay[]; asking: AskingDay[] }) {
+export function PriceChart({ slug, name, sales, asking }: { slug: string; name: string; sales: SalesDay[]; asking: AskingDay[] }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(sales.length === 0);
   const [range, setRange] = useState<Range>(90);
   const [show, setShow] = useState({ sold: true, band: true, asking: true, volume: true });
   const [hover, setHover] = useState<number | null>(null);
@@ -27,10 +30,22 @@ export function PriceChart({ name, sales, asking }: { name: string; sales: Sales
     return () => ro.disconnect();
   }, []);
 
+  // No sales history copied yet for this item: ask the server to copy it now, then reload the page data.
+  useEffect(() => {
+    if (sales.length > 0) return;
+    let alive = true;
+    fetch(`/api/history/refresh?slug=${encodeURIComponent(slug)}`, { method: "POST" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (alive && j && !j.busy && j.refreshed > 0) router.refresh(); })
+      .catch(() => {})
+      .finally(() => alive && setLoading(false));
+    return () => { alive = false; };
+  }, [slug, sales.length, router]);
+
   const days = useMemo(() => mergeDays(sales, asking, range), [sales, asking, range]);
   const stats = useMemo(() => rangeStats(days), [days]);
 
-  if (!days.length) return <section className="card"><h2 className="kicker">Price history</h2><p className="mt-2 text-sm text-dim">No history yet for {name} — it’s copied from Warframe Market in the background and shows up here shortly.</p></section>;
+  if (!days.length) return <section className="card"><h2 className="kicker">Price history</h2><p className="mt-2 text-sm text-dim">{loading ? `Fetching ${name}’s history from Warframe Market…` : `No history yet for ${name} — it’s copied from Warframe Market in the background and shows up here shortly.`}</p></section>;
 
   const plotW = W - PAD.l - PAD.r, plotH = H - PAD.t - PAD.b - (show.volume ? VOL_H + 6 : 0);
   const t0 = days[0].t, t1 = days[days.length - 1].t;
@@ -122,6 +137,7 @@ export function PriceChart({ name, sales, asking }: { name: string; sales: Sales
         <Toggle on={show.asking} set={(v) => setShow((s) => ({ ...s, asking: v }))} swatch="bg-teal" label="Asking price (our snapshots)" />
         <Toggle on={show.volume} set={(v) => setShow((s) => ({ ...s, volume: v }))} swatch="bg-teal/40" label="Units sold" />
       </div>
+      {sales.length === 0 && <p className="text-xs text-teal">{loading ? "Fetching this item’s 90-day sales history from Warframe Market…" : "No sales history yet — it may not have traded recently."}</p>}
       <p className="text-xs text-dim">Prices paid come from Warframe Market’s closed trades (rank 0), one point per day. Asking prices are the average of the 5 cheapest listings that we save once a day, so that line starts the day tracking began. Hover or tap for a day; click to pin it.</p>
     </section>
   );

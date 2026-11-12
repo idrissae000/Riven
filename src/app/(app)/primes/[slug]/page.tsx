@@ -51,7 +51,7 @@ export default async function PrimePartPage({ params }: { params: Promise<{ slug
         </div>
       </section>
 
-      <PriceChart name={p.name} sales={history.sales} asking={history.asking} />
+      <PriceChart slug={slug} name={p.name} sales={history.sales} asking={history.asking} />
 
       {siblings.length > 0 && (
         <section className="card space-y-2">

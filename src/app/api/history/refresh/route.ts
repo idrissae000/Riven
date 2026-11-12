@@ -15,13 +15,17 @@ const PARTS = (primes as unknown as PrimeCatalogue).parts.map((p) => ({ slug: p.
  */
 let running: Promise<unknown> | null = null;
 
-export async function POST() {
+export async function POST(request: Request) {
   if (running) return NextResponse.json({ busy: true }, { status: 202 });
   try {
     const sb = createAdminClient();
     const { data } = await sb.from("arcanes").select("slug,wfm_slug").not("wfm_slug", "is", null);
     const universe = [...((data ?? []) as { slug: string; wfm_slug: string }[]), ...PARTS];
-    running = refreshSalesBatch(sb, (path) => wfmRequest(path), universe);
+    // ?slug=… = "someone is looking at this item's chart": copy just that one now (still only if it's stale, so it can't be abused)
+    const only = new URL(request.url).searchParams.get("slug");
+    const picked = only ? universe.filter((u) => u.slug === only) : universe;
+    if (only && !picked.length) return NextResponse.json({ error: "Unknown item" }, { status: 404 });
+    running = refreshSalesBatch(sb, (path) => wfmRequest(path), picked);
     return NextResponse.json(await running);
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "History refresh failed" }, { status: 502 });

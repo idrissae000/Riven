@@ -12,5 +12,5 @@ export default async function ArcaneDetail({ params }: { params: Promise<{ slug:
   const a = await getArcane((await params).slug);
   if (!a) notFound();
   const h = a.wfm_slug ? await getItemHistory(a.slug) : null;
-  return <ArcaneDetailView a={a} chart={h && <PriceChart name={a.name} sales={h.sales} asking={h.asking} />} />;
+  return <ArcaneDetailView a={a} chart={h && <PriceChart slug={a.slug} name={a.name} sales={h.sales} asking={h.asking} />} />;
 }
