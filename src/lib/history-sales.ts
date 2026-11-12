@@ -38,7 +38,7 @@ export interface SalesBatchResult { refreshed: number; remaining: number; rateLi
 
 /** Copies the 90-day sales history of the stalest items (oldest sync first, never-synced first). `sb` must be a service-role client. */
 export async function refreshSalesBatch(sb: SupabaseClient, get: WfmGet, universe: { slug: string; wfm_slug: string }[], opts: { limit?: number; now?: number } = {}): Promise<SalesBatchResult> {
-  const { limit = 6, now = Date.now() } = opts;
+  const { limit = 12, now = Date.now() } = opts;
   const { data, error } = await sb.from("history_sync").select("slug,synced_at").limit(5000);
   if (error) throw new Error(error.message);
   const have = new Map((data ?? []).map((r) => [r.slug as string, r.synced_at as string]));
