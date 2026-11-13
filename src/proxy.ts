@@ -33,7 +33,7 @@ export async function proxy(request: NextRequest) {
   });
 
   const { data } = await supabase.auth.getClaims();
-  if (data?.claims && pathname === "/login") return NextResponse.redirect(new URL("/rivens", request.url));
+  if (data?.claims && pathname === "/login") return NextResponse.redirect(new URL("/", request.url));
   return response;
 }
 

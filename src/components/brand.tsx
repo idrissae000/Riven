@@ -12,7 +12,7 @@ export function LogoMark({ size = 30 }: { size?: number }) {
   );
 }
 
-export function Wordmark({ href = "/rivens", compact = false }: { href?: string; compact?: boolean }) {
+export function Wordmark({ href = "/", compact = false }: { href?: string; compact?: boolean }) {
   return (
     <Link href={href} className="group flex items-center gap-2.5" aria-label="Warframe Economist home">
       <LogoMark size={compact ? 26 : 32} />

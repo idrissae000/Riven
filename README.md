@@ -1,5 +1,7 @@
 # Warframe Economist
 
+> Home page (`/`): hero, today's best moves from live data (set flips, top and rising arcanes, priciest parts) and, signed in, a snapshot of your saved inventory. The Market page (Warframe Market account + riven listings) is reached from the Inventory page header.
+
 The all-in-one Warframe platinum tool: price and grade rivens, arcanes and Prime parts, track your inventory (including from screenshots), and list and manage your Warframe Market orders. Next.js (App Router, TS, Tailwind) + Supabase, deployable to Vercel. One responsive codebase: bottom tabs on phones, sidebar on desktop.
 
 > **Unofficial.** Warframe Economist is a fan-made tool. It is not affiliated with, endorsed by or sponsored by Digital Extremes. Warframe and all related names, marks and imagery are trademarks of Digital Extremes Ltd.

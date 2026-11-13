@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconArcane, IconInventory, IconLive, IconMarket, IconPrime, IconRiven, Wordmark } from "@/components/brand";
+import { IconArcane, IconInventory, IconLive, IconPrime, IconRiven, Wordmark } from "@/components/brand";
 
 const TABS = [
   { href: "/inventory", label: "Inventory", Icon: IconInventory },
@@ -10,7 +10,6 @@ const TABS = [
   { href: "/arcanes", label: "Arcanes", Icon: IconArcane },
   { href: "/primes", label: "Primes", Icon: IconPrime },
   { href: "/live", label: "Live", Icon: IconLive },
-  { href: "/market", label: "Market", Icon: IconMarket },
 ];
 
 export function Nav({ signedIn }: { signedIn: boolean }) {

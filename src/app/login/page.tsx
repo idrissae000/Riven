@@ -13,10 +13,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <p className="kicker mb-2">Optional sign-in</p>
       <h1 className="h-display mb-2 text-3xl">Sign in</h1>
       <p className="mb-5 text-sm leading-relaxed text-dim">You don’t need an account to check rivens, browse arcanes or look up Prime prices. Sign in to save your inventory and rivens, scan screenshots into it, and list and manage your Warframe Market orders from here.</p>
-      <p className="mb-4 text-sm"><Link href="/rivens" className="text-teal hover:underline">Continue without an account →</Link></p>
+      <p className="mb-4 text-sm"><Link href="/" className="text-teal hover:underline">Continue without an account →</Link></p>
       <div className="card-glow">
         {error && <p className="mb-3 bg-danger/10 p-2 text-sm text-danger">{error}</p>}
-        <LoginForm next={next && next.startsWith("/") ? next : "/rivens"} />
+        <LoginForm next={next && next.startsWith("/") ? next : "/"} />
       </div>
       <Disclaimer className="mt-6" />
     </main>
