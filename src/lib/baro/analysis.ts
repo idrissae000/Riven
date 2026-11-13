@@ -86,6 +86,38 @@ export function analyseBaro(history: DayPrice[], arrival: string, cycles = 6): B
   return { pre: pre == null ? null : Math.round(pre * 10) / 10, cycles: n, ratioShort: sh.ratio, ratioLong: lg.ratio, shortHits: sh.hits, shortN: sh.n, longHits: lg.hits, longN: lg.n, dipShare: dipShare == null ? null : Math.round(dipShare * 100) / 100, confidence };
 }
 
+export interface Recovery {
+  /** Typical (median) number of days after Baro arrived until the daily price was back to ≥ 95% of that visit's pre-arrival price. 0 = it barely dipped. Null without at least MIN_VISITS visits of records. */
+  days: number | null;
+  /** Visits that were back to usual within 8 days / within 28 days, of the visits that could be judged. */
+  within8: { hits: number; n: number };
+  within28: { hits: number; n: number };
+}
+
+/**
+ * How long past visits took to get back to the usual price. For each past visit: the first day (0–28) whose price paid was at least
+ * 95% of its own pre-arrival price. A visit whose 28 days weren't fully recorded yet is only counted if it had already recovered.
+ */
+export function recoveryDays(history: DayPrice[], arrival: string, cycles = 6): Recovery {
+  const byDay = new Map(history.map((h) => [dayStart(h.day), h.price]));
+  const last = Math.max(0, ...history.map((h) => dayStart(h.day)));
+  const days: number[] = [];
+  for (const c of cycleStats(history, arrival, cycles)) {
+    if (c.pre == null || c.pre <= 0) continue;
+    const start = Date.parse(c.arrival + "T00:00:00Z");
+    let found: number | null = null;
+    for (let d = 0; d <= 28; d++) { const v = byDay.get(start + d * DAY); if (v != null && v >= c.pre * BACK_TO_USUAL) { found = d; break; } }
+    if (found != null) days.push(found);
+    else if (start + 28 * DAY <= last) days.push(29); // the whole month is recorded and it never got back
+  }
+  const n = days.length;
+  return {
+    days: n >= MIN_VISITS ? Math.round(median(days) as number) : null,
+    within8: { hits: days.filter((d) => d <= 8).length, n },
+    within28: { hits: days.filter((d) => d <= 28).length, n },
+  };
+}
+
 export type Horizon = "short" | "long";
 
 /**

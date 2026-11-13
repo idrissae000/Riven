@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyseBaro, backed, baroTip, cycleStats, platPer100Ducats, projectPrice } from "./analysis";
+import { analyseBaro, backed, recoveryDays, baroTip, cycleStats, platPer100Ducats, projectPrice } from "./analysis";
 
 const DAY = 86_400_000;
 const ARRIVAL = "2026-11-13T14:00:00.000Z";
@@ -48,6 +48,18 @@ describe("Baro analysis", () => {
   it("copes with no history", () => {
     expect(analyseBaro([], ARRIVAL)).toMatchObject({ pre: null, cycles: 0, ratioShort: null, ratioLong: null, shortN: 0, dipShare: null, confidence: "none" });
     expect(cycleStats([], ARRIVAL)).toHaveLength(6);
+  });
+  it("counts the days it took to get back to the usual price", () => {
+    // the price is 20% down on the 3 Baro days of each cycle, then back on day 3
+    const r = recoveryDays(history(100, 0.8), ARRIVAL);
+    expect(r.days).toBe(3);
+    expect(r.within8.hits).toBe(r.within8.n);
+    expect(r.within28.hits).toBe(r.within28.n);
+    // a price that never dipped is "back" on day 0
+    expect(recoveryDays(history(100, 1), ARRIVAL).days).toBe(0);
+    // too few visits of records -> no number
+    expect(recoveryDays(history(100, 0.8).slice(-30), ARRIVAL).days).toBeNull();
+    expect(recoveryDays([], ARRIVAL)).toMatchObject({ days: null, within8: { hits: 0, n: 0 } });
   });
   it("platinum per 100 ducats", () => {
     expect(platPer100Ducats(40, 350)).toBe(11.4);
