@@ -17,6 +17,12 @@ export interface BaroRow {
 }
 
 type SortKey = "price" | "ducats" | "gain";
+interface Range { lo: number; mid: number; hi: number; n: number }
+const rangeOf = (ratios: number[]): Range | null => {
+  if (!ratios.length) return null;
+  const s = [...ratios].sort((a, b) => a - b);
+  return { lo: s[0], hi: s[s.length - 1], mid: s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2, n: s.length };
+};
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 const cr = (n: number | null) => (n == null ? "—" : n.toLocaleString("en-US"));
 const CONF: Record<Confidence, { label: string; cls: string }> = {
@@ -44,6 +50,17 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
   const [open, setOpen] = useState<string | null>(null);
   const [ducats, setDucats] = useState("");
   const [credits, setCredits] = useState("");
+
+  // What past visits actually did, straight from the records: for each window, the lowest / median / highest price as a share of that visit's pre-arrival price.
+  const observed = useMemo(() => {
+    const out: Record<string, { short: Range | null; long: Range | null }> = {};
+    for (const r of rows) {
+      if (!r.slug) continue;
+      const stats = cycleStats((history[r.slug] ?? []).map((h) => ({ day: h.day, price: h.avg })), arrival).filter((c) => c.pre != null && c.pre > 0);
+      out[r.name] = { short: rangeOf(stats.flatMap((c) => (c.short != null ? [c.short / (c.pre as number)] : []))), long: rangeOf(stats.flatMap((c) => (c.long != null ? [c.long / (c.pre as number)] : []))) };
+    }
+    return out;
+  }, [rows, history, arrival]);
 
   const enriched = useMemo(() => rows.map((r) => {
     const a = { pre: r.pre, ratioShort: r.ratioShort, ratioLong: r.ratioLong, shortHits: r.shortHits, shortN: r.shortN, longHits: r.longHits, longN: r.longN, dipShare: r.dipShare, cycles: r.cycles, confidence: r.confidence };
@@ -141,7 +158,7 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
             const isOpen = open === r.name;
             const hist = (r.slug && history[r.slug]) || [];
             const visits = isOpen ? cycleStats(hist.map((h) => ({ day: h.day, price: h.avg })), arrival) : [];
-            const max = Math.max(...[r.priceNow, r.pre, r.sellShort, r.sellLong].filter((v): v is number => v != null), 1);
+            const max = Math.max(...[r.priceNow, r.pre].filter((v): v is number => v != null), 1);
             return (
               <li key={r.name} className="tile space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
@@ -155,10 +172,11 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
                   <Bar label="Asking now" value={r.priceNow} max={max} tone="bg-orange" sub={r.priceNow == null ? (r.ready ? "no listings" : "pricing…") : r.listings < 3 ? "thin market" : "5 cheapest online"} />
                   <Bar label="Usual (sold)" value={r.pre} max={max} tone="bg-dim" sub="week before Baro" />
-                  <Bar label="~1 week later" value={r.sellShort} max={max} tone="bg-teal" active={horizon === "short"} sub={r.evShort.n >= 4 ? `back to usual ${r.evShort.hits}/${r.evShort.n} visits` : "not enough visits"} />
-                  <Bar label="2–4 weeks later" value={r.sellLong} max={max} tone="bg-gold" active={horizon === "long"} sub={r.evLong.n >= 4 ? `back to usual ${r.evLong.hits}/${r.evLong.n} visits` : "not enough visits"} />
+                  <Seen label="A week after past visits" range={observed[r.name]?.short ?? null} pre={r.pre} ev={r.evShort} active={horizon === "short"} />
+                  <Seen label="2–4 weeks after past visits" range={observed[r.name]?.long ?? null} pre={r.pre} ev={r.evLong} active={horizon === "long"} />
                 </div>
 
+                {r.sellAt != null && <p className="text-sm text-ink">Expected sell price at this hold time: <b className="text-plat">≈ {fmt(r.sellAt)}p</b> <span className="text-dim">— the usual price, which the records support as the ceiling (never projected higher).</span></p>}
                 <p className="text-sm leading-relaxed text-dim">{r.tip}</p>
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="flex flex-wrap items-center gap-2">
@@ -241,6 +259,23 @@ function Bar({ label, value, max, tone, sub, active = false }: { label: string; 
       <p className="h-display text-xl normal-case text-ink">{value != null ? <>{fmt(value)}<span className="ml-0.5 text-sm font-normal text-dim">p</span></> : "—"}</p>
       <div className="mt-1 h-1.5 w-full bg-line/60" aria-hidden="true"><div className={`h-full ${tone}`} style={{ width: `${value != null ? Math.max(4, (value / max) * 100) : 0}%` }} /></div>
       <p className="mt-1 h-4 text-xs text-dim">{sub}</p>
+    </div>
+  );
+}
+
+/** What past visits actually did in this window, from the records: the range and median as a share of the usual price, and how often it was back to usual. */
+function Seen({ label, range, pre, ev, active }: { label: string; range: Range | null; pre: number | null; ev: { hits: number; n: number }; active: boolean }) {
+  const pct = (r: number) => `${Math.round(r * 100)}%`;
+  return (
+    <div className={active ? "rounded border border-gold/40 bg-gold/5 p-1.5" : "p-1.5"}>
+      <p className="text-xs text-dim">{label}</p>
+      {range && pre != null ? (
+        <>
+          <p className="h-display text-xl normal-case text-ink">{fmt(pre * range.lo)}–{fmt(pre * range.hi)}<span className="ml-0.5 text-sm font-normal text-dim">p</span></p>
+          <p className="mt-1 text-xs text-dim">{pct(range.lo)}–{pct(range.hi)} of usual · median {pct(range.mid)}</p>
+          <p className="text-xs text-dim">back to usual {ev.hits}/{ev.n} visits</p>
+        </>
+      ) : <p className="h-display text-xl text-dim">—</p>}
     </div>
   );
 }
