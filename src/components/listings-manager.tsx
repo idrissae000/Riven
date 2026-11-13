@@ -32,6 +32,7 @@ export function ListingsManager() {
   const [sort, setSort] = useState<InvSort>("price");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [salesNote, setSalesNote] = useState(0);
   const [rowMsg, setRowMsg] = useState<Record<string, { ok: boolean; text: string }>>({});
   const asked = useRef(new Set<string>());
   const mounted = useRef(true);
@@ -44,7 +45,11 @@ export function ListingsManager() {
       const json = await res.json().catch(() => ({}));
       if (!mounted.current) return;
       if (!res.ok) { setErr(json.error ?? "Couldn’t load your listings."); if (json.reauth) refresh(); }
-      else { setData(json as Data); setPrice({}); setSel({}); }
+      else {
+        setData(json as Data); setPrice({}); setSel({});
+        // note orders that disappeared or shrank since the last look (probable sales) — the Sales tab asks you to confirm them
+        fetch("/api/sales/sync", { method: "POST" }).then((r) => (r.ok ? r.json() : null)).then((j) => { if (mounted.current && j?.pending > 0) setSalesNote(j.pending); }).catch(() => {});
+      }
     } catch { if (mounted.current) setErr("Couldn’t reach the server."); }
     if (mounted.current) setLoading(false);
   }, [refresh]);
@@ -187,6 +192,7 @@ export function ListingsManager() {
         </div>
         <button className="btn" onClick={load} disabled={loading || busy}>{loading ? "Refreshing…" : "Refresh"}</button>
       </section>
+      {salesNote > 0 && <p role="status" className="card border-gold/40 text-sm text-ink">{salesNote} of your orders look like they sold. <a href="/inventory/sales" className="text-gold underline">Review them in Sales →</a></p>}
       {err && <p role="alert" className="card border-danger/40 text-sm text-danger">{err}</p>}
 
       {allOrders.length > 0 && (

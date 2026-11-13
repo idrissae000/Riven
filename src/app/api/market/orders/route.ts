@@ -1,26 +1,15 @@
 import { NextResponse } from "next/server";
 import { requireUser, noStore } from "@/lib/api";
-import { ReauthRequired, sessionInfo, wfmAuthedV2, wfmConfigured } from "@/lib/wfm/auth";
+import { ReauthRequired, sessionInfo, wfmConfigured } from "@/lib/wfm/auth";
 import { wfmRequest } from "@/lib/wfm/client";
-import { itemIndex } from "@/lib/wfm/items-index";
+import { fetchMyOrders, type MyOrder } from "@/lib/wfm/my-orders";
+
+export type { MyOrder };
 
 export const maxDuration = 60;
 
-export interface MyOrder {
-  id: string; type: "sell" | "buy"; platinum: number; quantity: number; visible: boolean; rank: number; updatedAt: string | null;
-  item: { id: string; slug: string; name: string; thumb: string | null; maxRank: number | null };
-}
 export interface MyAuction {
   id: string; name: string; weapon: string | null; price: number; startingPrice: number | null; visible: boolean; note: string; rank: number | null; rerolls: number | null; polarity: string | null;
-}
-
-interface RawOrder { id?: string; type?: string; platinum?: number; quantity?: number; visible?: boolean; rank?: number; itemId?: string; updatedAt?: string }
-
-/** Pulls the order list out of whichever shape /v2/orders/my answers with (a plain list, or {sell, buy}). */
-function ordersOf(data: unknown): RawOrder[] {
-  if (Array.isArray(data)) return data as RawOrder[];
-  const d = data as { orders?: RawOrder[]; sell?: RawOrder[]; buy?: RawOrder[] } | null;
-  return d?.orders ?? [...(d?.sell ?? []), ...(d?.buy ?? [])];
 }
 
 /** All of the signed-in user's Warframe Market sell/buy orders and open riven auctions. */
@@ -32,15 +21,9 @@ export async function GET() {
   if (!info.connected) return NextResponse.json({ error: "Connect your Warframe Market account first.", reauth: true }, { status: 401, ...noStore });
 
   try {
-    const res = await wfmAuthedV2(auth.user.id, "/v2/orders/my");
-    if (!res.ok) return NextResponse.json({ error: `Warframe Market couldn’t return your orders (HTTP ${res.status}).` }, { status: 502 });
-    const raw = ordersOf(((await res.json().catch(() => null)) as { data?: unknown } | null)?.data);
-    const index = await itemIndex();
-    const orders: MyOrder[] = raw.flatMap((o): MyOrder[] => {
-      const item = o.itemId ? index.get(o.itemId) : undefined;
-      if (!o.id || !item || typeof o.platinum !== "number") return [];
-      return [{ id: o.id, type: o.type === "buy" ? "buy" : "sell", platinum: o.platinum, quantity: o.quantity ?? 1, visible: o.visible !== false, rank: o.rank ?? 0, updatedAt: o.updatedAt ?? null, item }];
-    });
+    const got = await fetchMyOrders(auth.user.id);
+    if ("status" in got) return NextResponse.json({ error: `Warframe Market couldn’t return your orders (HTTP ${got.status}).` }, { status: 502 });
+    const orders = got.orders;
 
     // Riven auctions (v1 is the only place they exist). Public read by ingame name; best effort.
     let auctions: MyAuction[] = [];

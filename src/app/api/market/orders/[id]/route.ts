@@ -42,6 +42,7 @@ export async function DELETE(_req: Request, { params }: Ctx) {
   try {
     const res = await wfmAuthedV2(auth.user.id, `/v2/order/${id}`, { method: "DELETE" });
     if (!res.ok && res.status !== 404) return fail(res, flattenErrors(await res.json().catch(() => null)), "remove that order");
+    await auth.sb.from("order_snapshots").delete().eq("order_id", id); // removed by the user here, so not a sale
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e instanceof ReauthRequired) return NextResponse.json({ error: e.message, reauth: true }, { status: 401 });
