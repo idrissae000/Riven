@@ -40,10 +40,14 @@ const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.6, strokeL
 export function IconRiven({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
-      <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-  <path d="M12 2.7l8.23 14.25H3.77Z"/>
-  <path d="M12 21.7L3.77 7.45h16.46Z"/>
-  <path d="M12 9.9l1.75 3H10.25Z" strokeWidth="1.2"/></g>
+      <g fill="currentColor" stroke="currentColor" strokeWidth=".8" strokeLinejoin="round">
+      <path d="M2.4 3.1 8.2 2.1 4.6 8.4Z"/><path d="M21.6 3.1 15.8 2.1 19.4 8.4Z"/>
+      <path d="M8.5 16.6h7L12 22.2Z"/></g>
+      <g fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9.7 7.1 12 4.2l2.3 2.9"/>
+      <path d="M7.4 11.4 4.5 15.4h4M16.6 11.4l2.9 4h-4"/>
+      <path d="M9 13.9 12 7.9l3 6Z" strokeWidth="1.1"/></g>
+      <path d="M12 9.6 13.8 12.9H10.2Z" fill="currentColor"/>
     </svg>
   );
 }
