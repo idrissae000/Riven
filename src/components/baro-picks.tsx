@@ -238,7 +238,7 @@ function Bar({ label, value, max, tone, sub, active = false }: { label: string; 
   return (
     <div className={active ? "rounded border border-gold/40 bg-gold/5 p-1.5" : "p-1.5"}>
       <p className="text-xs text-dim">{label}</p>
-      <p className="h-display text-xl text-ink">{value != null ? <>{fmt(value)}<span className="ml-0.5 text-sm font-normal text-dim">p</span></> : "—"}</p>
+      <p className="h-display text-xl normal-case text-ink">{value != null ? <>{fmt(value)}<span className="ml-0.5 text-sm font-normal text-dim">p</span></> : "—"}</p>
       <div className="mt-1 h-1.5 w-full bg-line/60" aria-hidden="true"><div className={`h-full ${tone}`} style={{ width: `${value != null ? Math.max(4, (value / max) * 100) : 0}%` }} /></div>
       <p className="mt-1 h-4 text-xs text-dim">{sub}</p>
     </div>

@@ -60,7 +60,7 @@ export function Nav({ signedIn }: { signedIn: boolean }) {
             key={href}
             href={href}
             aria-current={active(href) ? "page" : undefined}
-            className={`relative flex min-h-16 min-w-[4.4rem] flex-1 flex-col items-center justify-center gap-1 font-display text-xs font-semibold uppercase tracking-[0.1em] transition ${active(href) ? "text-gold" : "text-dim"}`}
+            className={`relative flex min-h-16 min-w-[4.6rem] flex-1 flex-col items-center justify-center gap-1 font-display text-xs font-semibold uppercase tracking-[0.03em] transition ${active(href) ? "text-gold" : "text-dim"}`}
           >
             {active(href) && <span className="absolute inset-x-5 top-0 h-[2px] bg-gold shadow-[0_0_10px_var(--color-gold)]" />}
             <Icon size={22} />

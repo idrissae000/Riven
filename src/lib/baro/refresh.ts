@@ -7,7 +7,43 @@ import { analyseBaro, type DayPrice } from "./analysis";
 
 export const BARO_TTL_MS = 15 * 60_000; // a tradable item's live price + analysis is re-checked every 15 minutes while Baro is here
 
-export interface BaroRefreshResult { active: boolean; refreshed: number; remaining: number; rateLimited: boolean }
+export const TRACK_TTL_MS = 60 * 60_000; // while he's away, last visit's items are re-priced hourly
+
+export interface BaroRefreshResult { active: boolean; /** true = Baro is away and we're keeping up with his last visit's items */ tracking?: boolean; refreshed: number; remaining: number; rateLimited: boolean }
+
+/** One asking-price point per day per item (the latest of the day wins), for the charts. Never lets a failure lose the price we just saved. */
+async function snapshot(sb: SupabaseClient, slug: string, price: number | null, listings: number, nowIso: string) {
+  if (price == null) return;
+  await sb.from("price_history").upsert({ slug, day: nowIso.slice(0, 10), price, listings }, { onConflict: "slug,day" });
+}
+
+/** Baro is away: keep pricing the items from his last visit (hourly) and keep their sales history fresh, so the page can chart how they sell versus while he was here. */
+async function trackLastVisit(sb: SupabaseClient, get: WfmGet, now: number, limit: number): Promise<BaroRefreshResult> {
+  const out: BaroRefreshResult = { active: false, tracking: true, refreshed: 0, remaining: 0, rateLimited: false };
+  const { data, error } = await sb.from("baro_items").select("visit,name,wfm_slug,computed_at").not("wfm_slug", "is", null).order("visit", { ascending: false }).limit(200);
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as { visit: string; name: string; wfm_slug: string; computed_at: string | null }[];
+  if (!rows.length) return out;
+  const visit = rows[0].visit;
+  const due = rows.filter((r) => r.visit === visit && !(r.computed_at && now - Date.parse(r.computed_at) < TRACK_TTL_MS))
+    .sort((a, b) => (a.computed_at ? Date.parse(a.computed_at) : -Infinity) - (b.computed_at ? Date.parse(b.computed_at) : -Infinity));
+  out.remaining = due.length;
+  const nowIso = new Date(now).toISOString();
+  try {
+    for (const r of due.slice(0, limit)) {
+      await refreshSalesBatch(sb, get, [{ slug: r.wfm_slug, wfm_slug: r.wfm_slug }], { limit: 1, now });
+      const top = reduceTopOrders(await fetchOrders(get, r.wfm_slug), 5, 0);
+      const { error: e } = await sb.from("baro_items").update({ price_now: top.avg5, listings: top.listings, computed_at: nowIso }).eq("visit", visit).eq("name", r.name);
+      if (e) throw new Error(e.message);
+      await snapshot(sb, r.wfm_slug, top.avg5, top.listings, nowIso);
+      out.refreshed++; out.remaining--;
+    }
+  } catch (e) {
+    if (e instanceof WfmFetchError && e.status === 429) out.rateLimited = true;
+    else throw e;
+  }
+  return out;
+}
 
 /**
  * While Baro is here: records his stock for this visit, and (a few per call) works out each tradable item's live price and what
@@ -19,7 +55,7 @@ export async function refreshBaro(
 ): Promise<BaroRefreshResult> {
   const { limit = 3, now = Date.now() } = opts;
   const out: BaroRefreshResult = { active: false, refreshed: 0, remaining: 0, rateLimited: false };
-  if (!baro || baro.items.length === 0 || Date.parse(baro.arrives) > now) return out; // not here (yet): nothing to do
+  if (!baro || baro.items.length === 0 || Date.parse(baro.arrives) > now) return trackLastVisit(sb, get, now, limit); // away: follow his last visit's items
   out.active = true;
   const visit = new Date(baro.arrives).toISOString();
   const nowIso = new Date(now).toISOString();
@@ -57,6 +93,7 @@ export async function refreshBaro(
         price_now: top.avg5, listings: top.listings, pre_price: a.pre, ratio_short: a.ratioShort, ratio_long: a.ratioLong, dip_share: a.dipShare, cycles: a.cycles, confidence: a.confidence, computed_at: nowIso,
       }).eq("visit", visit).eq("name", r.name);
       if (e) throw new Error(e.message);
+      await snapshot(sb, slug, top.avg5, top.listings, nowIso);
       out.refreshed++; out.remaining--;
     }
   } catch (e) {
