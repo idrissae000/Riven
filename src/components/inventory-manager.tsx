@@ -38,6 +38,11 @@ export function InventoryManager({ options, rows, total, priced, advice }: { opt
     if (ok) { setText(""); setQty(1); setMaxRank(false); }
   }
 
+  async function clearAll() {
+    if (!confirm(`Remove all ${rows.length} items from your saved inventory? This can’t be undone.`)) return;
+    await call("/api/inventory", { method: "DELETE" });
+  }
+
   const sells = rows.filter((r) => r.total != null).slice(0, 5);
 
   return (
@@ -48,6 +53,7 @@ export function InventoryManager({ options, rows, total, priced, advice }: { opt
           <p className="h-display flex items-center gap-2 text-4xl text-plat">{priced ? <>≈ {fmt(total)} <Plat size={26} /></> : <span className="text-dim">—</span>}</p>
           <p className="mt-1 text-xs text-dim">{priced} of {rows.length} items priced · market asking prices (average of the 5 cheapest online listings)</p>
         </div>
+        {rows.length > 0 && <button className="btn-danger" onClick={clearAll} disabled={busy}>Clear all</button>}
       </section>
 
       <form onSubmit={add} className="card space-y-3">

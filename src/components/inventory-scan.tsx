@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Plat } from "@/components/brand";
+import { ListOnMarket } from "@/components/list-on-market";
 import { READ_EDGE, ScanImage } from "@/lib/image-prep";
 import { ducatVerdict } from "@/lib/primes/ducats";
 import { mergeScans, valueScan, type MatchedItem, type ReadItem, type ScanMatch } from "@/lib/primes/scan-match";
@@ -21,6 +22,7 @@ export function InventoryScan({ info, signedIn }: { info: Record<string, PartInf
   const [pick, setPick] = useState("");
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [listing, setListing] = useState(false);
   const nextId = useRef(1);
   const input = useRef<HTMLInputElement>(null);
 
@@ -93,6 +95,12 @@ export function InventoryScan({ info, signedIn }: { info: Record<string, PartInf
 
   const unmatched: ReadItem[] = merged.unmatched;
 
+  function clearAll() {
+    if (!confirm("Clear everything on this page — the screenshots, the parts read from them and any you added by hand? (Your saved inventory isn’t touched.)")) return;
+    setShots([]); setEdits({}); setAdded({}); setPick(""); setSaveMsg(null); setListing(false);
+  }
+  const hasAnything = shots.length > 0 || Object.keys(added).length > 0;
+
   return (
     <div className="space-y-5">
       <section className="card flex flex-wrap items-center justify-between gap-3" aria-live="polite">
@@ -101,13 +109,18 @@ export function InventoryScan({ info, signedIn }: { info: Record<string, PartInf
           <p className="h-display flex items-center gap-2 text-4xl text-plat">{value.priced ? <>≈ {fmt(value.total)} <Plat size={26} /></> : <span className="text-dim">—</span>}</p>
           <p className="mt-1 text-xs text-dim">{value.priced} of {value.rows.length} items priced · average of the 5 cheapest online listings, × how many you have</p>
         </div>
-        {signedIn && value.rows.length > 0 && (
-          <div className="text-right">
-            <button className="btn" onClick={save} disabled={saving || busy}>{saving ? "Saving…" : "Add all to my inventory"}</button>
-            {saveMsg && <p className="mt-1 text-xs text-dim">{saveMsg} <Link href="/market/inventory" className="text-gold underline">Open inventory</Link></p>}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
+            {signedIn && value.rows.length > 0 && <button className="btn-primary" onClick={() => setListing(true)} disabled={busy}>List on Warframe Market</button>}
+            {signedIn && value.rows.length > 0 && <button className="btn" onClick={save} disabled={saving || busy}>{saving ? "Saving…" : "Add all to my inventory"}</button>}
+            {hasAnything && <button className="btn-danger" onClick={clearAll}>Clear all</button>}
           </div>
-        )}
+          {saveMsg && <p className="text-xs text-dim">{saveMsg} <Link href="/market/inventory" className="text-gold underline">Open inventory</Link></p>}
+          {!signedIn && value.rows.length > 0 && <p className="text-xs text-dim"><Link href="/login?next=/primes/scan" className="text-gold underline">Sign in</Link> to list these on Warframe Market or save them.</p>}
+        </div>
       </section>
+
+      {listing && signedIn && <ListOnMarket rows={value.rows.map((r) => ({ slug: r.slug, name: r.name, qty: r.qty, unit: r.unit, ducats: r.ducats }))} onClose={() => setListing(false)} />}
 
       {plan.ducatParts > 0 && (
         <section className="card text-sm text-dim">

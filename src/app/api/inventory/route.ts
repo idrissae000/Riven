@@ -33,3 +33,13 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ id: data.id }, { status: 201 });
 }
+
+/** Remove everything from the signed-in user's inventory (RLS limits this to their own rows). */
+export async function DELETE() {
+  const sb = await createClient();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) return NextResponse.json({ error: "Sign in to track your inventory." }, { status: 401 });
+  const { error, count } = await sb.from("inventory_items").delete({ count: "exact" }).eq("user_id", auth.user.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ removed: count ?? 0 });
+}
