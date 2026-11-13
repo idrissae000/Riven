@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { BaroAway, type AwayRow } from "@/components/baro-away";
+import { DucatParts, type DucatPart } from "@/components/ducat-parts";
 import { BaroPicks, type BaroRow } from "@/components/baro-picks";
 import { Countdown } from "@/components/countdown";
 import { PageHeader } from "@/components/page-header";
 import { PriceRefresher } from "@/components/price-refresher";
 import { baroDue } from "@/lib/baro/due";
+import { listItemPrices } from "@/lib/data";
+import { primeCatalogue } from "@/lib/primes/catalogue";
 import { TRACK_TTL_MS } from "@/lib/baro/refresh";
 import { createClient } from "@/lib/supabase/server";
 import { getWorldState } from "@/lib/worldstate";
@@ -38,6 +41,13 @@ export default async function BaroPage() {
   const here = !!baro && !!state && baro.items.length > 0 && Date.parse(baro.arrives) <= Date.parse(state.fetchedAt);
   const sb = await createClient();
   const num = (v: unknown) => (v == null ? null : Number(v));
+
+  // Prime parts ranked by ducats per platinum (shown whether or not Baro is here)
+  const itemPrices = new Map((await listItemPrices()).map((p) => [p.slug, p]));
+  const ducatParts: DucatPart[] = primeCatalogue.parts.flatMap((p) => {
+    const ip = itemPrices.get(p.slug);
+    return p.kind === "part" && p.ducats && ip?.avg5 && ip.avg5 > 0 ? [{ slug: p.slug, name: p.name, ducats: p.ducats, price: ip.avg5, listings: ip.listings, vaulted: p.vaulted }] : [];
+  });
 
   let body: React.ReactNode = null;
 
@@ -100,6 +110,7 @@ export default async function BaroPage() {
         <Link href="/live" className="btn">Live world state</Link>
       </PageHeader>
       {state ? body : <p className="card text-sm text-dim">Couldn’t load Baro’s status from the world-state feed right now. Try again in a minute.</p>}
+      <DucatParts rows={ducatParts} />
     </div>
   );
 }
