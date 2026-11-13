@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyseBaro, backed, dipRecovery, baroTip, cycleStats, platPer100Ducats, projectPrice } from "./analysis";
+import { analyseBaro, backed, baroTip, cycleStats, platPer100Ducats, projectPrice } from "./analysis";
 
 const DAY = 86_400_000;
 const ARRIVAL = "2026-11-13T14:00:00.000Z";
@@ -49,18 +49,6 @@ describe("Baro analysis", () => {
     expect(analyseBaro([], ARRIVAL)).toMatchObject({ pre: null, cycles: 0, ratioShort: null, ratioLong: null, shortN: 0, dipShare: null, confidence: "none" });
     expect(cycleStats([], ARRIVAL)).toHaveLength(6);
   });
-  it("measures how long the cheapest trades take to come back after Baro's dip", () => {
-    // lows are 40, but 30 on Baro's three days of every cycle (a 25% dip), back on day 3
-    const sales = history(40, 0.75).map((h) => ({ day: h.day, min: h.price, avg: h.price + 2 }));
-    const r = dipRecovery(sales, ARRIVAL);
-    expect(r.n).toBeGreaterThanOrEqual(4);
-    expect(r).toMatchObject({ dipped: r.n, depth: 0.25, days: 1 }); // 1 day after he left (day 3 - 2)
-  });
-  it("reports no dip when the lows never fall", () => {
-    const r = dipRecovery(history(40, 1).map((h) => ({ day: h.day, min: h.price, avg: h.price })), ARRIVAL);
-    expect(r).toMatchObject({ dipped: 0, depth: null, days: null });
-    expect(dipRecovery([], ARRIVAL)).toEqual({ n: 0, dipped: 0, depth: null, days: null });
-  });
   it("platinum per 100 ducats", () => {
     expect(platPer100Ducats(40, 350)).toBe(11.4);
     expect(platPer100Ducats(60, 0)).toBeNull();
@@ -70,7 +58,7 @@ describe("Baro analysis", () => {
     const tip = baroTip(25, a);
     expect(tip).toContain("sold for about 40p a day in the week before Baro arrived");
     expect(tip).toContain("asking 25p now (38% lower)");
-    expect(tip).toMatch(/back to that level within a week in \d of \d past visits/);
+    expect(tip).toMatch(/at least 95% of that level a week after in \d of \d past visits/);
     expect(baroTip(null, a)).toContain("no price to work from");
   });
 });

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Plat } from "@/components/brand";
 import { PriceChart } from "@/components/price-chart";
 import { Segmented } from "@/components/segmented";
-import { backed, baroTip, cycleStats, evidence, platPer100Ducats, projectPrice, dipRecovery, type Confidence, type Horizon, type DipRecovery } from "@/lib/baro/analysis";
+import { backed, baroTip, cycleStats, evidence, platPer100Ducats, projectPrice, type Confidence, type Horizon } from "@/lib/baro/analysis";
 import { bestBasket } from "@/lib/baro/basket";
 import type { SalesDay } from "@/lib/history-sales";
 
@@ -44,13 +44,6 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
   const [open, setOpen] = useState<string | null>(null);
   const [ducats, setDucats] = useState("");
   const [credits, setCredits] = useState("");
-
-  // How far the cheapest trades dipped on past visits and how long they took to come back — straight from the sales records.
-  const recovery = useMemo(() => {
-    const out: Record<string, DipRecovery> = {};
-    for (const r of rows) if (r.slug) out[r.name] = dipRecovery((history[r.slug] ?? []).map((h) => ({ day: h.day, min: h.min, avg: h.avg })), arrival);
-    return out;
-  }, [rows, history, arrival]);
 
   const enriched = useMemo(() => rows.map((r) => {
     const a = { pre: r.pre, ratioShort: r.ratioShort, ratioLong: r.ratioLong, shortHits: r.shortHits, shortN: r.shortN, longHits: r.longHits, longN: r.longN, dipShare: r.dipShare, cycles: r.cycles, confidence: r.confidence };
@@ -189,7 +182,7 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
                   <Bar label="Asking now" value={r.priceNow} max={max} tone="bg-orange" sub={r.priceNow == null ? (r.ready ? "no listings" : "pricing…") : r.listings < 3 ? "thin market" : "5 cheapest online"} />
                   <Bar label="Expected sell price" value={r.sellAt} max={max} tone="bg-ok" active sub={r.sellAt != null ? "sold the week before Baro" : "not enough visits"} />
                   <div className="p-1.5"><p className="text-xs text-dim">vs asking now</p><p className={`h-display text-xl normal-case ${r.gain == null ? "text-dim" : r.gain >= MIN_GAIN ? "text-ok" : r.gain <= -MIN_GAIN ? "text-danger" : "text-ink"}`}>{r.gain == null ? "—" : `${r.gain > 0 ? "+" : ""}${Math.round(r.gain * 100)}%`}</p><p className="mt-1 text-xs text-dim">{r.sellAt != null && r.priceNow != null ? `${fmt(r.priceNow)}p → ${fmt(r.sellAt)}p` : ""}</p></div>
-                  <Recover dip={recovery[r.name] ?? null} />
+                  <Recover />
                 </div>
 
                 <p className="text-sm leading-relaxed text-dim">{r.tip}</p>
@@ -277,18 +270,13 @@ function Bar({ label, value, max, tone, sub, active = false }: { label: string; 
   );
 }
 
-/** How long after Baro LEAVES the price is back to its regular level: one number, from his last visits. */
-function Recover({ dip }: { dip: DipRecovery | null }) {
-  const steady = !!dip && dip.dipped >= 3 && dip.days != null;
+/** Honest placeholder: past sales can't show how fast asking prices recover, so we say so and measure it from now on. */
+function Recover() {
   return (
     <div className="p-1.5">
-      <p className="text-xs text-dim">Back to regular price</p>
-      {steady && dip ? (
-        <>
-          <p className="h-display text-xl normal-case text-ink">{dip.days}<span className="ml-1 text-sm font-normal text-dim">day{dip.days === 1 ? "" : "s"} after he leaves</span></p>
-          <p className="mt-1 text-xs text-dim">average of his last {dip.dipped} visits</p>
-        </>
-      ) : <p className="mt-1 text-xs text-dim">no clear pattern in the records</p>}
+      <p className="text-xs text-dim">Asking price recovery</p>
+      <p className="h-display text-base normal-case text-ink">being measured</p>
+      <p className="mt-1 text-xs text-dim">past sales can’t show it — we’re saving the asking price now; see this tab after he leaves</p>
     </div>
   );
 }

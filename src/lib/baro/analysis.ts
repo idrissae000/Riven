@@ -86,54 +86,6 @@ export function analyseBaro(history: DayPrice[], arrival: string, cycles = 6): B
   return { pre: pre == null ? null : Math.round(pre * 10) / 10, cycles: n, ratioShort: sh.ratio, ratioLong: lg.ratio, shortHits: sh.hits, shortN: sh.n, longHits: lg.hits, longN: lg.n, dipShare: dipShare == null ? null : Math.round(dipShare * 100) / 100, confidence };
 }
 
-export interface DipRecovery {
-  /** Past visits judged (they had a pre-arrival low and recorded trades while Baro was here). */
-  n: number;
-  /** In how many of them the cheapest trades fell at least 8% below their usual lows while Baro was here. */
-  dipped: number;
-  /** Typical (median) size of that dip, as a fraction (0.11 = 11% lower). */
-  depth: number | null;
-  /** Typical days AFTER BARO LEFT until the cheapest trades were back to ≥ 95% of their usual level. Null unless at least 3 dipped visits had a result. */
-  days: number | null;
-}
-
-interface LowDay { day: string; min: number | null; avg: number }
-
-/**
- * How long it takes the price to come back after Baro's dip, measured on the lowest price paid each day (the cheap listings are what
- * Baro's flood pushes down; the daily AVERAGE price barely moves, which is why that measure shows no dip). For each past visit:
- * the usual low = median daily low over the 7 days before he arrived; the dip = his lowest day-low during days 0–2 being ≥ 8% under it;
- * the recovery = the first day from day 3 on when the 2-day median low is back to ≥ 95% of the usual low (counted in days after he left,
- * i.e. day − 2). A visit whose month isn't fully recorded yet only counts if it had already recovered.
- */
-export function dipRecovery(sales: LowDay[], arrival: string, cycles = 6): DipRecovery {
-  const low = new Map(sales.map((x) => [dayStart(x.day), x.min ?? x.avg]));
-  const last = Math.max(0, ...sales.map((x) => dayStart(x.day)));
-  const a0 = dayStart(arrival);
-  const at = (start: number, d: number) => low.get(start + d * DAY);
-  let n = 0, dipped = 0;
-  const depths: number[] = [], days: number[] = [];
-  for (let i = 0; i < cycles; i++) {
-    const start = a0 - CYCLE_DAYS * (i + 1) * DAY;
-    const pre = [-7, -6, -5, -4, -3, -2, -1].map((d) => at(start, d)).filter((v): v is number => v != null);
-    const dur = [0, 1, 2].map((d) => at(start, d)).filter((v): v is number => v != null);
-    if (pre.length < 3 || !dur.length) continue;
-    const preLow = median(pre) as number, durLow = Math.min(...dur);
-    n++;
-    if (preLow <= 0 || durLow >= preLow * 0.92) continue;
-    dipped++;
-    depths.push(1 - durLow / preLow);
-    let found: number | null = null;
-    for (let d = 3; d <= 28 && found == null; d++) {
-      const w = [at(start, d), at(start, d + 1)].filter((v): v is number => v != null);
-      if (w.length && (median(w) as number) >= preLow * BACK_TO_USUAL) found = d - 2;
-    }
-    if (found != null) days.push(found);
-    else if (start + 28 * DAY <= last) days.push(27); // the whole month is recorded and it never got back
-  }
-  return { n, dipped, depth: depths.length ? Math.round((median(depths) as number) * 100) / 100 : null, days: days.length >= 3 ? Math.round(median(days) as number) : null };
-}
-
 export type Horizon = "short" | "long";
 
 /**
@@ -162,8 +114,8 @@ export function baroTip(priceNow: number | null, a: BaroAnalysis): string {
   const below = Math.round((1 - priceNow / a.pre) * 100);
   parts.push(below >= 5 ? `It sold for about ${Math.round(a.pre)}p a day in the week before Baro arrived; the cheapest sellers are asking ${Math.round(priceNow)}p now (${below}% lower).` : `It sold for about ${Math.round(a.pre)}p a day in the week before Baro arrived, and the cheapest asks (${Math.round(priceNow)}p) aren’t far from that.`);
   const rec = (label: string, e: { hits: number; n: number }) => (e.n >= MIN_VISITS ? `${label} in ${e.hits} of ${e.n} past visits` : null);
-  const s = rec("back to that level within a week", { hits: a.shortHits, n: a.shortN }), l = rec("back to it 2–4 weeks later", { hits: a.longHits, n: a.longN });
-  if (s || l) parts.push(`On Baro’s previous visits the price was ${[s, l].filter(Boolean).join(" and ")}.`);
+  const s = rec("a week after", { hits: a.shortHits, n: a.shortN }), l = rec("2–4 weeks after", { hits: a.longHits, n: a.longN });
+  if (s || l) parts.push(`Completed trades were at least 95% of that level ${[s, l].filter(Boolean).join(" and ")} Baro arrived.`);
   else parts.push("There aren’t enough past visits with sales to say how it recovers.");
   if (a.confidence === "weak" || a.confidence === "none") parts.push("Very little history — treat as a guess.");
   return parts.join(" ");
