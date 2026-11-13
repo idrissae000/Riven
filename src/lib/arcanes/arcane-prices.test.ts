@@ -102,3 +102,13 @@ describe("valueCollection", () => {
     expect(v.tiers[1].arcanes.map((a) => a.slug)).toEqual(["r3", "r2", "r1"]);
   });
 });
+
+describe("pickStale with per-row freshness", () => {
+  it("re-checks hot rows sooner than the long tail", () => {
+    const now = Date.parse("2026-11-13T12:00:00Z");
+    const rows = [{ slug: "hot" }, { slug: "cold" }];
+    const at = () => "2026-11-13T11:40:00Z"; // 20 minutes old
+    const ttl = (r: { slug: string }) => (r.slug === "hot" ? 15 * 60_000 : 60 * 60_000);
+    expect(pickStale(rows, at, now, ttl, Infinity).map((r) => r.slug)).toEqual(["hot"]);
+  });
+});

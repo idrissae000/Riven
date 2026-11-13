@@ -8,7 +8,7 @@ const parts = [P("Frost Prime Chassis Blueprint"), P("Frost Prime Neuroptics Blu
 describe("matchRead", () => {
   it("matches exact names ignoring case and punctuation", () => {
     const r = matchRead([{ name: "lex prime  barrel", qty: 3 }], parts);
-    expect(r.matched).toEqual([{ slug: "lex_prime_barrel", name: "Lex Prime Barrel", qty: 3, readAs: null }]);
+    expect(r.matched).toEqual([{ slug: "lex_prime_barrel", name: "Lex Prime Barrel", qty: 3, readAs: null, rank: 0, seenRank: null }]);
   });
   it("forgives a small misread but remembers what was read", () => {
     const r = matchRead([{ name: "Lex Prime Barel", qty: 1 }], parts);
@@ -40,6 +40,20 @@ describe("mergeScans (mission rewards)", () => {
     const a = matchRead([{ name: "Lex Prime Barrel", qty: 1 }], parts);
     const b = matchRead([{ name: "Lex Prime Barrel", qty: 2 }, { name: "Lex Prime Receiver", qty: 1 }], parts);
     expect(mergeScans([a, b], "sum").matched.map((i) => [i.slug, i.qty])).toEqual([["lex_prime_barrel", 3], ["lex_prime_receiver", 1]]);
+  });
+});
+
+describe("arcane matching", () => {
+  const arcanes = [{ slug: "arcane_energize", name: "Arcane Energize" }, { slug: "magus_lockdown", name: "Magus Lockdown" }];
+  const max = (s: string) => (s === "arcane_energize" ? 5 : 3);
+  it("keeps max-rank tiles as max rank and everything else unranked", () => {
+    const r = matchRead([{ name: "Arcane Energize", qty: 2, rank: 5 }, { name: "Arcane Energize", qty: 4, rank: 0 }, { name: "Magus Lockdown", qty: 1, rank: 2 }, { name: "magus lockdown", qty: 3 }], arcanes, max);
+    expect(r.matched.map((i) => [i.slug, i.rank, i.qty, i.seenRank ?? null])).toEqual([["arcane_energize", 5, 2, null], ["arcane_energize", 0, 4, null], ["magus_lockdown", 0, 3, 2]]);
+  });
+  it("merges arcanes by name and rank", () => {
+    const a = matchRead([{ name: "Arcane Energize", qty: 2, rank: 5 }], arcanes, max);
+    const b = matchRead([{ name: "Arcane Energize", qty: 3, rank: 5 }, { name: "Arcane Energize", qty: 1 }], arcanes, max);
+    expect(mergeScans([a, b], "sum").matched.map((i) => [i.rank, i.qty])).toEqual([[5, 5], [0, 1]]);
   });
 });
 

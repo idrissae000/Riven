@@ -46,11 +46,12 @@ export function reduceSold(rows: StatRow[] | null | undefined): SoldStats | null
   return { volume48h: volume, soldAvg48h: volume > 0 ? Math.round((weighted / volume) * 10) / 10 : null };
 }
 
-/** Which rows to refresh next: never-fetched first, then the oldest, skipping anything younger than `ttlMs`. */
-export function pickStale<T extends { slug: string }>(rows: T[], fetchedAt: (r: T) => string | null | undefined, now: number, ttlMs: number, limit: number): T[] {
+/** Which rows to refresh next: never-fetched first, then the oldest, skipping anything younger than its `ttlMs` (a number, or a function for per-row freshness). */
+export function pickStale<T extends { slug: string }>(rows: T[], fetchedAt: (r: T) => string | null | undefined, now: number, ttlMs: number | ((r: T) => number), limit: number): T[] {
+  const ttl = (r: T) => (typeof ttlMs === "number" ? ttlMs : ttlMs(r));
   return rows
     .map((r) => ({ r, t: fetchedAt(r) ? Date.parse(fetchedAt(r) as string) : -Infinity }))
-    .filter((x) => !(now - x.t < ttlMs))
+    .filter((x) => !(now - x.t < ttl(x.r)))
     .sort((a, b) => a.t - b.t || a.r.slug.localeCompare(b.r.slug))
     .slice(0, limit)
     .map((x) => x.r);

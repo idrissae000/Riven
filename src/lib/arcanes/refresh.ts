@@ -5,7 +5,10 @@ import { pickStale, reduceSold, reduceTopOrders } from "./top-price";
 /** A GET against Warframe Market: path includes the version ("/v2/…"). The app passes its throttled client; scripts pass their own. */
 export type WfmGet = (path: string) => Promise<Response>;
 
-export const PRICE_TTL_MS = 60 * 60_000; // arcane prices move slowly; this keeps ~166 items cheap to keep fresh
+export const PRICE_TTL_MS = 60 * 60_000; // arcane prices move slowly; the long tail is checked about hourly…
+export const HOT_PRICE_TTL_MS = 15 * 60_000; // …but the valuable arcanes (where an out-of-date price costs real platinum) every 15 minutes
+/** "Valuable": its unranked price is 10p+, or it only has a derived price from an expensive max-rank copy. */
+export const isHotArcane = (p: { avg5?: number | null; max_low?: number | null } | undefined) => !!p && ((p.avg5 ?? 0) >= 10 || (p.max_low ?? 0) >= 150);
 export const STATS_TTL_MS = 12 * 60 * 60_000;
 
 export interface PriceRow { slug: string; low: number | null; avg5: number | null; listings: number; max_low: number | null; max_avg5: number | null; max_listings: number; fetched_at: string }
@@ -71,17 +74,17 @@ export async function refreshArcaneBatch(
   get: WfmGet,
   opts: { priceLimit?: number; statsLimit?: number; now?: number } = {},
 ): Promise<BatchResult> {
-  const { priceLimit = 4, statsLimit = 2, now = Date.now() } = opts;
+  const { priceLimit = 8, statsLimit = 2, now = Date.now() } = opts;
   const nowIso = new Date(now).toISOString();
   const [{ data: arcanes, error: e1 }, { data: prices, error: e2 }] = await Promise.all([
     sb.from("arcanes").select("slug,wfm_slug,max_rank").not("wfm_slug", "is", null),
-    sb.from("arcane_prices").select("slug,fetched_at,stats_at"),
+    sb.from("arcane_prices").select("slug,fetched_at,stats_at,avg5,max_low"),
   ]);
   if (e1 || e2) throw new Error((e1 ?? e2)!.message);
-  const have = new Map((prices ?? []).map((p) => [p.slug as string, p as { fetched_at: string | null; stats_at: string | null }]));
+  const have = new Map((prices ?? []).map((p) => [p.slug as string, p as { fetched_at: string | null; stats_at: string | null; avg5: number | null; max_low: number | null }]));
   const items = (arcanes ?? []) as { slug: string; wfm_slug: string; max_rank: number | null }[];
 
-  const duePrices = pickStale(items, (a) => have.get(a.slug)?.fetched_at, now, PRICE_TTL_MS, Infinity);
+  const duePrices = pickStale(items, (a) => have.get(a.slug)?.fetched_at, now, (a) => (isHotArcane(have.get(a.slug)) ? HOT_PRICE_TTL_MS : PRICE_TTL_MS), Infinity);
   const dueStats = pickStale(items, (a) => have.get(a.slug)?.stats_at, now, STATS_TTL_MS, Infinity);
   const out: BatchResult = { prices: 0, stats: 0, remaining: { prices: duePrices.length, stats: dueStats.length }, rateLimited: false };
 

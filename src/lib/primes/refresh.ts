@@ -2,7 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchTop, WfmFetchError, type WfmGet } from "@/lib/arcanes/refresh";
 import { pickStale } from "@/lib/arcanes/top-price";
 
-export const ITEM_PRICE_TTL_MS = 90 * 60_000;
+export const ITEM_PRICE_TTL_MS = 90 * 60_000; // the long tail of cheap parts
+export const HOT_ITEM_TTL_MS = 15 * 60_000; // parts worth 15p+ are where a stale price costs platinum, so they are checked every 15 minutes
 
 export interface ItemBatchResult {
   refreshed: number;
@@ -19,11 +20,11 @@ export async function refreshItemBatch(
   universe: string[],
   opts: { limit?: number; now?: number } = {},
 ): Promise<ItemBatchResult> {
-  const { limit = 10, now = Date.now() } = opts;
-  const { data, error } = await sb.from("item_prices").select("slug,fetched_at");
+  const { limit = 20, now = Date.now() } = opts;
+  const { data, error } = await sb.from("item_prices").select("slug,fetched_at,avg5");
   if (error) throw new Error(error.message);
-  const have = new Map((data ?? []).map((r) => [r.slug as string, r.fetched_at as string | null]));
-  const due = pickStale(universe.map((slug) => ({ slug })), (r) => have.get(r.slug), now, ITEM_PRICE_TTL_MS, Infinity);
+  const have = new Map((data ?? []).map((r) => [r.slug as string, { at: r.fetched_at as string | null, avg5: r.avg5 == null ? null : Number(r.avg5) }]));
+  const due = pickStale(universe.map((slug) => ({ slug })), (r) => have.get(r.slug)?.at, now, (r) => ((have.get(r.slug)?.avg5 ?? 0) >= 15 ? HOT_ITEM_TTL_MS : ITEM_PRICE_TTL_MS), Infinity);
   const out: ItemBatchResult = { refreshed: 0, remaining: due.length, rateLimited: false };
   const nowIso = new Date(now).toISOString();
   try {

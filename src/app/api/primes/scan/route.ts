@@ -30,7 +30,14 @@ export async function POST(request: Request) {
   if (file.size > MAX_BYTES) return NextResponse.json({ error: "That image is too large to upload." }, { status: 413 });
 
   try {
-    const read = await readInventoryImage(Buffer.from(await file.arrayBuffer()), file.type as AllowedType, form?.get("mode") === "rewards" ? "rewards" : "inventory");
+    const kind = form?.get("kind") === "arcane" ? "arcane" : "prime";
+    const read = await readInventoryImage(Buffer.from(await file.arrayBuffer()), file.type as AllowedType, form?.get("mode") === "rewards" ? "rewards" : "inventory", kind);
+    if (kind === "arcane") {
+      const { data } = await sb.from("arcanes").select("slug,name,max_rank");
+      const arcanes = (data ?? []) as { slug: string; name: string; max_rank: number | null }[];
+      const max = new Map(arcanes.map((a) => [a.slug, a.max_rank]));
+      return NextResponse.json({ ...matchRead(read.items, arcanes, (slug) => max.get(slug) ?? null), notes: read.notes, readCount: read.items.length });
+    }
     return NextResponse.json({ ...matchRead(read.items, primeCatalogue.parts), notes: read.notes, readCount: read.items.length });
   } catch (e) {
     if (e instanceof ScanRefused || e instanceof ScanFailed) return NextResponse.json({ error: e.message }, { status: 422 });
