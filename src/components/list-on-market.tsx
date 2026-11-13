@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 const MIN_KEY = "riven-list-min-price";
 import { Plat } from "@/components/brand";
+import { InventoryFilter } from "@/components/inventory-filter";
+import { browseRows, type InvSort } from "@/lib/inventory/browse";
 import { WfmConnect, useWfmStatus } from "@/components/wfm-connect";
 import { ducatVerdict } from "@/lib/primes/ducats";
 import { STRATEGIES, autoPrice, type Listing, type PriceStrategy } from "@/lib/wfm/listings";
@@ -28,6 +30,8 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
   const [qty, setQty] = useState<Record<string, number>>({});
   const [off, setOff] = useState<Record<string, boolean>>({}); // rows the user unticked
   const [out, setOut] = useState<Record<string, Outcome>>({});
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<InvSort>("price");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const asked = useRef(new Set<string>());
@@ -106,6 +110,7 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
     void send(items);
   }
 
+  const shownRows = useMemo(() => browseRows(rows, q, sort), [rows, q, sort]);
   const loadingCount = rows.filter((r) => listings[r.slug] === undefined || listings[r.slug] === "loading").length;
   const connected = !!status?.connected;
 
@@ -147,8 +152,9 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
         </>
       )}
 
+      <InventoryFilter q={q} onQ={setQ} sort={sort} onSort={setSort} shown={shownRows.length} total={rows.length} />
       <ul className="divide-y divide-line">
-        {rows.map((r) => {
+        {shownRows.map((r) => {
           const l = listings[r.slug];
           const p = priceFor(r);
           const o = out[r.slug];

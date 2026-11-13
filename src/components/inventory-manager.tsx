@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plat } from "@/components/brand";
+import { InventoryFilter } from "@/components/inventory-filter";
+import { browseRows, type InvSort } from "@/lib/inventory/browse";
 import type { SetAdvice, ValuedRow } from "@/lib/inventory/value";
 
 export interface AddOption { slug: string; kind: "prime" | "arcane"; name: string; maxRank: number | null }
@@ -16,6 +18,8 @@ export function InventoryManager({ options, rows, total, priced, advice }: { opt
   const [qty, setQty] = useState(1);
   const [maxRank, setMaxRank] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<InvSort>("total");
   const [error, setError] = useState<string | null>(null);
 
   const byName = new Map(options.map((o) => [o.name.toLowerCase(), o]));
@@ -43,6 +47,7 @@ export function InventoryManager({ options, rows, total, priced, advice }: { opt
     await call("/api/inventory", { method: "DELETE" });
   }
 
+  const shownRows = browseRows(rows, q, sort);
   const sells = rows.filter((r) => r.total != null).slice(0, 5);
 
   return (
@@ -115,8 +120,9 @@ export function InventoryManager({ options, rows, total, priced, advice }: { opt
       <section className="space-y-2">
         <h2 className="kicker">Your items</h2>
         {rows.length === 0 && <p className="card text-center text-dim">Nothing here yet. Add the Prime parts and arcanes you own above.</p>}
+        {rows.length > 1 && <InventoryFilter q={q} onQ={setQ} sort={sort} onSort={setSort} shown={shownRows.length} total={rows.length} />}
         <ul className="space-y-2">
-          {rows.map((r) => (
+          {shownRows.map((r) => (
             <li key={r.id} className="tile flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="truncate font-display text-[0.95rem] font-semibold">{r.name}{r.kind === "arcane" && <span className="ml-2 text-xs font-normal text-dim">{r.rank > 0 ? "max rank" : "unranked"}</span>}</p>

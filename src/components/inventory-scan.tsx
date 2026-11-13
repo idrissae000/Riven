@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Plat } from "@/components/brand";
 import { ListOnMarket } from "@/components/list-on-market";
 import { READ_EDGE, ScanImage } from "@/lib/image-prep";
+import { InventoryFilter } from "@/components/inventory-filter";
+import { browseRows, type InvSort } from "@/lib/inventory/browse";
 import { ducatVerdict } from "@/lib/primes/ducats";
 import { mergeScans, valueScan, type MatchedItem, type ReadItem, type ScanMatch } from "@/lib/primes/scan-match";
 
@@ -23,6 +25,8 @@ export function InventoryScan({ info, signedIn }: { info: Record<string, PartInf
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [listing, setListing] = useState(false);
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<InvSort>("price");
   const nextId = useRef(1);
   const input = useRef<HTMLInputElement>(null);
 
@@ -94,6 +98,7 @@ export function InventoryScan({ info, signedIn }: { info: Record<string, PartInf
   }
 
   const unmatched: ReadItem[] = merged.unmatched;
+  const shownRows = useMemo(() => browseRows(value.rows.map((r) => ({ ...r })), q, sort), [value.rows, q, sort]);
 
   function clearAll() {
     if (!confirm("Clear everything on this page — the screenshots, the parts read from them and any you added by hand? (Your saved inventory isn’t touched.)")) return;
@@ -158,11 +163,12 @@ export function InventoryScan({ info, signedIn }: { info: Record<string, PartInf
       {value.rows.length > 0 && (
         <section className="card space-y-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="kicker">Most expensive first</h2>
+            <h2 className="kicker">Your parts</h2>
             <p className="text-xs text-dim">Check the counts — fix any it misread.</p>
           </div>
+          <InventoryFilter q={q} onQ={setQ} sort={sort} onSort={setSort} shown={shownRows.length} total={value.rows.length} />
           <ul className="divide-y divide-line">
-            {value.rows.map((r) => (
+            {shownRows.map((r) => (
               <li key={r.slug} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5">
                 <div className="min-w-0">
                   <p className="text-sm text-ink">{r.name}</p>
