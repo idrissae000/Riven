@@ -15,7 +15,7 @@ export function DeleteRivenButton({ id }: { id: string }) {
         setBusy(true);
         const res = await fetch(`/api/rivens/${id}`, { method: "DELETE" });
         if (res.ok) {
-          router.push("/rivens");
+          router.push("/inventory/rivens");
           router.refresh();
         } else setBusy(false);
       }}

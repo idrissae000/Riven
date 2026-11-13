@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconArcane, IconLive, IconMarket, IconPrime, IconRiven, Wordmark } from "@/components/brand";
+import { IconArcane, IconInventory, IconLive, IconMarket, IconPrime, IconRiven, Wordmark } from "@/components/brand";
 
 const TABS = [
+  { href: "/inventory", label: "Inventory", Icon: IconInventory },
   { href: "/rivens", label: "Rivens", Icon: IconRiven },
   { href: "/arcanes", label: "Arcanes", Icon: IconArcane },
   { href: "/primes", label: "Primes", Icon: IconPrime },

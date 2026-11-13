@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plat } from "@/components/brand";
+import { ListOnMarket, sellKey, type SellRow } from "@/components/list-on-market";
 import { InventoryFilter } from "@/components/inventory-filter";
 import { browseRows, type InvSort } from "@/lib/inventory/browse";
 import type { SetAdvice, ValuedRow } from "@/lib/inventory/value";
@@ -18,6 +19,8 @@ export function InventoryManager({ options, rows, total, priced, advice }: { opt
   const [qty, setQty] = useState(1);
   const [maxRank, setMaxRank] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [listAll, setListAll] = useState(false);
+  const [listOne, setListOne] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<InvSort>("total");
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +51,8 @@ export function InventoryManager({ options, rows, total, priced, advice }: { opt
   }
 
   const shownRows = browseRows(rows, q, sort);
+  const sellRow = (r: ValuedRow): SellRow => ({ key: sellKey(r.kind, r.slug, r.rank), kind: r.kind, slug: r.slug, rank: r.rank, name: r.rank > 0 ? `${r.name} (max rank)` : r.name, qty: r.qty, unit: r.unit, ducats: r.ducatsTotal != null ? r.ducatsTotal / r.qty : null });
+  const allSellRows = rows.map(sellRow);
   const sells = rows.filter((r) => r.total != null).slice(0, 5);
 
   return (
@@ -58,8 +63,15 @@ export function InventoryManager({ options, rows, total, priced, advice }: { opt
           <p className="h-display flex items-center gap-2 text-4xl text-plat">{priced ? <>≈ {fmt(total)} <Plat size={26} /></> : <span className="text-dim">—</span>}</p>
           <p className="mt-1 text-xs text-dim">{priced} of {rows.length} items priced · market asking prices (average of the 5 cheapest online listings)</p>
         </div>
-        {rows.length > 0 && <button className="btn-danger" onClick={clearAll} disabled={busy}>Clear all</button>}
+        {rows.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <button className="btn-primary" onClick={() => { setListOne(null); setListAll(true); }}>List everything on Warframe Market</button>
+            <button className="btn-danger" onClick={clearAll} disabled={busy}>Clear all</button>
+          </div>
+        )}
       </section>
+
+      {listAll && <ListOnMarket rows={allSellRows} title="List your inventory on Warframe Market" onClose={() => setListAll(false)} />}
 
       <form onSubmit={add} className="card space-y-3">
         <h2 className="kicker">Add to your inventory</h2>
@@ -139,8 +151,10 @@ export function InventoryManager({ options, rows, total, priced, advice }: { opt
                   <button className="btn min-h-9 w-9 px-0" aria-label="One more" disabled={busy || r.qty >= 9999} onClick={() => call(`/api/inventory/${r.id}`, { method: "PATCH", body: JSON.stringify({ qty: r.qty + 1 }) })}>+</button>
                 </div>
                 <p className="h-display flex w-20 items-center justify-end gap-1 text-lg text-plat">{r.total != null ? <>{fmt(r.total)} <Plat size={14} /></> : <span className="text-sm text-dim">—</span>}</p>
+                <button className="btn min-h-9 px-3 text-xs" onClick={() => setListOne((id) => (id === r.id ? null : r.id))} aria-expanded={listOne === r.id}>List</button>
                 <button className="text-xs text-dim hover:text-danger" disabled={busy} onClick={() => call(`/api/inventory/${r.id}`, { method: "DELETE" })} aria-label={`Remove ${r.name}`}>remove</button>
               </div>
+              {listOne === r.id && <div className="basis-full"><ListOnMarket rows={[sellRow(r)]} title={`List ${r.name} on Warframe Market`} onClose={() => setListOne(null)} /></div>}
             </li>
           ))}
         </ul>

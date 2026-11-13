@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plat } from "@/components/brand";
 import { WfmConnect, useWfmStatus } from "@/components/wfm-connect";
+import { cheapestOnlineRivens, type MarketListing } from "@/lib/wfm/riven-price";
 
 interface Props {
   rivenId: string;
@@ -17,6 +18,7 @@ export function PushToWfm({ rivenId, label, hasName, listed }: Props) {
   const { status, refresh } = useWfmStatus();
   const [price, setPrice] = useState("");
   const [picks, setPicks] = useState<{ low: number; median: number; high: number } | null>(null);
+  const [online, setOnline] = useState<MarketListing[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
@@ -27,7 +29,9 @@ export function PushToWfm({ rivenId, label, hasName, listed }: Props) {
     fetch(`/api/rivens/${rivenId}/market`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
-        if (!alive || !j?.estimate || !j.listings?.length) return;
+        if (!alive || !j) return;
+        setOnline(cheapestOnlineRivens(j.listings));
+        if (!j.estimate || !j.listings?.length) return;
         setPicks({ low: j.estimate.low, median: j.estimate.median, high: j.estimate.high });
         setPrice((p) => p || String(j.estimate.median));
       })
@@ -88,6 +92,16 @@ export function PushToWfm({ rivenId, label, hasName, listed }: Props) {
             <div className="flex flex-wrap gap-2 text-xs">
               {(["low", "median", "high"] as const).map((k) => (
                 <button key={k} type="button" className="chip hover:border-teal/60 hover:text-teal" onClick={() => setPrice(String(picks[k]))}>{k} {picks[k]}p</button>
+              ))}
+            </div>
+          )}
+          {online.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-dim">
+              <span>Cheapest online matches:</span>
+              {online.map((x) => (
+                <button key={x.id} type="button" className={`rounded border px-1.5 py-0.5 ${Number(price) === x.price ? "border-gold text-gold" : "border-line hover:border-gold/60"}`} title={`${x.seller} · ${x.sellerStatus === "ingame" ? "in game" : "online"} — click to use this price`} onClick={() => setPrice(String(x.price))}>
+                  <span className={x.sellerStatus === "ingame" ? "text-ok" : "text-teal"}>●</span> {x.price}p <span className="text-dim">{x.seller}</span>
+                </button>
               ))}
             </div>
           )}

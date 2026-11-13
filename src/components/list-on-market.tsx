@@ -10,7 +10,12 @@ import { WfmConnect, useWfmStatus } from "@/components/wfm-connect";
 import { ducatVerdict } from "@/lib/primes/ducats";
 import { STRATEGIES, autoPrice, type Listing, type PriceStrategy } from "@/lib/wfm/listings";
 
-export interface SellRow { slug: string; name: string; qty: number; unit: number | null; ducats: number | null }
+export interface SellRow {
+  /** Unique per item+rank, e.g. "prime:lex_prime_barrel:0" (use `sellKey`). */
+  key: string; kind: "prime" | "arcane"; slug: string; rank: number;
+  name: string; qty: number; unit: number | null; ducats: number | null;
+}
+export const sellKey = (kind: string, slug: string, rank: number) => `${kind}:${slug}:${rank}`;
 
 type Fetched = Listing[] | "loading" | "error";
 interface Outcome { ok: boolean; error?: string }
@@ -18,7 +23,7 @@ const CHUNK = 10;
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 /** Set prices (with the 5 cheapest online listings beside each) or let the app price everything, then list it on Warframe Market. */
-export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () => void }) {
+export function ListOnMarket({ rows, onClose, title = "List on Warframe Market" }: { rows: SellRow[]; onClose: () => void; title?: string }) {
   const { status, refresh } = useWfmStatus();
   const [strategy, setStrategy] = useState<PriceStrategy>("market");
   const [skipDucat, setSkipDucat] = useState(true);
@@ -35,36 +40,40 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const asked = useRef(new Set<string>());
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const rowsRef = useRef(rows);
+  useEffect(() => { rowsRef.current = rows; });
+  const rowKeys = rows.map((r) => r.key).join("|");
 
   // Fetch the 5 cheapest online listings for every row, two at a time, most valuable first (the server throttles Warframe Market).
   useEffect(() => {
-    const todo = rows.map((r) => r.slug).filter((s) => !asked.current.has(s));
+    const todo = rowsRef.current.filter((r) => !asked.current.has(r.key));
     if (!todo.length) return;
-    todo.forEach((s) => asked.current.add(s));
-    let alive = true;
+    todo.forEach((r) => asked.current.add(r.key));
     const queue = [...todo];
     const worker = async () => {
-      for (let slug = queue.shift(); slug && alive; slug = queue.shift()) {
-        setListings((l) => ({ ...l, [slug]: "loading" }));
+      for (let row = queue.shift(); row && mounted.current; row = queue.shift()) {
+        const key = row.key;
+        setListings((l) => ({ ...l, [key]: "loading" }));
         let result: Fetched = "error";
         try {
-          const res = await fetch(`/api/primes/listings?slug=${encodeURIComponent(slug)}`);
+          const res = await fetch(`/api/market/listings?kind=${row.kind}&slug=${encodeURIComponent(row.slug)}&rank=${row.rank}`);
           if (res.ok) result = ((await res.json()) as { listings: Listing[] }).listings;
         } catch { /* shown as an error; the row can still be priced by hand */ }
-        if (alive) setListings((l) => ({ ...l, [slug]: result }));
+        if (mounted.current) setListings((l) => ({ ...l, [key]: result }));
       }
     };
     void Promise.all([worker(), worker()]);
-    return () => { alive = false; };
-  }, [rows]);
+  }, [rowKeys]);
 
-  const skipped = (r: SellRow) => skipDucat && ducatVerdict(r.unit, r.ducats) === "ducat";
-  const auto = (r: SellRow) => { const l = listings[r.slug]; return Array.isArray(l) ? autoPrice(l, strategy) : null; };
-  const priceFor = (r: SellRow) => (price[r.slug] !== undefined ? Number(price[r.slug]) : auto(r));
-  const qtyFor = (r: SellRow) => qty[r.slug] ?? r.qty;
+  const skipped = (r: SellRow) => skipDucat && r.kind === "prime" && ducatVerdict(r.unit, r.ducats) === "ducat";
+  const auto = (r: SellRow) => { const l = listings[r.key]; return Array.isArray(l) ? autoPrice(l, strategy) : null; };
+  const priceFor = (r: SellRow) => (price[r.key] !== undefined ? Number(price[r.key]) : auto(r));
+  const qtyFor = (r: SellRow) => qty[r.key] ?? r.qty;
   const min = Number(minPrice) > 0 ? Number(minPrice) : 0;
   const belowMin = (r: SellRow) => { const p = priceFor(r); return min > 0 && p != null && p < min; };
-  const included = (r: SellRow) => !off[r.slug] && !skipped(r) && !belowMin(r);
+  const included = (r: SellRow) => !off[r.key] && !skipped(r) && !belowMin(r);
 
   const plan = useMemo(() => {
     let n = 0, total = 0;
@@ -83,14 +92,14 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
       const chunk = items.slice(i, i + CHUNK);
       let res: Response;
       try {
-        res = await fetch("/api/primes/list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: chunk.map((c) => ({ slug: c.row.slug, platinum: c.platinum, quantity: qtyFor(c.row) })) }) });
+        res = await fetch("/api/market/list", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: chunk.map((c) => ({ slug: c.row.slug, platinum: c.platinum, quantity: qtyFor(c.row) })) }) });
       } catch {
         setMsg("Lost the connection — what was already listed is on Warframe Market; the rest wasn’t sent."); break;
       }
-      const json = (await res.json().catch(() => ({}))) as { results?: { slug: string; ok: boolean; error?: string }[]; error?: string; reauth?: boolean };
+      const json = (await res.json().catch(() => ({}))) as { results?: { key: string; ok: boolean; error?: string }[]; error?: string; reauth?: boolean };
       if (json.reauth) refresh();
       const results = json.results ?? [];
-      setOut((o) => ({ ...o, ...Object.fromEntries(results.map((r) => [r.slug, { ok: r.ok, error: r.error }])) }));
+      setOut((o) => ({ ...o, ...Object.fromEntries(results.map((r) => [r.key, { ok: r.ok, error: r.error }])) }));
       failed += results.filter((r) => !r.ok).length;
       if (!res.ok) { setMsg(json.error ?? "The listing didn’t go through."); break; }
     }
@@ -100,7 +109,7 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
 
   function listPlanned(useStrategy: boolean) {
     const items = rows.flatMap((r) => {
-      if (!included(r) || out[r.slug]?.ok) return [];
+      if (!included(r) || out[r.key]?.ok) return [];
       const p = useStrategy ? auto(r) : priceFor(r);
       return p != null && Number.isInteger(p) && p >= 1 ? [{ row: r, platinum: p }] : [];
     });
@@ -111,13 +120,13 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
   }
 
   const shownRows = useMemo(() => browseRows(rows, q, sort), [rows, q, sort]);
-  const loadingCount = rows.filter((r) => listings[r.slug] === undefined || listings[r.slug] === "loading").length;
+  const loadingCount = rows.filter((r) => listings[r.key] === undefined || listings[r.key] === "loading").length;
   const connected = !!status?.connected;
 
   return (
-    <section className="card space-y-4" aria-label="List on Warframe Market">
+    <section className="card space-y-4" aria-label={title}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="kicker">List on Warframe Market</h2>
+        <h2 className="kicker">{title}</h2>
         <button className="btn min-h-9 px-3 text-xs" onClick={onClose}>Close</button>
       </div>
 
@@ -143,7 +152,7 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
 
           <div className="flex flex-wrap items-center gap-3">
             <button className="btn-primary" onClick={() => listPlanned(true)} disabled={busy || loadingCount === rows.length}>
-              {busy ? "Listing…" : `Auto-price & list everything (${rows.filter((r) => included(r) && !out[r.slug]?.ok && auto(r) != null).length})`}
+              {busy ? "Listing…" : `Auto-price & list everything (${rows.filter((r) => included(r) && !out[r.key]?.ok && auto(r) != null).length})`}
             </button>
             <button className="btn" onClick={() => listPlanned(false)} disabled={busy || plan.n === 0}>List with the prices below ({plan.n} · ≈ {fmt(plan.total)}p)</button>
             {loadingCount > 0 && <span className="text-xs text-dim">Loading market prices… {rows.length - loadingCount}/{rows.length}</span>}
@@ -155,25 +164,25 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
       <InventoryFilter q={q} onQ={setQ} sort={sort} onSort={setSort} shown={shownRows.length} total={rows.length} />
       <ul className="divide-y divide-line">
         {shownRows.map((r) => {
-          const l = listings[r.slug];
+          const l = listings[r.key];
           const p = priceFor(r);
-          const o = out[r.slug];
+          const o = out[r.key];
           const skip = skipped(r);
           const low = belowMin(r);
           return (
-            <li key={r.slug} className={`space-y-2 py-3 ${skip || low || off[r.slug] ? "opacity-60" : ""}`}>
+            <li key={r.key} className={`space-y-2 py-3 ${skip || low || off[r.key] ? "opacity-60" : ""}`}>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <label className="flex min-w-0 items-center gap-2">
-                  <input type="checkbox" checked={!off[r.slug] && !skip && !low} disabled={skip || low || o?.ok} onChange={(e) => setOff((x) => ({ ...x, [r.slug]: !e.target.checked }))} aria-label={`Include ${r.name}`} />
+                  <input type="checkbox" checked={!off[r.key] && !skip && !low} disabled={skip || low || o?.ok} onChange={(e) => setOff((x) => ({ ...x, [r.key]: !e.target.checked }))} aria-label={`Include ${r.name}`} />
                   <span className="min-w-0 truncate text-sm text-ink">{r.name}</span>
                   {skip && <span className="shrink-0 text-xs font-semibold text-violet">ducat it</span>}
                   {!skip && low && <span className="shrink-0 text-xs font-semibold text-orange">below {min}p</span>}
                 </label>
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-dim">×</span>
-                  <input className="input w-16 text-center" type="number" min={1} max={9999} value={qtyFor(r)} aria-label={`Quantity of ${r.name} to list`} onChange={(e) => setQty((x) => ({ ...x, [r.slug]: Math.max(1, Number(e.target.value) || 1) }))} />
+                  <input className="input w-16 text-center" type="number" min={1} max={9999} value={qtyFor(r)} aria-label={`Quantity of ${r.name} to list`} onChange={(e) => setQty((x) => ({ ...x, [r.key]: Math.max(1, Number(e.target.value) || 1) }))} />
                   <span className="text-dim">@</span>
-                  <input className="input w-20 text-center" type="number" min={1} inputMode="numeric" value={price[r.slug] ?? (auto(r) ?? "")} placeholder="price" aria-label={`Price for ${r.name}`} onChange={(e) => setPrice((x) => ({ ...x, [r.slug]: e.target.value }))} />
+                  <input className="input w-20 text-center" type="number" min={1} inputMode="numeric" value={price[r.key] ?? (auto(r) ?? "")} placeholder="price" aria-label={`Price for ${r.name}`} onChange={(e) => setPrice((x) => ({ ...x, [r.key]: e.target.value }))} />
                   <Plat size={13} />
                 </div>
               </div>
@@ -186,7 +195,7 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span>Cheapest online:</span>
                       {l.map((x, i) => (
-                        <button key={i} className={`rounded border px-1.5 py-0.5 ${p === x.platinum ? "border-gold text-gold" : "border-line hover:border-gold/60"}`} title={`${x.seller} · ${x.status === "ingame" ? "in game" : "online"}${x.quantity > 1 ? ` · ${x.quantity} available` : ""} — click to use this price`} onClick={() => setPrice((s) => ({ ...s, [r.slug]: String(x.platinum) }))}>
+                        <button key={i} className={`rounded border px-1.5 py-0.5 ${p === x.platinum ? "border-gold text-gold" : "border-line hover:border-gold/60"}`} title={`${x.seller} · ${x.status === "ingame" ? "in game" : "online"}${x.quantity > 1 ? ` · ${x.quantity} available` : ""} — click to use this price`} onClick={() => setPrice((s) => ({ ...s, [r.key]: String(x.platinum) }))}>
                           <span className={x.status === "ingame" ? "text-ok" : "text-teal"}>●</span> {fmt(x.platinum)}p{x.quantity > 1 ? ` ×${x.quantity}` : ""} <span className="text-dim">{x.seller}</span>
                         </button>
                       ))}

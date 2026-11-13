@@ -69,6 +69,14 @@ export function IconLive({ size = 22 }: { size?: number }) {
     </svg>
   );
 }
+export function IconInventory({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+      <path d="M3.5 8 12 3.5 20.5 8v8L12 20.5 3.5 16V8Z" />
+      <path d="M3.5 8 12 12.5 20.5 8M12 12.5v8" />
+    </svg>
+  );
+}
 export function IconMarket({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>

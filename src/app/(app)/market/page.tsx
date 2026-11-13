@@ -26,7 +26,7 @@ export default async function MarketPage() {
   return (
     <div className="space-y-5">
       <PageHeader kicker="Warframe Market" title="Market">
-        <Link href="/market/inventory" className="btn-primary">My inventory</Link>
+        <Link href="/inventory" className="btn-primary">My inventory</Link>
       </PageHeader>
       <section className="card-glow space-y-3">
         <h2 className="kicker">Warframe Market account</h2>
