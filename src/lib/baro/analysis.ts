@@ -114,8 +114,8 @@ export function baroTip(priceNow: number | null, a: BaroAnalysis): string {
   const below = Math.round((1 - priceNow / a.pre) * 100);
   parts.push(below >= 5 ? `It sold for about ${Math.round(a.pre)}p a day in the week before Baro arrived; the cheapest sellers are asking ${Math.round(priceNow)}p now (${below}% lower).` : `It sold for about ${Math.round(a.pre)}p a day in the week before Baro arrived, and the cheapest asks (${Math.round(priceNow)}p) aren’t far from that.`);
   const rec = (label: string, e: { hits: number; n: number }) => (e.n >= MIN_VISITS ? `${label} in ${e.hits} of ${e.n} past visits` : null);
-  const s = rec("a week after", { hits: a.shortHits, n: a.shortN }), l = rec("2–4 weeks after", { hits: a.longHits, n: a.longN });
-  if (s || l) parts.push(`Completed trades were at least 95% of that level ${[s, l].filter(Boolean).join(" and ")} Baro arrived.`);
+  const l = rec("2–4 weeks after", { hits: a.longHits, n: a.longN });
+  if (l) parts.push(`Completed trades were at least 95% of that level ${l} Baro arrived.`);
   else parts.push("There aren’t enough past visits with sales to say how it recovers.");
   if (a.confidence === "weak" || a.confidence === "none") parts.push("Very little history — treat as a guess.");
   return parts.join(" ");

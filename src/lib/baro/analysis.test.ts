@@ -58,7 +58,7 @@ describe("Baro analysis", () => {
     const tip = baroTip(25, a);
     expect(tip).toContain("sold for about 40p a day in the week before Baro arrived");
     expect(tip).toContain("asking 25p now (38% lower)");
-    expect(tip).toMatch(/at least 95% of that level a week after in \d of \d past visits/);
+    expect(tip).toMatch(/at least 95% of that level 2–4 weeks after in \d of \d past visits/);
     expect(baroTip(null, a)).toContain("no price to work from");
   });
 });

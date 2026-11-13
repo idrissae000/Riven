@@ -38,7 +38,7 @@ const VERDICT: Record<Verdict, { label: string; cls: string }> = {
 
 /** Baro's tradable stock: two independent filters (how long you'd hold it, what to sort by), a budget planner, recommended pickups, and per-item detail with a chart that marks his past visits. */
 export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history: Record<string, SalesDay[]>; arrival: string }) {
-  const [horizon, setHorizon] = useState<Horizon>("short");
+  const horizon: Horizon = "long"; // short and long come out the same from the records, so there is one horizon: 2–4 weeks after he leaves
   const [sort, setSort] = useState<SortKey>("price");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
@@ -52,16 +52,13 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
     const gain = at != null && r.priceNow ? at / r.priceNow - 1 : null;
     const verdict: Verdict = at == null || r.priceNow == null || r.confidence === "none" ? "unknown" : gain != null && gain >= MIN_GAIN && backed(a, horizon) ? "buy" : gain != null && gain <= -MIN_GAIN ? "skip" : "flat";
     return { ...r, sellShort: sell("short"), sellLong: sell("long"), sellAt: at, gain, verdict, per100: platPer100Ducats(at, r.ducats), tip: baroTip(r.priceNow, a), evShort: evidence(a, "short"), evLong: evidence(a, "long") };
-  }), [rows, horizon]);
+  }), [rows]);
 
   const tradable = enriched.filter((r) => r.slug);
   const untradable = enriched.filter((r) => !r.slug);
   const needle = q.trim().toLowerCase();
   const key = (r: (typeof enriched)[number]) => (sort === "price" ? r.sellAt : sort === "ducats" ? r.per100 : r.gain);
   const list = tradable.filter((r) => !needle || r.name.toLowerCase().includes(needle)).sort((a, b) => (key(b) ?? -Infinity) - (key(a) ?? -Infinity) || a.name.localeCompare(b.name));
-  // best use of ducats, whatever the filters say: platinum back per 100 ducats at the expected (usual) sell price
-  const byDucats = tradable.filter((r) => r.per100 != null && r.ducats).sort((a, b) => (b.per100 as number) - (a.per100 as number)).slice(0, 8);
-  const topPer100 = byDucats[0]?.per100 ?? 1;
   const picks = list.filter((r) => r.verdict === "buy").slice(0, 3);
   const pending = tradable.filter((r) => !r.ready).length;
   const discounted = tradable.filter((r) => r.pre != null && r.priceNow != null && r.priceNow <= r.pre * 0.85).length;
@@ -77,23 +74,16 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Glance label="Items for sale" value={String(rows.length)} sub={`${tradable.length} tradable`} />
         <Glance label="Below usual price" value={String(discounted)} sub="15%+ cheaper than usual" />
-        <Glance label="Buy & hold picks" value={String(tradable.filter((r) => r.verdict === "buy").length)} sub={horizon === "short" ? "for a ~1 week hold" : "for a 2–4 week hold"} />
+        <Glance label="Buy & hold picks" value={String(tradable.filter((r) => r.verdict === "buy").length)} sub="worth holding 2–4 weeks" />
         <Glance label="Top pick" value={picks[0]?.name ?? "—"} sub={picks[0]?.sellAt != null ? `≈ ${fmt(picks[0].sellAt)}p` : pending > 0 ? "working it out…" : "none right now"} small />
       </section>
 
-      {/* the two filters */}
+      {/* sorting */}
       <section className="card space-y-4">
-        <div className="grid gap-4 md:grid-cols-[1fr_1fr]">
-          <div className="space-y-1.5">
-            <p className="label">How long you’d hold it</p>
-            <Segmented<Horizon> label="Hold time" value={horizon} onChange={setHorizon} options={[{ value: "short", label: "Short · within a week" }, { value: "long", label: "Long · 2+ weeks" }]} />
-            <p className="text-xs text-dim">{horizon === "short" ? "Only items whose price was back to usual within a week of past visits are picks." : "Items whose price was back to usual within 2–4 weeks of past visits are picks."}</p>
-          </div>
-          <div className="space-y-1.5">
-            <p className="label">Sort by</p>
-            <Segmented<SortKey> label="Sort by" value={sort} onChange={setSort} options={[{ value: "price", label: "Sell price" }, { value: "ducats", label: "Per ducat" }, { value: "gain", label: "Gain" }]} />
-            <p className="text-xs text-dim">{sort === "price" ? "Highest projected sale price first." : sort === "ducats" ? "Platinum you’d get per 100 ducats spent." : "Biggest jump from today’s price first."}</p>
-          </div>
+        <div className="space-y-1.5">
+          <p className="label">Sort by</p>
+          <Segmented<SortKey> label="Sort by" value={sort} onChange={setSort} options={[{ value: "price", label: "Sell price" }, { value: "ducats", label: "Per ducat" }, { value: "gain", label: "Gain" }]} />
+          <p className="text-xs text-dim">{sort === "price" ? "Highest expected price first." : sort === "ducats" ? "Platinum you’d get per 100 ducats spent." : "Biggest jump from today’s asking price first."} Picks are items whose price was back to usual 2–4 weeks after past visits.</p>
         </div>
         <input className="input" type="search" placeholder="Search Baro’s stock…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" />
         {pending > 0 && <p className="text-xs text-teal" role="status">Still working out {pending} item{pending === 1 ? "" : "s"} (live prices and 90-day history)…</p>}
@@ -106,12 +96,12 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
           <div><label className="label" htmlFor="b-ducats">My ducats</label><input id="b-ducats" className="input" type="number" min={0} inputMode="numeric" placeholder="e.g. 1500" value={ducats} onChange={(e) => setDucats(e.target.value)} /></div>
           <div><label className="label" htmlFor="b-credits">My credits <span className="text-dim">(optional)</span></label><input id="b-credits" className="input" type="number" min={0} inputMode="numeric" placeholder="e.g. 600000" value={credits} onChange={(e) => setCredits(e.target.value)} /></div>
         </div>
-        {!basket ? <p className="text-xs text-dim">Enter your ducats (and credits) and it finds the combination of “Buy & hold” items worth the most platinum at the hold time you picked, one of each.</p>
-          : basket.items.length === 0 ? <p className="text-sm text-dim">Nothing worth buying fits that budget at this hold time.</p>
+        {!basket ? <p className="text-xs text-dim">Enter your ducats (and credits) and it finds the combination of “Buy & hold” items worth the most platinum 2–4 weeks after he leaves, one of each.</p>
+          : basket.items.length === 0 ? <p className="text-sm text-dim">Nothing worth buying fits that budget 2–4 weeks after he leaves.</p>
           : (
             <div className="space-y-2">
               <ul className="space-y-1 text-sm">{basket.items.map((i) => <li key={i.name} className="flex justify-between gap-3"><span className="text-ink">{i.name}</span><span className="shrink-0 text-dim">{i.ducats}d · {cr(i.credits)}cr · <span className="text-plat">≈ {fmt(i.value)}p</span></span></li>)}</ul>
-              <p className="border-t border-line pt-2 text-sm text-ink">Spend <b>{basket.ducats} ducats</b> and <b>{cr(basket.credits)} credits</b> → projected <b className="text-plat">≈ {fmt(basket.value)}p</b> {horizon === "short" ? "within a week" : "after 2–4 weeks"} (≈ {fmt(Math.round((basket.value / basket.ducats) * 1000) / 10)}p per 100 ducats).</p>
+              <p className="border-t border-line pt-2 text-sm text-ink">Spend <b>{basket.ducats} ducats</b> and <b>{cr(basket.credits)} credits</b> → projected <b className="text-plat">≈ {fmt(basket.value)}p</b> 2–4 weeks after he leaves (≈ {fmt(Math.round((basket.value / basket.ducats) * 1000) / 10)}p per 100 ducats).</p>
             </div>
           )}
       </section>
@@ -120,7 +110,7 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
       <section className="space-y-3">
         <h2 className="kicker">Recommended pickups</h2>
         {picks.length === 0 ? (
-          <p className="card text-sm text-dim">{pending > 0 ? "Working these out…" : "Nothing clearly beats its current price at this hold time. Try the other hold time, or look through the full list below."}</p>
+          <p className="card text-sm text-dim">{pending > 0 ? "Working these out…" : "Nothing clearly beats its current price 2–4 weeks after he leaves. Try the other hold time, or look through the full list below."}</p>
         ) : (
           <ol className="grid gap-3 md:grid-cols-3">
             {picks.map((r, i) => (
@@ -133,29 +123,6 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
               </li>
             ))}
           </ol>
-        )}
-      </section>
-
-      {/* best ducat value */}
-      <section className="space-y-3">
-        <h2 className="kicker">Best value for your ducats</h2>
-        {byDucats.length === 0 ? (
-          <p className="card text-sm text-dim">{pending > 0 ? "Working these out…" : "Not enough sales records to rank the items yet."}</p>
-        ) : (
-          <div className="card space-y-3">
-            <ol className="space-y-2">
-              {byDucats.map((r, i) => (
-                <li key={r.name} className="space-y-1">
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                    <p className="text-sm text-ink"><span className="mr-2 font-mono text-dim">{i + 1}</span>{r.name}</p>
-                    <p className="text-sm text-dim"><span className="h-display normal-case text-plat">{fmt(r.per100 as number)}p</span> per 100 ducats · {r.ducats} ducats → ≈ {fmt(r.sellAt as number)}p <span className="text-xs">({fmt(Math.round(((r.ducats as number) / (r.sellAt as number)) * 10) / 10)} ducats per plat{r.credits != null ? `, ${cr(r.credits)} credits` : ""})</span></p>
-                  </div>
-                  <div className="h-1.5 w-full bg-line/60" aria-hidden="true"><div className="h-full bg-teal" style={{ width: `${Math.max(4, ((r.per100 as number) / (topPer100 as number)) * 100)}%` }} /></div>
-                </li>
-              ))}
-            </ol>
-            <p className="text-xs text-dim">Platinum you’d get back for every 100 ducats spent, at each item’s expected sell price (what it sold for in the week before Baro arrived — only items with enough sales records are ranked). For scale, Prime parts are only worth turning into ducats at about 10 ducats per platinum, so anything here at 10p per 100 ducats or better is in that league; higher is better. It ignores credits — check the credit cost too.</p>
-          </div>
         )}
       </section>
 
@@ -180,7 +147,7 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
 
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
                   <Bar label="Asking now" value={r.priceNow} max={max} tone="bg-orange" sub={r.priceNow == null ? (r.ready ? "no listings" : "pricing…") : r.listings < 3 ? "thin market" : "5 cheapest online"} />
-                  <Bar label="Expected sell price" value={r.sellAt} max={max} tone="bg-ok" active sub={r.sellAt != null ? "sold the week before Baro" : "not enough visits"} />
+                  <Bar label="Expected price 2–4 weeks after he leaves" value={r.sellAt} max={max} tone="bg-ok" active sub={r.sellAt != null ? "sold the week before Baro" : "not enough visits"} />
                   <div className="p-1.5"><p className="text-xs text-dim">vs asking now</p><p className={`h-display text-xl normal-case ${r.gain == null ? "text-dim" : r.gain >= MIN_GAIN ? "text-ok" : r.gain <= -MIN_GAIN ? "text-danger" : "text-ink"}`}>{r.gain == null ? "—" : `${r.gain > 0 ? "+" : ""}${Math.round(r.gain * 100)}%`}</p><p className="mt-1 text-xs text-dim">{r.sellAt != null && r.priceNow != null ? `${fmt(r.priceNow)}p → ${fmt(r.sellAt)}p` : ""}</p></div>
                   <Recover />
                 </div>
