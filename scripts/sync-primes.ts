@@ -16,7 +16,7 @@ const REWARDS = "https://browse.wf/warframe-public-export-plus/ExportRewards.jso
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
 async function text(url: string, headers: Record<string, string> = {}) {
-  const res = await fetch(url, { headers: { "User-Agent": "RivenBuddy/0.1 (prime sync script)", ...headers } });
+  const res = await fetch(url, { headers: { "User-Agent": "WarframeEconomist/0.1 (prime sync script)", ...headers } });
   if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
   return res.text();
 }

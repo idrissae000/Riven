@@ -14,7 +14,7 @@ export default async function ListingsPage() {
       <InventoryTabs active="listings" />
       {signedIn ? <ListingsManager /> : (
         <div className="card space-y-3 text-sm text-dim">
-          <p>See and manage everything you have listed on Warframe Market — reprice, hide or remove orders one at a time or in bulk. It needs a Riven Buddy account, because your Warframe Market connection is stored against it.</p>
+          <p>See and manage everything you have listed on Warframe Market — reprice, hide or remove orders one at a time or in bulk. It needs a Warframe Economist account, because your Warframe Market connection is stored against it.</p>
           <Link href="/login?next=/inventory/listings" className="btn-primary">Sign in</Link>
         </div>
       )}

@@ -114,7 +114,7 @@ let cache: { at: number; value: WorldState } | null = null;
 export async function getWorldState(): Promise<{ state: WorldState | null; stale: boolean }> {
   if (cache && Date.now() - cache.at < 60_000) return { state: cache.value, stale: false };
   try {
-    const res = await fetch(SOURCE, { headers: { Accept: "application/json", "User-Agent": "RivenBuddy/0.1 (live page)" }, cache: "no-store", signal: AbortSignal.timeout(8000) });
+    const res = await fetch(SOURCE, { headers: { Accept: "application/json", "User-Agent": "WarframeEconomist/0.1 (live page)" }, cache: "no-store", signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error(`world state ${res.status}`);
     const value = normalizeWorldState((await res.json()) as Raw);
     cache = { at: Date.now(), value };

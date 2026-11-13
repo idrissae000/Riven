@@ -4,7 +4,7 @@
  * sleeps between requests.
  */
 const API = "https://wiki.warframe.com/api.php";
-const UA = "RivenBuddy/0.1 (personal Warframe tool; wiki sync script)";
+const UA = "WarframeEconomist/0.1 (personal Warframe tool; wiki sync script)";
 
 async function api(params: Record<string, string>): Promise<Record<string, unknown>> {
   const url = `${API}?${new URLSearchParams({ format: "json", formatversion: "2", maxlag: "5", ...params })}`;

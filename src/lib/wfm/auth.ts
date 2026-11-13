@@ -43,7 +43,7 @@ export async function signIn(email: string, password: string): Promise<SignedIn>
     res = await wfmRequest("/v2/auth/signin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, deviceId: randomUUID(), clientId: "riven-buddy" }),
+      body: JSON.stringify({ email, password, deviceId: randomUUID(), clientId: "warframe-economist" }),
     });
   }
   const body = await res.json().catch(() => null);

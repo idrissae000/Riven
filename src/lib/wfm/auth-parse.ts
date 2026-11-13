@@ -41,7 +41,7 @@ const FRIENDLY: [RegExp, string][] = [
   [/banned/, "That Warframe Market account is banned."],
   [/not_verified|unverified/, "Verify your Warframe Market email first."],
   [/rate|too_many/, "Warframe Market is rate limiting sign-ins. Wait a minute and try again."],
-  [/2fa|two_factor/, "This account uses two-factor sign-in, which Riven Buddy doesn’t support yet."],
+  [/2fa|two_factor/, "This account uses two-factor sign-in, which Warframe Economist doesn’t support yet."],
 ];
 
 export function friendlyAuthError(codes: string[], status: number): string {

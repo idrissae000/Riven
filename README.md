@@ -1,6 +1,8 @@
-# Riven Buddy
+# Warframe Economist
 
-Price, grade and manage Warframe riven mods; look up arcanes. Next.js (App Router, TS, Tailwind) + Supabase, deployable to Vercel. One responsive codebase: bottom tabs on phones, sidebar on desktop.
+The all-in-one Warframe platinum tool: price and grade rivens, arcanes and Prime parts, track your inventory (including from screenshots), and list and manage your Warframe Market orders. Next.js (App Router, TS, Tailwind) + Supabase, deployable to Vercel. One responsive codebase: bottom tabs on phones, sidebar on desktop.
+
+> **Unofficial.** Warframe Economist is a fan-made tool. It is not affiliated with, endorsed by or sponsored by Digital Extremes. Warframe and all related names, marks and imagery are trademarks of Digital Extremes Ltd.
 
 ## Accounts are optional
 

@@ -23,7 +23,7 @@ const get: WfmGet = async (path) => {
   const wait = last + 400 - Date.now();
   if (wait > 0) await sleep(wait);
   last = Date.now();
-  return fetch(HOST + path, { headers: { Accept: "application/json", Language: "en", Platform: "pc", "User-Agent": "RivenBuddy/0.1 (price sync script)" } });
+  return fetch(HOST + path, { headers: { Accept: "application/json", Language: "en", Platform: "pc", "User-Agent": "WarframeEconomist/0.1 (price sync script)" } });
 };
 
 async function main() {

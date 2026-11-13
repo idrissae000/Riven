@@ -29,7 +29,7 @@ const PAGE = "https://browse.wf/rivencalc";
 const CODEX_REPO = "Unified-Codex/Codex-Calculators";
 const CODEX_PAGE = "https://unified-codex.github.io/Codex-Calculators/?tool=riven";
 const CODEX_SOURCES = [`https://raw.githubusercontent.com/${CODEX_REPO}/main/index.html`, "https://unified-codex.github.io/Codex-Calculators/index.html"];
-const UA = "RivenBuddy/0.1 (personal tool; rivencalc sync script)";
+const UA = "WarframeEconomist/0.1 (personal tool; rivencalc sync script)";
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(n);
 const opt = (n: string) => { const i = args.indexOf(n); return i >= 0 ? args[i + 1] : undefined; };

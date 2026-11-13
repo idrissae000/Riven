@@ -13,7 +13,7 @@ export default async function MarketPage() {
         <PageHeader kicker="Warframe Market" title="Market" />
         <div className="card space-y-3 text-sm text-dim">
           <p>Prices on riven and arcane pages come from live Warframe Market listings and work without an account.</p>
-          <p>Connecting your Warframe Market account and listing rivens straight from here needs a Riven Buddy account, because your connection is stored against it. It’s optional.</p>
+          <p>Connecting your Warframe Market account and listing rivens straight from here needs a Warframe Economist account, because your connection is stored against it. It’s optional.</p>
           <Link href="/login?next=/market" className="btn-primary">Sign in</Link>
         </div>
       </div>
@@ -34,7 +34,7 @@ export default async function MarketPage() {
       </section>
 
       <section className="card space-y-3">
-        <h2 className="kicker">Listed from Riven Buddy</h2>
+        <h2 className="kicker">Listed from Warframe Economist</h2>
         {listed.length === 0 ? (
           <p className="text-sm text-dim">Nothing listed yet. Open a riven and tap <strong>List on WFM</strong>.</p>
         ) : (

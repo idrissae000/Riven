@@ -6,7 +6,7 @@ export default function SetupPage() {
       <div className="card-glow">
         <h1 className="h-display mb-2 text-3xl">Connect Supabase</h1>
         <p className="mb-4 text-dim">
-          Riven Buddy needs a Supabase project. Copy <code className="text-teal">.env.example</code> to{" "}
+          Warframe Economist needs a Supabase project. Copy <code className="text-teal">.env.example</code> to{" "}
           <code className="text-teal">.env.local</code>, fill in the values, then restart the dev server.
         </p>
         <ol className="list-decimal space-y-2 pl-5 text-sm text-dim">

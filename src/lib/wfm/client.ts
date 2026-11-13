@@ -3,7 +3,7 @@ import { Throttle } from "./throttle";
 import { cached, type Cached } from "./cache";
 
 const HOST = "https://api.warframe.market";
-export const WFM_USER_AGENT = "RivenBuddy/0.1 (personal tool)";
+export const WFM_USER_AGENT = "WarframeEconomist/0.1 (personal tool)";
 
 /** One shared limiter for every outbound WFM call from this server instance. */
 export const wfmThrottle = new Throttle(350);

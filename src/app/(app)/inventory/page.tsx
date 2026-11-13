@@ -20,7 +20,7 @@ export default async function InventoryPage() {
         <PageHeader kicker="Your stuff" title="Inventory" />
         <InventoryTabs active="items" />
         <div className="card space-y-3 text-sm text-dim">
-          <p>Track the Prime parts and arcanes you own, see what they’re worth, and what’s best to sell. It’s saved to your Riven Buddy account (optional — everything else works without one).</p>
+          <p>Track the Prime parts and arcanes you own, see what they’re worth, and what’s best to sell. It’s saved to your Warframe Economist account (optional — everything else works without one).</p>
           <Link href="/login?next=/inventory" className="btn-primary">Sign in</Link>
         </div>
       </div>

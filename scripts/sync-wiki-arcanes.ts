@@ -29,7 +29,7 @@ const readJson = <T>(p: string): T => JSON.parse(readFileSync(p, "utf8"));
 interface WfmItem { slug: string; tags?: string[]; i18n: { en: { name: string; thumb?: string } } }
 
 async function wfmArcanes(): Promise<Map<string, WfmItem>> {
-  const res = await fetch("https://api.warframe.market/v2/items", { headers: { Language: "en", Accept: "application/json", "User-Agent": "RivenBuddy/0.1 (personal tool)" } });
+  const res = await fetch("https://api.warframe.market/v2/items", { headers: { Language: "en", Accept: "application/json", "User-Agent": "WarframeEconomist/0.1 (personal tool)" } });
   if (!res.ok) throw new Error(`WFM /v2/items -> ${res.status}`);
   const items = ((await res.json()) as { data: WfmItem[] }).data.filter((i) => i.tags?.includes("arcane_enhancement"));
   return new Map(items.map((i) => [norm(i.i18n.en.name), i]));

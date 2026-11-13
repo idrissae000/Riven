@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-/** A riven "disc": brass rhombus, inner rhombus, teal core. Hand-drawn SVG, no icon font. */
+/** The logo: a riven "disc": brass rhombus, inner rhombus, teal core. Hand-drawn SVG, no icon font. */
 export function LogoMark({ size = 30 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true">
@@ -14,11 +14,11 @@ export function LogoMark({ size = 30 }: { size?: number }) {
 
 export function Wordmark({ href = "/rivens", compact = false }: { href?: string; compact?: boolean }) {
   return (
-    <Link href={href} className="group flex items-center gap-2.5" aria-label="Riven Buddy home">
+    <Link href={href} className="group flex items-center gap-2.5" aria-label="Warframe Economist home">
       <LogoMark size={compact ? 26 : 32} />
       <span className="leading-none">
-        <span className={`block font-display font-bold tracking-[0.2em] text-gold ${compact ? "text-lg" : "text-[1.4rem]"}`}>RIVEN</span>
-        <span className="mt-0.5 block text-xs font-semibold tracking-[0.5em] text-dim transition-colors group-hover:text-teal">BUDDY</span>
+        <span className={`block font-display font-bold tracking-[0.14em] text-gold ${compact ? "text-base" : "text-[1.15rem]"}`}>WARFRAME</span>
+        <span className="mt-1 block text-xs font-semibold tracking-[0.34em] text-dim transition-colors group-hover:text-teal">ECONOMIST</span>
       </span>
     </Link>
   );

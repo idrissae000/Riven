@@ -18,7 +18,7 @@ const dry = process.argv.includes("--dry-run");
 const overrides: Record<string, { inverted?: boolean }> = JSON.parse(readFileSync("data/riven-attribute-overrides.json", "utf8"));
 
 async function wfm<T>(path: string): Promise<T> {
-  const res = await fetch(BASE + path, { headers: { Language: "en", Accept: "application/json", "User-Agent": "RivenBuddy/0.1 (personal tool)" } });
+  const res = await fetch(BASE + path, { headers: { Language: "en", Accept: "application/json", "User-Agent": "WarframeEconomist/0.1 (personal tool)" } });
   if (!res.ok) throw new Error(`WFM ${path} -> ${res.status}`);
   return ((await res.json()) as { data: T }).data;
 }
