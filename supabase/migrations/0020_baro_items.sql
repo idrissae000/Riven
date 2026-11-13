@@ -23,3 +23,5 @@ create policy "baro_items public read" on public.baro_items for select to anon, 
 
 -- 0020b: the item's usual price in the week before Baro arrived (the anchor for the projections)
 alter table public.baro_items add column if not exists pre_price numeric(8,1);
+-- 0020c: records-only model keeps how many past visits came back to the usual price
+alter table public.baro_items add column if not exists short_hits int not null default 0, add column if not exists short_n int not null default 0, add column if not exists long_hits int not null default 0, add column if not exists long_n int not null default 0;

@@ -24,10 +24,13 @@ export async function itemIndex(): Promise<Map<string, ItemInfo>> {
 
 let names: { from: Map<string, ItemInfo>; map: Map<string, ItemInfo> } | null = null;
 
-/** Finds the Warframe Market item for a name as Baro (or the game) spells it; tries the plain name, then without a trailing " Blueprint". */
+/**
+ * Finds the Warframe Market item for a name as Baro (or the game) spells it — exact name only. (Matching "X Blueprint" to "X" was wrong:
+ * the blueprint Baro sells is not the tradable item, e.g. Sands of Inaros.)
+ */
 export async function itemByName(name: string): Promise<ItemInfo | null> {
   const byId = await itemIndex();
   if (!names || names.from !== byId) names = { from: byId, map: new Map([...byId.values()].map((i) => [i.name.toLowerCase(), i])) };
   const n = name.trim().toLowerCase();
-  return names.map.get(n) ?? names.map.get(n.replace(/ blueprint$/, "")) ?? null;
+  return names.map.get(n) ?? null;
 }

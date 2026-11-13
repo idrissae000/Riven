@@ -4,14 +4,14 @@ import { useMemo, useState } from "react";
 import { Plat } from "@/components/brand";
 import { PriceChart } from "@/components/price-chart";
 import { Segmented } from "@/components/segmented";
-import { baroTip, cycleStats, platPer100Ducats, projectPrice, type Confidence, type Horizon } from "@/lib/baro/analysis";
+import { backed, baroTip, cycleStats, evidence, platPer100Ducats, projectPrice, type Confidence, type Horizon } from "@/lib/baro/analysis";
 import { bestBasket } from "@/lib/baro/basket";
 import type { SalesDay } from "@/lib/history-sales";
 
 export interface BaroRow {
   name: string; ducats: number | null; credits: number | null; slug: string | null;
   priceNow: number | null; /** usual price in the week before Baro arrived */ pre: number | null;
-  listings: number; ratioShort: number | null; ratioLong: number | null; dipShare: number | null; cycles: number; confidence: Confidence;
+  listings: number; ratioShort: number | null; ratioLong: number | null; shortHits: number; shortN: number; longHits: number; longN: number; dipShare: number | null; cycles: number; confidence: Confidence;
   /** false until the server has worked this item out */
   ready: boolean;
 }
@@ -46,12 +46,12 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
   const [credits, setCredits] = useState("");
 
   const enriched = useMemo(() => rows.map((r) => {
-    const a = { pre: r.pre, ratioShort: r.ratioShort, ratioLong: r.ratioLong, dipShare: r.dipShare, cycles: r.cycles, confidence: r.confidence };
+    const a = { pre: r.pre, ratioShort: r.ratioShort, ratioLong: r.ratioLong, shortHits: r.shortHits, shortN: r.shortN, longHits: r.longHits, longN: r.longN, dipShare: r.dipShare, cycles: r.cycles, confidence: r.confidence };
     const sell = (h: Horizon) => projectPrice(a, h);
     const at = sell(horizon);
     const gain = at != null && r.priceNow ? at / r.priceNow - 1 : null;
-    const verdict: Verdict = at == null || r.priceNow == null || r.confidence === "none" ? "unknown" : gain != null && gain >= MIN_GAIN ? "buy" : gain != null && gain <= -MIN_GAIN ? "skip" : "flat";
-    return { ...r, sellShort: sell("short"), sellLong: sell("long"), sellAt: at, gain, verdict, per100: platPer100Ducats(at, r.ducats), tip: baroTip(r.priceNow, a) };
+    const verdict: Verdict = at == null || r.priceNow == null || r.confidence === "none" ? "unknown" : gain != null && gain >= MIN_GAIN && backed(a, horizon) ? "buy" : gain != null && gain <= -MIN_GAIN ? "skip" : "flat";
+    return { ...r, sellShort: sell("short"), sellLong: sell("long"), sellAt: at, gain, verdict, per100: platPer100Ducats(at, r.ducats), tip: baroTip(r.priceNow, a), evShort: evidence(a, "short"), evLong: evidence(a, "long") };
   }), [rows, horizon]);
 
   const tradable = enriched.filter((r) => r.slug);
@@ -153,10 +153,10 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
                 </div>
 
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
-                  <Bar label="Now" value={r.priceNow} max={max} tone="bg-orange" sub={r.priceNow == null ? (r.ready ? "no listings" : "pricing…") : r.listings < 3 ? "thin market" : "online sellers"} />
-                  <Bar label="Usual" value={r.pre} max={max} tone="bg-dim" sub="week before Baro" />
-                  <Bar label="~1 week later" value={r.sellShort} max={max} tone="bg-teal" active={horizon === "short"} sub={r.sellShort != null && r.priceNow ? `${r.sellShort >= r.priceNow ? "+" : ""}${Math.round((r.sellShort / r.priceNow - 1) * 100)}% vs now` : ""} />
-                  <Bar label="2–4 weeks later" value={r.sellLong} max={max} tone="bg-gold" active={horizon === "long"} sub={r.sellLong != null && r.priceNow ? `${r.sellLong >= r.priceNow ? "+" : ""}${Math.round((r.sellLong / r.priceNow - 1) * 100)}% vs now` : ""} />
+                  <Bar label="Asking now" value={r.priceNow} max={max} tone="bg-orange" sub={r.priceNow == null ? (r.ready ? "no listings" : "pricing…") : r.listings < 3 ? "thin market" : "5 cheapest online"} />
+                  <Bar label="Usual (sold)" value={r.pre} max={max} tone="bg-dim" sub="week before Baro" />
+                  <Bar label="~1 week later" value={r.sellShort} max={max} tone="bg-teal" active={horizon === "short"} sub={r.evShort.n >= 4 ? `back to usual ${r.evShort.hits}/${r.evShort.n} visits` : "not enough visits"} />
+                  <Bar label="2–4 weeks later" value={r.sellLong} max={max} tone="bg-gold" active={horizon === "long"} sub={r.evLong.n >= 4 ? `back to usual ${r.evLong.hits}/${r.evLong.n} visits` : "not enough visits"} />
                 </div>
 
                 <p className="text-sm leading-relaxed text-dim">{r.tip}</p>
@@ -210,7 +210,7 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
           </ul>
         </details>
       )}
-      <p className="text-xs text-dim">Prices: current = average of the 5 cheapest online / in-game asking prices at rank 0; usual and history = Warframe Market’s completed trades (rank 0). Projections are estimates from past visits, not guarantees — and the history can’t show whether Baro sold the item on those visits.</p>
+      <p className="text-xs text-dim">Asking now = average of the 5 cheapest online / in-game asking prices at rank 0 (asking prices run a little below what things actually sell for, so a discount can look slightly bigger than it is). Usual and all history = Warframe Market’s completed trades at rank 0. Nothing is projected above the usual price, and no one can promise a future price — these are what the records support. The history can’t show whether Baro sold the item on earlier visits.</p>
     </div>
   );
 }
