@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireUser } from "@/lib/api";
-import { ReauthRequired, wfmAuthed, wfmConfigured } from "@/lib/wfm/auth";
+import { ReauthRequired, wfmAuthed, wfmAuthedV2, wfmConfigured } from "@/lib/wfm/auth";
 import { flattenErrors } from "@/lib/wfm/auth-parse";
 import { wfmRequest } from "@/lib/wfm/client";
 import { resolveItem } from "@/lib/wfm/resolve-item";
@@ -51,11 +51,17 @@ export async function POST(request: Request) {
       const id = await itemId(item.wfm);
       if (!id) { results.push({ key, ok: false, error: "Couldn’t look the item up on Warframe Market" }); continue; }
 
-      // v1 first (same session style the riven listing uses); fall back to v2 if v1 has been retired. Arcanes carry their rank.
+      // v2 first (the live API); fall back to v1 if v2 refuses the session or the route. Arcanes carry their rank.
       const v1 = { item: id, order_type: "sell", platinum: it.platinum, quantity: it.quantity, visible: true, ...(it.kind === "arcane" ? { mod_rank: item.rank } : {}) };
       const v2 = { itemId: id, type: "sell", platinum: it.platinum, quantity: it.quantity, visible: true, ...(it.kind === "arcane" ? { rank: item.rank } : {}) };
-      let res = await wfmAuthed(auth.user.id, "/v1/profile/orders", { method: "POST", body: JSON.stringify(v1) });
-      if ([404, 405, 410].includes(res.status)) res = await wfmAuthed(auth.user.id, "/v2/order", { method: "POST", body: JSON.stringify(v2) });
+      let res: Response;
+      try {
+        res = await wfmAuthedV2(auth.user.id, "/v2/order", { method: "POST", body: JSON.stringify(v2) });
+      } catch (e) {
+        if (!(e instanceof ReauthRequired)) throw e;
+        res = await wfmAuthed(auth.user.id, "/v1/profile/orders", { method: "POST", body: JSON.stringify(v1) }); // v1 style session
+      }
+      if ([404, 405, 410].includes(res.status)) res = await wfmAuthed(auth.user.id, "/v1/profile/orders", { method: "POST", body: JSON.stringify(v1) });
       if (res.ok) { results.push({ key, ok: true }); continue; }
       const codes = flattenErrors(await res.json().catch(() => null));
       if (res.status === 429) { results.push({ key, ok: false, error: "Warframe Market is rate-limiting us — try again in a moment" }); break; }

@@ -12,5 +12,7 @@ export async function resolveItem(kind: string, slug: string, rank: number): Pro
     if (!data?.wfm_slug || (rank !== 0 && rank !== data.max_rank)) return null;
     return { wfm: data.wfm_slug as string, rank };
   }
+  // any Warframe Market item (for the listings manager): the slug goes straight to WFM, so keep it to safe characters
+  if (kind === "item") return /^[a-z0-9_]{1,80}$/.test(slug) && rank >= 0 && rank <= 10 ? { wfm: slug, rank } : null;
   return null;
 }

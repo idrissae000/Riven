@@ -111,4 +111,24 @@ export async function wfmAuthed(userId: string, path: string, init: RequestInit 
   return res;
 }
 
+let v2Scheme: "Bearer" | "JWT" | null = null;
+
+/**
+ * Authenticated request to the v2 API. v2 documents `Authorization: Bearer <token>`, v1 used `JWT <token>`; the stored token is the
+ * same session either way, so try Bearer first and fall back to JWT, remembering what worked. If both are refused we do NOT drop the
+ * stored session (it may still be good for v1) — the caller gets ReauthRequired and the user can reconnect.
+ */
+export async function wfmAuthedV2(userId: string, path: string, init: RequestInit = {}): Promise<Response> {
+  const token = await loadToken(userId);
+  const schemes: ("Bearer" | "JWT")[] = v2Scheme ? [v2Scheme] : ["Bearer", "JWT"];
+  let res!: Response;
+  for (const scheme of schemes) {
+    res = await wfmRequest(path, { ...init, headers: { "Content-Type": "application/json", ...(init.headers as Record<string, string> | undefined), Authorization: `${scheme} ${token}` } });
+    if (res.status !== 401) { v2Scheme = scheme; break; }
+  }
+  if (res.status === 401) throw new ReauthRequired("Warframe Market didn’t accept your saved session — disconnect and sign in again.");
+  void createAdminClient().from("wfm_sessions").update({ last_used_at: new Date().toISOString() }).eq("user_id", userId);
+  return res;
+}
+
 export const wfmConfigured = () => !!process.env.WFM_TOKEN_ENCRYPTION_KEY && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
