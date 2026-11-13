@@ -7,6 +7,7 @@ import { ListOnMarket, sellKey } from "@/components/list-on-market";
 import { READ_EDGE, ScanImage } from "@/lib/image-prep";
 import { InventoryFilter } from "@/components/inventory-filter";
 import { browseRows, type InvSort } from "@/lib/inventory/browse";
+import type { SetDef } from "@/lib/primes/combine-sets";
 import { ducatVerdict } from "@/lib/primes/ducats";
 import { mergeScans, valueScan, type MatchedItem, type ReadItem, type ScanMatch } from "@/lib/primes/scan-match";
 
@@ -17,7 +18,7 @@ const MAX_IMAGES = 12;
 interface Shot { id: number; label: string; state: "queued" | "reading" | "done" | "error"; msg?: string; result?: ScanMatch }
 
 /** Attach screenshots of your Prime inventory; it reads the parts, values them, and lists them most expensive first. */
-export function InventoryScan({ info, signedIn }: { info: Record<string, PartInfo>; signedIn: boolean }) {
+export function InventoryScan({ info, signedIn, sets, setPrices }: { info: Record<string, PartInfo>; signedIn: boolean; sets: SetDef[]; setPrices: Record<string, number> }) {
   const [shots, setShots] = useState<Shot[]>([]);
   const [edits, setEdits] = useState<Record<string, number | null | undefined>>({}); // slug -> corrected qty (null = removed)
   const [added, setAdded] = useState<Record<string, number>>({}); // parts the user added by hand
@@ -125,7 +126,7 @@ export function InventoryScan({ info, signedIn }: { info: Record<string, PartInf
         </div>
       </section>
 
-      {listing && signedIn && <ListOnMarket rows={value.rows.map((r) => ({ key: sellKey("prime", r.slug, 0), kind: "prime" as const, slug: r.slug, rank: 0, name: r.name, qty: r.qty, unit: r.unit, ducats: r.ducats }))} onClose={() => setListing(false)} />}
+      {listing && signedIn && <ListOnMarket sets={sets} setPrices={setPrices} rows={value.rows.map((r) => ({ key: sellKey("prime", r.slug, 0), kind: "prime" as const, slug: r.slug, rank: 0, name: r.name, qty: r.qty, unit: r.unit, ducats: r.ducats }))} onClose={() => setListing(false)} />}
 
       {plan.ducatParts > 0 && (
         <section className="card text-sm text-dim">

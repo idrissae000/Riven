@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plat } from "@/components/brand";
+import type { SetDef } from "@/lib/primes/combine-sets";
 import { ListOnMarket, sellKey, type SellRow } from "@/components/list-on-market";
 import { InventoryFilter } from "@/components/inventory-filter";
 import { browseRows, type InvSort } from "@/lib/inventory/browse";
@@ -13,7 +14,7 @@ export interface AddOption { slug: string; kind: "prime" | "arcane"; name: strin
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 /** Add what you own, see what it's worth, and what's best to sell. */
-export function InventoryManager({ options, rows, total, priced, advice }: { options: AddOption[]; rows: ValuedRow[]; total: number; priced: number; advice: SetAdvice[] }) {
+export function InventoryManager({ options, rows, total, priced, advice, sets, setPrices }: { options: AddOption[]; rows: ValuedRow[]; total: number; priced: number; advice: SetAdvice[]; sets: SetDef[]; setPrices: Record<string, number> }) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [qty, setQty] = useState(1);
@@ -71,7 +72,7 @@ export function InventoryManager({ options, rows, total, priced, advice }: { opt
         )}
       </section>
 
-      {listAll && <ListOnMarket rows={allSellRows} title="List your inventory on Warframe Market" onClose={() => setListAll(false)} />}
+      {listAll && <ListOnMarket sets={sets} setPrices={setPrices} rows={allSellRows} title="List your inventory on Warframe Market" onClose={() => setListAll(false)} />}
 
       <form onSubmit={add} className="card space-y-3">
         <h2 className="kicker">Add to your inventory</h2>

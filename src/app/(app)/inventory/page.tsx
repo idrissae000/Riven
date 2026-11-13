@@ -8,6 +8,7 @@ import { priceView } from "@/lib/arcanes/price-view";
 import { setAdvice, valueInventory, type OwnedItem } from "@/lib/inventory/value";
 import { primeCatalogue } from "@/lib/primes/catalogue";
 import { itemsDue } from "@/lib/primes/due";
+import { setDefs } from "@/lib/primes/set-defs";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Inventory" };
@@ -67,7 +68,7 @@ export default async function InventoryPage() {
       </PageHeader>
       <InventoryTabs active="items" />
       <PriceRefresher due={due} endpoint="/api/primes/prices/refresh" />
-      <InventoryManager options={options} rows={value.rows} total={value.total} priced={value.priced} advice={advice} />
+      <InventoryManager sets={setDefs(primeCatalogue.parts)} setPrices={Object.fromEntries(primeCatalogue.parts.filter((p) => p.kind === "set" && itemPrice.get(p.slug)?.avg5 != null).map((p) => [p.slug, itemPrice.get(p.slug)!.avg5 as number]))} options={options} rows={value.rows} total={value.total} priced={value.priced} advice={advice} />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { InventoryTabs } from "@/components/inventory-tabs";
 import { currentUserId, listItemPrices } from "@/lib/data";
 import { primeCatalogue } from "@/lib/primes/catalogue";
 import { itemsDue } from "@/lib/primes/due";
+import { setDefs } from "@/lib/primes/set-defs";
 
 export const metadata = { title: "Scan inventory" };
 
@@ -19,7 +20,7 @@ export default async function ScanPage() {
       <PageHeader kicker="Your stuff" title="Inventory" />
       <InventoryTabs active="scan" />
       <PriceRefresher due={due} endpoint="/api/primes/prices/refresh" />
-      <InventoryScan info={info} signedIn={!!uid} />
+      <InventoryScan info={info} signedIn={!!uid} sets={setDefs(primeCatalogue.parts)} setPrices={Object.fromEntries(primeCatalogue.parts.filter((p) => p.kind === "set" && priceOf.get(p.slug)?.avg5 != null).map((p) => [p.slug, priceOf.get(p.slug)!.avg5 as number]))} />
     </div>
   );
 }

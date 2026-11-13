@@ -7,6 +7,7 @@ import { Plat } from "@/components/brand";
 import { InventoryFilter } from "@/components/inventory-filter";
 import { browseRows, type InvSort } from "@/lib/inventory/browse";
 import { WfmConnect, useWfmStatus } from "@/components/wfm-connect";
+import { combineSets, type SetDef } from "@/lib/primes/combine-sets";
 import { ducatVerdict } from "@/lib/primes/ducats";
 import { STRATEGIES, autoPrice, type Listing, type PriceStrategy } from "@/lib/wfm/listings";
 
@@ -23,7 +24,14 @@ const CHUNK = 10;
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 /** Set prices (with the 5 cheapest online listings beside each) or let the app price everything, then list it on Warframe Market. */
-export function ListOnMarket({ rows, onClose, title = "List on Warframe Market" }: { rows: SellRow[]; onClose: () => void; title?: string }) {
+export function ListOnMarket({ rows: rawRows, onClose, title = "List on Warframe Market", sets = [], setPrices = {} }: { rows: SellRow[]; onClose: () => void; title?: string; sets?: SetDef[]; setPrices?: Record<string, number> }) {
+  const [combine, setCombine] = useState(true);
+  // Complete Prime sets are listed as the set (when the set sells for more than its parts), with only the spares left as parts.
+  const combined = useMemo(
+    () => (combine && sets.length ? combineSets(rawRows, sets, (slug) => setPrices[slug] ?? null, (set, copies, unit): SellRow => ({ key: sellKey("prime", set.slug, 0), kind: "prime", slug: set.slug, rank: 0, name: `${set.name} (complete set)`, qty: copies, unit, ducats: null })) : { rows: rawRows, sets: [] }),
+    [combine, sets, setPrices, rawRows],
+  );
+  const rows = combined.rows;
   const { status, refresh } = useWfmStatus();
   const [strategy, setStrategy] = useState<PriceStrategy>("market");
   const [skipDucat, setSkipDucat] = useState(true);
@@ -144,6 +152,12 @@ export function ListOnMarket({ rows, onClose, title = "List on Warframe Market" 
             </div>
             <label className="flex items-center gap-2 text-sm text-dim"><input type="checkbox" checked={skipDucat} onChange={(e) => setSkipDucat(e.target.checked)} /> Skip parts better as ducats</label>
           </div>
+          {sets.length > 0 && (
+            <div className="space-y-1">
+              <label className="flex items-center gap-2 text-sm text-dim"><input type="checkbox" checked={combine} onChange={(e) => setCombine(e.target.checked)} /> Combine complete sets (list the set instead of its parts when the set sells for more)</label>
+              {combined.sets.length > 0 && <p className="text-xs text-teal">{combined.sets.map((c) => `${c.copies}× ${c.name}`).join(" · ")} — about {Math.round(combined.sets.reduce((s, c) => s + c.gain, 0))}p more than selling the loose parts.</p>}
+            </div>
+          )}
           <div className="max-w-xs">
             <label className="label" htmlFor="min-price">Only list parts worth at least (platinum each)</label>
             <input id="min-price" className="input" type="number" min={0} inputMode="numeric" placeholder="No minimum" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
