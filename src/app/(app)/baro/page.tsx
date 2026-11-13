@@ -19,14 +19,14 @@ export default async function BaroPage() {
   let due = 0;
   if (baro && here) {
     const sb = await createClient();
-    const { data } = await sb.from("baro_items").select("name,ducats,credits,wfm_slug,price_now,listings,ratio_short,ratio_long,dip_share,cycles,confidence,computed_at").eq("visit", new Date(baro.arrives).toISOString());
+    const { data } = await sb.from("baro_items").select("name,ducats,credits,wfm_slug,price_now,pre_price,listings,ratio_short,ratio_long,dip_share,cycles,confidence,computed_at").eq("visit", new Date(baro.arrives).toISOString());
     const stored = new Map(((data ?? []) as Record<string, unknown>[]).map((r) => [r.name as string, r]));
     const num = (v: unknown) => (v == null ? null : Number(v));
     rows = baro.items.map((i): BaroRow => {
       const r = stored.get(i.item);
       return {
         name: i.item, ducats: i.ducats, credits: i.credits, slug: (r?.wfm_slug as string | null | undefined) ?? null,
-        priceNow: num(r?.price_now), listings: Number(r?.listings ?? 0), ratioShort: num(r?.ratio_short), ratioLong: num(r?.ratio_long), dipShare: num(r?.dip_share),
+        priceNow: num(r?.price_now), pre: num(r?.pre_price), listings: Number(r?.listings ?? 0), ratioShort: num(r?.ratio_short), ratioLong: num(r?.ratio_long), dipShare: num(r?.dip_share),
         cycles: Number(r?.cycles ?? 0), confidence: ((r?.confidence as Confidence | undefined) ?? "none"), ready: !!r?.computed_at,
       };
     });

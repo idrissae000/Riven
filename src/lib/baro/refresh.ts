@@ -54,7 +54,7 @@ export async function refreshBaro(
       const top = reduceTopOrders(await fetchOrders(get, slug), 5, 0);
       const a = analyseBaro(history, visit);
       const { error: e } = await sb.from("baro_items").update({
-        price_now: top.avg5, listings: top.listings, ratio_short: a.ratioShort, ratio_long: a.ratioLong, dip_share: a.dipShare, cycles: a.cycles, confidence: a.confidence, computed_at: nowIso,
+        price_now: top.avg5, listings: top.listings, pre_price: a.pre, ratio_short: a.ratioShort, ratio_long: a.ratioLong, dip_share: a.dipShare, cycles: a.cycles, confidence: a.confidence, computed_at: nowIso,
       }).eq("visit", visit).eq("name", r.name);
       if (e) throw new Error(e.message);
       out.refreshed++; out.remaining--;

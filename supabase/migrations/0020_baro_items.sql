@@ -20,3 +20,6 @@ alter table public.baro_items enable row level security;
 revoke all on public.baro_items from anon, authenticated;
 grant select on public.baro_items to anon, authenticated;
 create policy "baro_items public read" on public.baro_items for select to anon, authenticated using (true);
+
+-- 0020b: the item's usual price in the week before Baro arrived (the anchor for the projections)
+alter table public.baro_items add column if not exists pre_price numeric(8,1);

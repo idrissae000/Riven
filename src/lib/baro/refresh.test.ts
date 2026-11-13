@@ -39,6 +39,6 @@ describe("refreshBaro", () => {
     const rows = upserts.baro_items;
     expect(rows.find((x) => x.name === "Primed Flow")).toMatchObject({ wfm_slug: "primed_flow", ducats: 350, credits: 110000, computed_at: null });
     expect(rows.find((x) => x.name === "Ki'teer Earpiece")).toMatchObject({ wfm_slug: null }); // untradable: no analysis needed
-    expect(updates.find((u) => u.table === "baro_items")?.values).toMatchObject({ price_now: 51.3, listings: 3, cycles: 0, confidence: "none" });
+    expect(updates.find((u) => u.table === "baro_items")?.values).toMatchObject({ price_now: 51.3, listings: 3, cycles: 0, confidence: "none", pre_price: null });
   });
 });

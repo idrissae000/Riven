@@ -7,7 +7,7 @@ import { baroTip, platPer100Ducats, projectPrice, type Confidence, type Horizon 
 
 export interface BaroRow {
   name: string; ducats: number | null; credits: number | null; slug: string | null;
-  priceNow: number | null; listings: number; ratioShort: number | null; ratioLong: number | null; dipShare: number | null; cycles: number; confidence: Confidence;
+  priceNow: number | null; /** usual price in the week before Baro arrived */ pre: number | null; listings: number; ratioShort: number | null; ratioLong: number | null; dipShare: number | null; cycles: number; confidence: Confidence;
   /** false until the server has worked this item out */
   ready: boolean;
 }
@@ -30,8 +30,8 @@ export function BaroPicks({ rows }: { rows: BaroRow[] }) {
   const [q, setQ] = useState("");
 
   const enriched = useMemo(() => rows.map((r) => {
-    const a = { ratioShort: r.ratioShort, ratioLong: r.ratioLong, dipShare: r.dipShare, cycles: r.cycles, confidence: r.confidence };
-    const sell = (h: Horizon) => projectPrice(r.priceNow, a, h);
+    const a = { pre: r.pre, ratioShort: r.ratioShort, ratioLong: r.ratioLong, dipShare: r.dipShare, cycles: r.cycles, confidence: r.confidence };
+    const sell = (h: Horizon) => projectPrice(a, h);
     const at = sell(horizon);
     return {
       ...r, sellShort: sell("short"), sellLong: sell("long"), sellAt: at,
@@ -63,7 +63,7 @@ export function BaroPicks({ rows }: { rows: BaroRow[] }) {
         </div>
         <input className="input" type="search" placeholder="Search Baro’s stock…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" />
         <p className="text-xs text-dim">
-          {horizon === "short" ? "Short: the price in the week after Baro leaves (days 3–8)." : "Long: the price two to four weeks out (days 14–28)."} Each is today’s market price × how much that item’s price has typically moved from Baro’s days to that window over his last visits. {sort === "ducats" ? "Value per ducat = platinum you’d get for every 100 ducats spent." : ""} Asking prices from online / in-game sellers only; not a guarantee.
+          {horizon === "short" ? "Short: the price in the week after Baro leaves (days 3–8)." : "Long: the price two to four weeks out (days 14–28)."} Each is the item’s usual price in the week before Baro arrived × how much it has typically been worth in that window after his last visits (so a price Baro has just pushed down doesn’t hide the rebound). {sort === "ducats" ? "Value per ducat = platinum you’d get for every 100 ducats spent." : ""} Asking prices from online / in-game sellers only; not a guarantee.
         </p>
         {pending > 0 && <p className="text-xs text-teal" role="status">Still working out {pending} item{pending === 1 ? "" : "s"} (live prices and 90-day history)…</p>}
       </section>
@@ -98,7 +98,7 @@ export function BaroPicks({ rows }: { rows: BaroRow[] }) {
                   <p className="text-sm text-dim">{r.credits != null ? r.credits.toLocaleString("en-US") : "—"} credits · {r.ducats ?? "—"} ducats</p>
                 </div>
                 <div className="text-right text-sm">
-                  {r.priceNow != null ? <p className="text-dim">now <span className="text-plat">{fmt(r.priceNow)}p</span>{r.listings < 3 ? " · thin market" : ""}</p> : <p className="text-dim">{r.ready ? "no online listings" : "pricing…"}</p>}
+                  {r.priceNow != null ? <p className="text-dim">now <span className="text-plat">{fmt(r.priceNow)}p</span>{r.listings < 3 ? " · thin market" : ""}{r.pre != null && <> · usual <span className="text-plat">{fmt(r.pre)}p</span></>}</p> : <p className="text-dim">{r.ready ? "no online listings" : "pricing…"}</p>}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
