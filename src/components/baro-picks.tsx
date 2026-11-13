@@ -188,7 +188,7 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
                 <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
                   <Bar label="Asking now" value={r.priceNow} max={max} tone="bg-orange" sub={r.priceNow == null ? (r.ready ? "no listings" : "pricing…") : r.listings < 3 ? "thin market" : "5 cheapest online"} />
                   <Bar label="Expected sell price" value={r.sellAt} max={max} tone="bg-ok" active sub={r.sellAt != null ? "sold the week before Baro" : "not enough visits"} />
-                  <div className="p-1.5"><p className="text-xs text-dim">vs asking now</p><p className={`h-display text-xl normal-case ${r.gain == null ? "text-dim" : r.gain >= MIN_GAIN ? "text-ok" : r.gain <= -MIN_GAIN ? "text-danger" : "text-ink"}`}>{r.gain == null ? "—" : `${r.gain > 0 ? "+" : ""}${Math.round(r.gain * 100)}%`}</p><p className="mt-1 h-4 text-xs text-dim">{r.sellAt != null && r.priceNow != null ? `${fmt(r.priceNow)}p → ${fmt(r.sellAt)}p` : ""}</p></div>
+                  <div className="p-1.5"><p className="text-xs text-dim">vs asking now</p><p className={`h-display text-xl normal-case ${r.gain == null ? "text-dim" : r.gain >= MIN_GAIN ? "text-ok" : r.gain <= -MIN_GAIN ? "text-danger" : "text-ink"}`}>{r.gain == null ? "—" : `${r.gain > 0 ? "+" : ""}${Math.round(r.gain * 100)}%`}</p><p className="mt-1 text-xs text-dim">{r.sellAt != null && r.priceNow != null ? `${fmt(r.priceNow)}p → ${fmt(r.sellAt)}p` : ""}</p></div>
                   <Recover rec={recovery[r.name] ?? null} horizon={horizon} />
                 </div>
 
@@ -283,11 +283,11 @@ function Recover({ rec, horizon }: { rec: Recovery | null; horizon: Horizon }) {
   const e = rec ? (horizon === "short" ? rec.within8 : rec.within28) : null;
   return (
     <div className="p-1.5">
-      <p className="text-xs text-dim">Back to usual in</p>
+      <p className="text-xs text-dim">Sold price back to usual in</p>
       {rec?.days != null ? (
         <>
-          <p className="h-display text-xl normal-case text-ink">{rec.days === 0 ? "no real dip" : <>~{rec.days}<span className="ml-0.5 text-sm font-normal text-dim"> days</span></>}</p>
-          <p className="mt-1 h-4 text-xs text-dim">{e && `${horizon === "short" ? "within a week" : "within a month"}: ${e.hits} of ${e.n} visits`}</p>
+          <p className="h-display text-xl normal-case text-ink">{rec.days === 0 ? "held steady" : <>~{rec.days}<span className="ml-0.5 text-sm font-normal text-dim"> days</span></>}</p>
+          <p className="mt-1 text-xs text-dim">{rec.days === 0 ? "past sales stayed near usual — it’s the asking prices that fall" : e ? `${horizon === "short" ? "within a week" : "within a month"}: ${e.hits} of ${e.n} visits` : ""}</p>
         </>
       ) : <p className="h-display text-xl text-dim">—</p>}
     </div>
