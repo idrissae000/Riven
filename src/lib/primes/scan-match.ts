@@ -59,22 +59,22 @@ export function matchRead(read: ReadItem[], parts: PrimePart[]): ScanMatch {
 }
 
 /**
- * Combines the results of several screenshots. Screenshots usually overlap (scrolling a list), so an item seen in more than
- * one is taken at its largest quantity rather than added up.
+ * Combines the results of several screenshots. Inventory screenshots usually overlap (scrolling a list), so with "max" an item seen
+ * in more than one is taken at its largest quantity. Mission-reward screenshots are each new loot, so with "sum" they add up.
  */
-export function mergeScans(scans: ScanMatch[]): ScanMatch {
+export function mergeScans(scans: ScanMatch[], how: "max" | "sum" = "max"): ScanMatch {
   const m = new Map<string, MatchedItem>();
   const un = new Map<string, ReadItem>();
   for (const s of scans) {
     for (const i of s.matched) {
       const have = m.get(i.slug);
       if (!have) m.set(i.slug, { ...i });
-      else { have.qty = Math.max(have.qty, i.qty); have.readAs ??= i.readAs; }
+      else { have.qty = how === "sum" ? Math.min(9999, have.qty + i.qty) : Math.max(have.qty, i.qty); have.readAs ??= i.readAs; }
     }
     for (const u of s.unmatched) {
       const k = norm(u.name);
       const have = un.get(k);
-      if (!have) un.set(k, { ...u }); else have.qty = Math.max(have.qty, u.qty);
+      if (!have) un.set(k, { ...u }); else have.qty = how === "sum" ? have.qty + u.qty : Math.max(have.qty, u.qty);
     }
   }
   return { matched: [...m.values()], unmatched: [...un.values()] };

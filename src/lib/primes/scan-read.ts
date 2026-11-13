@@ -38,9 +38,18 @@ List every distinct item you can read. For each give the full name exactly as pr
 
 const PLAIN = `\n\nReply with ONLY a JSON object, no prose: {"items": [{"name": string, "qty": integer}], "notes": string}.`;
 
-/** Reads the item names + counts off one inventory screenshot (a Claude vision call). */
-export async function readInventoryImage(bytes: Buffer, mediaType: AllowedType): Promise<{ items: ReadItem[]; notes: string }> {
-  const raw = (await askJson(makeClient(), toBlock(bytes, mediaType), PROMPT, SCHEMA, PLAIN, 12000)) as { items?: unknown; notes?: unknown };
+const REWARDS_PROMPT = `This is a screenshot (or phone photo) of a Warframe MISSION REWARDS screen — for example the end of a Void Cascade, a relic fissure run, or any mission-complete reward screen.
+
+List every Prime part, blueprint or set that was awarded. Rules:
+- Use the full name exactly as printed, e.g. "Frost Prime Chassis Blueprint" or "Lex Prime Barrel". Never shorten a name or invent one you can't read.
+- Each reward tile is one item: use qty 1 unless a count such as "x2" is shown on it.
+- Ignore everything that isn't a Prime part/blueprint/set: relics, Forma, Endo, Ayatan stars, credits, mods, resources, platinum, UI text.
+- If rewards for several squad members are shown, list all of them and say so in "notes" (the player will remove any that aren't theirs).
+- If a tile is cut off or unreadable, skip it and say so in "notes". If this is not a rewards screen, return no items and explain in "notes".`;
+
+/** Reads the item names + counts off one screenshot (a Claude vision call). "rewards" reads a mission-rewards screen; "inventory" an inventory/trade grid. */
+export async function readInventoryImage(bytes: Buffer, mediaType: AllowedType, mode: "inventory" | "rewards" = "inventory"): Promise<{ items: ReadItem[]; notes: string }> {
+  const raw = (await askJson(makeClient(), toBlock(bytes, mediaType), mode === "rewards" ? REWARDS_PROMPT : PROMPT, SCHEMA, PLAIN, 12000)) as { items?: unknown; notes?: unknown };
   const obj = typeof raw === "string" ? (extractJson(raw) as typeof raw) : raw;
   if (!obj || !Array.isArray(obj.items)) throw new ScanFailed("Couldn’t read any items from that image. Try a sharper, straight-on screenshot of your inventory.");
   const items = obj.items.flatMap((i): ReadItem[] => {

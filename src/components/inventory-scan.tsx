@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { Plat } from "@/components/brand";
+import { Segmented } from "@/components/segmented";
 import { ListOnMarket, sellKey } from "@/components/list-on-market";
 import { READ_EDGE, ScanImage } from "@/lib/image-prep";
 import { InventoryFilter } from "@/components/inventory-filter";
@@ -26,6 +27,7 @@ export function InventoryScan({ info, signedIn, sets, setPrices }: { info: Recor
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [listing, setListing] = useState(false);
+  const [mode, setMode] = useState<"inventory" | "rewards">("inventory");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<InvSort>("price");
   const nextId = useRef(1);
@@ -33,7 +35,7 @@ export function InventoryScan({ info, signedIn, sets, setPrices }: { info: Recor
 
   const names = useMemo(() => new Map(Object.entries(info).map(([slug, p]) => [p.name.toLowerCase(), slug])), [info]);
 
-  const merged = useMemo(() => mergeScans(shots.flatMap((s) => (s.result ? [s.result] : []))), [shots]);
+  const merged = useMemo(() => mergeScans(shots.flatMap((s) => (s.result ? [s.result] : [])), mode === "rewards" ? "sum" : "max"), [shots, mode]);
   const items: MatchedItem[] = useMemo(() => {
     const m = new Map<string, MatchedItem>();
     for (const i of merged.matched) m.set(i.slug, i);
@@ -60,6 +62,7 @@ export function InventoryScan({ info, signedIn, sets, setPrices }: { info: Recor
       const upload = img.isSmallPng ? file : await img.jpeg({ maxEdge: READ_EDGE });
       const body = new FormData();
       body.append("image", upload);
+      body.append("mode", mode);
       const res = await fetch("/api/primes/scan", { method: "POST", body });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) return patch({ state: "error", msg: json.error ?? (res.status === 413 ? "That image is too large." : "The scan didn’t work.") });
@@ -96,6 +99,8 @@ export function InventoryScan({ info, signedIn, sets, setPrices }: { info: Recor
     }
     setSaving(false);
     setSaveMsg(`Added ${ok} of ${value.rows.length} items to your inventory.`);
+    // a rewards run is finished once it's saved: reset so the next run's screenshots start clean (nothing to double-add)
+    if (mode === "rewards" && ok === value.rows.length) { setShots([]); setEdits({}); setAdded({}); setQ(""); }
   }
 
   const unmatched: ReadItem[] = merged.unmatched;
@@ -118,7 +123,7 @@ export function InventoryScan({ info, signedIn, sets, setPrices }: { info: Recor
         <div className="flex flex-col items-end gap-2">
           <div className="flex flex-wrap justify-end gap-2">
             {signedIn && value.rows.length > 0 && <button className="btn-primary" onClick={() => setListing(true)} disabled={busy}>List on Warframe Market</button>}
-            {signedIn && value.rows.length > 0 && <button className="btn" onClick={save} disabled={saving || busy}>{saving ? "Saving…" : "Add all to my inventory"}</button>}
+            {signedIn && value.rows.length > 0 && <button className="btn" onClick={save} disabled={saving || busy}>{saving ? "Saving…" : mode === "rewards" ? "Add these to my inventory" : "Add all to my inventory"}</button>}
             {hasAnything && <button className="btn-danger" onClick={clearAll}>Clear all</button>}
           </div>
           {saveMsg && <p className="text-xs text-dim">{saveMsg} <Link href="/inventory" className="text-gold underline">Open inventory</Link></p>}
@@ -136,12 +141,19 @@ export function InventoryScan({ info, signedIn, sets, setPrices }: { info: Recor
 
       <section className="card space-y-3">
         <h2 className="kicker">Your screenshots</h2>
+        <div className="space-y-1.5">
+          <Segmented<"inventory" | "rewards"> label="What are the screenshots of?" value={mode} onChange={(m) => { if (!shots.length) setMode(m); }} options={[{ value: "inventory", label: "My inventory" }, { value: "rewards", label: "Mission rewards" }]} />
+          <p className="text-xs text-dim">
+            {mode === "inventory" ? "Screenshots of your Prime parts list. Overlapping screenshots are fine — an item in two of them is counted once." : "Screenshots of a mission’s reward screen (Void Cascade, fissures…). Each screenshot is new loot, so they’re added up; save them to your inventory when you’re done."}
+            {shots.length > 0 && " Clear all to switch."}
+          </p>
+        </div>
         <div
           className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-line bg-void/40 p-6 text-center"
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => { e.preventDefault(); void attach(e.dataTransfer.files); }}
         >
-          <p className="text-sm text-ink">Drop screenshots of your Prime parts here</p>
+          <p className="text-sm text-ink">{mode === "rewards" ? "Drop your mission reward screenshots here" : "Drop screenshots of your Prime parts here"}</p>
           <p className="text-xs text-dim">Add as many as it takes to cover the whole list (up to {MAX_IMAGES}). Overlaps are fine — an item that shows up in two screenshots is counted once.</p>
           <button className="btn-primary" onClick={() => input.current?.click()} disabled={shots.length >= MAX_IMAGES}>Choose images</button>
           <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" multiple hidden onChange={(e) => { if (e.target.files) void attach(e.target.files); e.target.value = ""; }} />

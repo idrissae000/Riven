@@ -35,6 +35,14 @@ describe("mergeScans", () => {
   });
 });
 
+describe("mergeScans (mission rewards)", () => {
+  it("adds up what each screenshot dropped", () => {
+    const a = matchRead([{ name: "Lex Prime Barrel", qty: 1 }], parts);
+    const b = matchRead([{ name: "Lex Prime Barrel", qty: 2 }, { name: "Lex Prime Receiver", qty: 1 }], parts);
+    expect(mergeScans([a, b], "sum").matched.map((i) => [i.slug, i.qty])).toEqual([["lex_prime_barrel", 3], ["lex_prime_receiver", 1]]);
+  });
+});
+
 describe("valueScan", () => {
   const prices: Record<string, number> = { lex_prime_barrel: 5, lex_prime_receiver: 40 };
   const m = matchRead([{ name: "Lex Prime Barrel", qty: 20 }, { name: "Lex Prime Receiver", qty: 1 }, { name: "Frost Prime Chassis Blueprint", qty: 1 }], parts);
