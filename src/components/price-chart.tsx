@@ -12,7 +12,7 @@ const fmt = (n: number | null | undefined) => (n == null ? "—" : Number.isInte
 const dayLabel = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
 /** Interactive price history: real sales (average, low–high band, units sold) plus our own asking-price snapshots. Hover or tap for a day; click to pin it. */
-export function PriceChart({ slug, name, sales, asking }: { slug: string; name: string; sales: SalesDay[]; asking: AskingDay[] }) {
+export function PriceChart({ slug, name, sales, asking, bands = [] }: { slug: string; name: string; sales: SalesDay[]; asking: AskingDay[]; /** Shaded day ranges (inclusive, "YYYY-MM-DD"), e.g. Baro's visits */ bands?: { from: string; to: string; label?: string }[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(sales.length === 0);
   const [range, setRange] = useState<Range>(90);
@@ -106,6 +106,13 @@ export function PriceChart({ slug, name, sales, asking }: { slug: string; name: 
               <text x={PAD.l - 6} y={y(v) + 4} textAnchor="end" className="fill-current text-dim" fontSize="12">{fmt(v)}</text></g>
           ))}
           {xTicks.map((i) => <text key={i} x={Math.min(Math.max(xs[i], PAD.l + 18), W - PAD.r - 18)} y={H - 6} textAnchor="middle" className="fill-current text-dim" fontSize="12">{dayLabel(days[i].day)}</text>)}
+          {bands.map((b) => {
+            const half = (plotW / Math.max(1, days.length - 1)) / 2;
+            const t = (d: string) => Date.parse(d + "T00:00:00Z");
+            if (t(b.to) < t0 || t(b.from) > t1) return null;
+            const x0 = Math.max(PAD.l, x(Math.max(t(b.from), t0)) - half), x1 = Math.min(W - PAD.r, x(Math.min(t(b.to), t1)) + half);
+            return <g key={b.from}><rect x={x0} y={PAD.t} width={Math.max(2, x1 - x0)} height={plotH} className="fill-current text-gold" opacity="0.1" />{b.label && x1 - x0 > 20 && <text x={x0 + 3} y={PAD.t + 11} className="fill-current text-gold" fontSize="11">{b.label}</text>}</g>;
+          })}
           {show.volume && days.map((d) => d.volume ? <rect key={d.day} x={x(d.t) - Math.max(1, Math.min(6, plotW / days.length / 2 - 0.5))} width={Math.max(2, Math.min(12, plotW / days.length - 1))} y={volTop + VOL_H - (d.volume / maxVol) * VOL_H} height={(d.volume / maxVol) * VOL_H} className="fill-current text-teal" opacity="0.35" /> : null)}
           {show.band && bandD && <path d={bandD} className="fill-current text-plat" opacity="0.14" />}
           {show.asking && <path d={line((d) => d.asking)} fill="none" stroke="currentColor" className="text-teal" strokeWidth="2" strokeDasharray="5 4" strokeLinejoin="round" />}

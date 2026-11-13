@@ -1,19 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { IconArcane, IconInventory, IconLive, IconPrime, IconRiven, Wordmark } from "@/components/brand";
+import { IconArcane, IconBaro, IconInventory, IconLive, IconPrime, IconRiven, Wordmark } from "@/components/brand";
 
 const TABS = [
   { href: "/inventory", label: "Inventory", Icon: IconInventory },
   { href: "/rivens", label: "Rivens", Icon: IconRiven },
   { href: "/arcanes", label: "Arcanes", Icon: IconArcane },
   { href: "/primes", label: "Primes", Icon: IconPrime },
+  { href: "/baro", label: "Baro", Icon: IconBaro },
   { href: "/live", label: "Live", Icon: IconLive },
 ];
 
 export function Nav({ signedIn }: { signedIn: boolean }) {
   const path = usePathname();
+  // the bottom bar scrolls on narrow phones: keep the current tab in view
+  useEffect(() => { document.querySelector('[data-mobile-nav] [aria-current="page"]')?.scrollIntoView({ inline: "center", block: "nearest" }); }, [path]);
   const active = (href: string) => path === href || path.startsWith(href + "/");
   return (
     <>
@@ -50,13 +54,13 @@ export function Nav({ signedIn }: { signedIn: boolean }) {
       </aside>
 
       {/* Mobile: bottom tab bar */}
-      <nav style={{ gridTemplateColumns: `repeat(${TABS.length}, minmax(0, 1fr))` }} className="fixed inset-x-0 bottom-0 z-20 grid border-t border-line-2 bg-void/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <nav aria-label="Main" data-mobile-nav className="fixed inset-x-0 bottom-0 z-20 flex overflow-x-auto border-t border-line-2 bg-void/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         {TABS.map(({ href, label, Icon }) => (
           <Link
             key={href}
             href={href}
             aria-current={active(href) ? "page" : undefined}
-            className={`relative flex min-h-16 flex-col items-center justify-center gap-1 font-display text-xs font-semibold uppercase tracking-[0.1em] transition ${active(href) ? "text-gold" : "text-dim"}`}
+            className={`relative flex min-h-16 min-w-[4.4rem] flex-1 flex-col items-center justify-center gap-1 font-display text-xs font-semibold uppercase tracking-[0.1em] transition ${active(href) ? "text-gold" : "text-dim"}`}
           >
             {active(href) && <span className="absolute inset-x-5 top-0 h-[2px] bg-gold shadow-[0_0_10px_var(--color-gold)]" />}
             <Icon size={22} />

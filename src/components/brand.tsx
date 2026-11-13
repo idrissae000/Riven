@@ -69,6 +69,14 @@ export function IconLive({ size = 22 }: { size?: number }) {
     </svg>
   );
 }
+export function IconBaro({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+      <path d="M12 2.5 14.3 9.7 21.5 12 14.3 14.3 12 21.5 9.7 14.3 2.5 12 9.7 9.7 12 2.5Z" />
+      <circle cx="12" cy="12" r="1.6" />
+    </svg>
+  );
+}
 export function IconInventory({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>

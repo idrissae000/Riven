@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BaroPicks, type BaroRow } from "@/components/baro-picks";
+import type { SalesDay } from "@/lib/history-sales";
 import { Countdown } from "@/components/countdown";
 import { PageHeader } from "@/components/page-header";
 import { PriceRefresher } from "@/components/price-refresher";
@@ -17,6 +18,7 @@ export default async function BaroPage() {
 
   let rows: BaroRow[] = [];
   let due = 0;
+  const history: Record<string, SalesDay[]> = {};
   if (baro && here) {
     const sb = await createClient();
     const { data } = await sb.from("baro_items").select("name,ducats,credits,wfm_slug,price_now,pre_price,listings,ratio_short,ratio_long,dip_share,cycles,confidence,computed_at").eq("visit", new Date(baro.arrives).toISOString());
@@ -30,12 +32,19 @@ export default async function BaroPage() {
         cycles: Number(r?.cycles ?? 0), confidence: ((r?.confidence as Confidence | undefined) ?? "none"), ready: !!r?.computed_at,
       };
     });
+    // 100 days of daily sales for each tradable item (the table + chart in the details)
+    const slugs = rows.flatMap((r) => (r.slug ? [r.slug] : []));
+    if (slugs.length) {
+      const since = new Date(Date.parse(baro.arrives) - 100 * 86_400_000).toISOString().slice(0, 10);
+      const { data: sales } = await sb.from("sales_history").select("slug,day,avg_price,min_price,max_price,volume").in("slug", slugs).gte("day", since).order("day").limit(5000);
+      for (const s of (sales ?? []) as Record<string, unknown>[]) (history[s.slug as string] ??= []).push({ day: s.day as string, avg: Number(s.avg_price), min: s.min_price == null ? null : Number(s.min_price), max: s.max_price == null ? null : Number(s.max_price), volume: Number(s.volume ?? 0) });
+    }
     due = baroDue(baro.items, ((data ?? []) as { name: string; wfm_slug: string | null; computed_at: string | null }[]));
   }
 
   return (
     <div className="space-y-5">
-      <PageHeader kicker="Void Trader" title="Baro Ki’Teer picks">
+      <PageHeader kicker="Void Trader" title="Baro Ki’Teer">
         <Link href="/live" className="btn">Live world state</Link>
       </PageHeader>
       {!baro ? (
@@ -52,7 +61,7 @@ export default async function BaroPage() {
             <p className="text-xs text-dim">{rows.length} items · {rows.filter((r) => r.slug).length} tradable</p>
           </section>
           <PriceRefresher due={due} endpoint="/api/baro/refresh" />
-          <BaroPicks rows={rows} />
+          <BaroPicks rows={rows} history={history} arrival={baro.arrives} />
         </>
       )}
     </div>
