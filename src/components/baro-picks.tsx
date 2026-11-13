@@ -277,21 +277,21 @@ function Bar({ label, value, max, tone, sub, active = false }: { label: string; 
   );
 }
 
-/** How long the price takes to come back after Baro's dip: one number, plus how big and how steady the dip was. */
+/** How long the price takes to rise back after the drop while Baro is here: one number, plus how big and how steady the drop was. */
 function Recover({ dip }: { dip: DipRecovery | null }) {
   const steady = !!dip && dip.dipped >= 3 && dip.days != null;
   return (
     <div className="p-1.5">
-      <p className="text-xs text-dim">Back to usual after he leaves</p>
+      <p className="text-xs text-dim">Price rises back after he leaves</p>
       {steady && dip ? (
         <>
           <p className="h-display text-xl normal-case text-ink">~{dip.days}<span className="ml-0.5 text-sm font-normal text-dim"> day{dip.days === 1 ? "" : "s"}</span></p>
-          <p className="mt-1 text-xs text-dim">cheapest trades dipped ~{Math.round((dip.depth ?? 0) * 100)}% in {dip.dipped} of {dip.n} visits</p>
+          <p className="mt-1 text-xs text-dim">it drops ~{Math.round((dip.depth ?? 0) * 100)}% while Baro’s here ({dip.dipped} of {dip.n} visits), then climbs back</p>
         </>
       ) : dip && dip.n >= 4 ? (
         <>
-          <p className="h-display text-xl normal-case text-dim">no steady dip</p>
-          <p className="mt-1 text-xs text-dim">cheapest trades fell in only {dip.dipped} of {dip.n} visits</p>
+          <p className="h-display text-xl normal-case text-dim">no steady drop</p>
+          <p className="mt-1 text-xs text-dim">the cheapest trades only dropped in {dip.dipped} of {dip.n} visits</p>
         </>
       ) : <p className="h-display text-xl text-dim">—</p>}
     </div>
