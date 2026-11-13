@@ -66,7 +66,7 @@ export function LiveView({ ws }: { ws: WorldState }) {
           <div className="grid gap-5 md:grid-cols-2">
             {ws.baro && (
               <section className="card space-y-2">
-                <div className="flex items-baseline justify-between gap-3"><h2 className="kicker">Baro Ki’Teer</h2><span className="text-xs text-dim">{baroSoon ? <>arrives in <Countdown to={ws.baro.arrives} /></> : <>leaves in <Countdown to={ws.baro.leaves} /></>}</span></div>
+                <div className="flex items-baseline justify-between gap-3"><h2 className="kicker">Baro Ki’Teer <a href="/baro" className="ml-2 normal-case tracking-normal text-teal hover:underline">price picks →</a></h2><span className="text-xs text-dim">{baroSoon ? <>arrives in <Countdown to={ws.baro.arrives} /></> : <>leaves in <Countdown to={ws.baro.leaves} /></>}</span></div>
                 <p className="text-sm"><b>{ws.baro.location}</b></p>
                 {ws.baro.items.length > 0 ? (
                   <ul className="max-h-64 space-y-1 overflow-y-auto font-mono text-xs">

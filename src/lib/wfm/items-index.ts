@@ -21,3 +21,13 @@ export async function itemIndex(): Promise<Map<string, ItemInfo>> {
   })().finally(() => { loading = null; });
   return loading;
 }
+
+let names: { from: Map<string, ItemInfo>; map: Map<string, ItemInfo> } | null = null;
+
+/** Finds the Warframe Market item for a name as Baro (or the game) spells it; tries the plain name, then without a trailing " Blueprint". */
+export async function itemByName(name: string): Promise<ItemInfo | null> {
+  const byId = await itemIndex();
+  if (!names || names.from !== byId) names = { from: byId, map: new Map([...byId.values()].map((i) => [i.name.toLowerCase(), i])) };
+  const n = name.trim().toLowerCase();
+  return names.map.get(n) ?? names.map.get(n.replace(/ blueprint$/, "")) ?? null;
+}

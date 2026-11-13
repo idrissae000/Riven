@@ -20,7 +20,8 @@ const TOOLS = [
   { href: "/rivens/new", title: "Check a riven", body: "A grade for every roll and what comparable rivens are really listed for. No account needed." },
   { href: "/arcanes", title: "Arcane prices", body: "Live prices from online sellers, 90-day charts, and which Vosfor packs are worth opening." },
   { href: "/primes", title: "Prime parts & relics", body: "The most valuable parts, the best relics to run, and sets that sell for more than their parts." },
-  { href: "/live", title: "Live world state", body: "Fissures split into normal, Steel Path and Railjack, plus cycles, invasions and Baro." },
+  { href: "/baro", title: "Baro Ki’Teer picks", body: "What Baro is selling, what it costs, and which items have historically rebounded after his visits — to hold for a week or for a month." },
+  { href: "/live", title: "Live world state", body: "Fissures split into normal, Steel Path and Railjack, plus cycles, invasions and what’s on." },
 ];
 
 /** The home page: what the site does, today's best platinum moves from live data, and (signed in) a snapshot of your own stuff. */
