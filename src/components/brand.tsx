@@ -97,6 +97,16 @@ export function IconBaro({ size = 22 }: { size?: number }) {
   );
 }
 
+export function IconVarzia({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+      <rect x="3.2" y="3.2" width="17.6" height="17.6" rx="3" />
+      <circle cx="12" cy="12" r="5" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <path d="M12 7v2.2M12 14.8V17M7 12h2.2M14.8 12H17" />
+    </svg>
+  );
+}
 export function IconInventory({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>

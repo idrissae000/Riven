@@ -9,6 +9,9 @@ export interface Cycle { id: string; name: string; state: string; expiry: string
 export interface Fissure { id: string; node: string; planet: string; missionType: string; tier: string; tierNum: number; enemy: string; expiry: string; steelPath: boolean; storm: boolean }
 export interface BaroItem { item: string; ducats: number | null; credits: number | null }
 export interface Baro { location: string; arrives: string; leaves: string; items: BaroItem[] }
+/** Varzia's Prime Resurgence: `regal` / `aya` are the two cost fields the feed gives (it files them as "ducats" / "credits"). */
+export interface VarziaItem { item: string; regal: number | null; aya: number | null }
+export interface Varzia { location: string; activation: string; expiry: string; items: VarziaItem[] }
 export interface MissionLine { node: string; type: string; modifier: string | null }
 export interface Teshin { current: { name: string; cost: number } | null; expiry: string | null; rotation: { name: string; cost: number }[] }
 export interface Invasion { id: string; node: string; title: string; attacker: { faction: string; reward: string | null }; defender: { faction: string; reward: string | null }; completion: number }
@@ -22,6 +25,7 @@ export interface WorldState {
   duviri: { expiry: string; choices: DuviriChoices[] } | null;
   fissures: Fissure[];
   baro: Baro | null;
+  varzia: Varzia | null;
   sortie: { expiry: string; missions: MissionLine[] } | null;
   archon: { expiry: string; missions: MissionLine[] } | null;
   teshin: Teshin | null;
@@ -78,6 +82,11 @@ export function normalizeWorldState(raw: Raw, now: number = Date.now()): WorldSt
     ? { location: str(vt.location), arrives: str(vt.activation), leaves: str(vt.expiry), items: arr(vt.inventory).map((i) => ({ item: str(i.item), ducats: num(i.ducats), credits: num(i.credits) })) }
     : null;
 
+  const vz = raw.vaultTrader;
+  const varzia: Varzia | null = vz && future(vz.expiry, now)
+    ? { location: str(vz.location), activation: str(vz.activation), expiry: str(vz.expiry), items: arr(vz.inventory).map((i) => ({ item: str(i.item), regal: num(i.ducats), aya: num(i.credits) })) }
+    : null;
+
   const missions = (src: Raw | undefined, key: "variants" | "missions") =>
     src && future(src.expiry, now) ? { expiry: str(src.expiry), missions: arr(src[key]).map(mission) } : null;
   const sortie = missions(raw.sortie, "variants");
@@ -105,7 +114,7 @@ export function normalizeWorldState(raw: Raw, now: number = Date.now()): WorldSt
     ? { season: num(nw.season) ?? 0, challenges: arr(nw.activeChallenges).filter((c) => future(c.expiry, now)).map((c): NightwaveChallenge => ({ id: str(c.id), title: str(c.title), desc: str(c.desc), reputation: num(c.reputation) ?? 0, daily: !!c.isDaily, elite: !!c.isElite, expiry: str(c.expiry) })) }
     : null;
 
-  return { fetchedAt: new Date(now).toISOString(), cycles, duviri, fissures, baro, sortie, archon, teshin, invasions, darvo, nightwave };
+  return { fetchedAt: new Date(now).toISOString(), cycles, duviri, fissures, baro, varzia, sortie, archon, teshin, invasions, darvo, nightwave };
 }
 
 let cache: { at: number; value: WorldState } | null = null;

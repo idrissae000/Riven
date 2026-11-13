@@ -21,6 +21,7 @@ const TOOLS = [
   { href: "/arcanes", title: "Arcane prices", body: "Live prices from online sellers, 90-day charts, and which Vosfor packs are worth opening." },
   { href: "/primes", title: "Prime parts & relics", body: "The most valuable parts, the best relics to run, and sets that sell for more than their parts." },
   { href: "/baro", title: "Baro Ki’Teer picks", body: "What Baro is selling, what it costs, and which items have historically rebounded after his visits — to hold for a week or for a month." },
+  { href: "/varzia", title: "Varzia — Prime Resurgence", body: "Her Prime sets, what they cost in Regal Aya, what they sell for, and how their prices moved since her rotation began." },
   { href: "/live", title: "Live world state", body: "Fissures split into normal, Steel Path and Railjack, plus cycles, invasions and what’s on." },
 ];
 
