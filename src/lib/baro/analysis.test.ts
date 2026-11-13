@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyseBaro, backed, recoveryDays, baroTip, cycleStats, platPer100Ducats, projectPrice } from "./analysis";
+import { analyseBaro, backed, dipRecovery, baroTip, cycleStats, platPer100Ducats, projectPrice } from "./analysis";
 
 const DAY = 86_400_000;
 const ARRIVAL = "2026-11-13T14:00:00.000Z";
@@ -49,17 +49,17 @@ describe("Baro analysis", () => {
     expect(analyseBaro([], ARRIVAL)).toMatchObject({ pre: null, cycles: 0, ratioShort: null, ratioLong: null, shortN: 0, dipShare: null, confidence: "none" });
     expect(cycleStats([], ARRIVAL)).toHaveLength(6);
   });
-  it("counts the days it took to get back to the usual price", () => {
-    // the price is 20% down on the 3 Baro days of each cycle, then back on day 3
-    const r = recoveryDays(history(100, 0.8), ARRIVAL);
-    expect(r.days).toBe(3);
-    expect(r.within8.hits).toBe(r.within8.n);
-    expect(r.within28.hits).toBe(r.within28.n);
-    // a price that never dipped is "back" on day 0
-    expect(recoveryDays(history(100, 1), ARRIVAL).days).toBe(0);
-    // too few visits of records -> no number
-    expect(recoveryDays(history(100, 0.8).slice(-30), ARRIVAL).days).toBeNull();
-    expect(recoveryDays([], ARRIVAL)).toMatchObject({ days: null, within8: { hits: 0, n: 0 } });
+  it("measures how long the cheapest trades take to come back after Baro's dip", () => {
+    // lows are 40, but 30 on Baro's three days of every cycle (a 25% dip), back on day 3
+    const sales = history(40, 0.75).map((h) => ({ day: h.day, min: h.price, avg: h.price + 2 }));
+    const r = dipRecovery(sales, ARRIVAL);
+    expect(r.n).toBeGreaterThanOrEqual(4);
+    expect(r).toMatchObject({ dipped: r.n, depth: 0.25, days: 1 }); // 1 day after he left (day 3 - 2)
+  });
+  it("reports no dip when the lows never fall", () => {
+    const r = dipRecovery(history(40, 1).map((h) => ({ day: h.day, min: h.price, avg: h.price })), ARRIVAL);
+    expect(r).toMatchObject({ dipped: 0, depth: null, days: null });
+    expect(dipRecovery([], ARRIVAL)).toEqual({ n: 0, dipped: 0, depth: null, days: null });
   });
   it("platinum per 100 ducats", () => {
     expect(platPer100Ducats(40, 350)).toBe(11.4);

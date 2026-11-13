@@ -86,36 +86,52 @@ export function analyseBaro(history: DayPrice[], arrival: string, cycles = 6): B
   return { pre: pre == null ? null : Math.round(pre * 10) / 10, cycles: n, ratioShort: sh.ratio, ratioLong: lg.ratio, shortHits: sh.hits, shortN: sh.n, longHits: lg.hits, longN: lg.n, dipShare: dipShare == null ? null : Math.round(dipShare * 100) / 100, confidence };
 }
 
-export interface Recovery {
-  /** Typical (median) number of days after Baro arrived until the daily price was back to ≥ 95% of that visit's pre-arrival price. 0 = it barely dipped. Null without at least MIN_VISITS visits of records. */
+export interface DipRecovery {
+  /** Past visits judged (they had a pre-arrival low and recorded trades while Baro was here). */
+  n: number;
+  /** In how many of them the cheapest trades fell at least 8% below their usual lows while Baro was here. */
+  dipped: number;
+  /** Typical (median) size of that dip, as a fraction (0.11 = 11% lower). */
+  depth: number | null;
+  /** Typical days AFTER BARO LEFT until the cheapest trades were back to ≥ 95% of their usual level. Null unless at least 3 dipped visits had a result. */
   days: number | null;
-  /** Visits that were back to usual within 8 days / within 28 days, of the visits that could be judged. */
-  within8: { hits: number; n: number };
-  within28: { hits: number; n: number };
 }
 
+interface LowDay { day: string; min: number | null; avg: number }
+
 /**
- * How long past visits took to get back to the usual price. For each past visit: the first day (0–28) whose price paid was at least
- * 95% of its own pre-arrival price. A visit whose 28 days weren't fully recorded yet is only counted if it had already recovered.
+ * How long it takes the price to come back after Baro's dip, measured on the lowest price paid each day (the cheap listings are what
+ * Baro's flood pushes down; the daily AVERAGE price barely moves, which is why that measure shows no dip). For each past visit:
+ * the usual low = median daily low over the 7 days before he arrived; the dip = his lowest day-low during days 0–2 being ≥ 8% under it;
+ * the recovery = the first day from day 3 on when the 2-day median low is back to ≥ 95% of the usual low (counted in days after he left,
+ * i.e. day − 2). A visit whose month isn't fully recorded yet only counts if it had already recovered.
  */
-export function recoveryDays(history: DayPrice[], arrival: string, cycles = 6): Recovery {
-  const byDay = new Map(history.map((h) => [dayStart(h.day), h.price]));
-  const last = Math.max(0, ...history.map((h) => dayStart(h.day)));
-  const days: number[] = [];
-  for (const c of cycleStats(history, arrival, cycles)) {
-    if (c.pre == null || c.pre <= 0) continue;
-    const start = Date.parse(c.arrival + "T00:00:00Z");
+export function dipRecovery(sales: LowDay[], arrival: string, cycles = 6): DipRecovery {
+  const low = new Map(sales.map((x) => [dayStart(x.day), x.min ?? x.avg]));
+  const last = Math.max(0, ...sales.map((x) => dayStart(x.day)));
+  const a0 = dayStart(arrival);
+  const at = (start: number, d: number) => low.get(start + d * DAY);
+  let n = 0, dipped = 0;
+  const depths: number[] = [], days: number[] = [];
+  for (let i = 0; i < cycles; i++) {
+    const start = a0 - CYCLE_DAYS * (i + 1) * DAY;
+    const pre = [-7, -6, -5, -4, -3, -2, -1].map((d) => at(start, d)).filter((v): v is number => v != null);
+    const dur = [0, 1, 2].map((d) => at(start, d)).filter((v): v is number => v != null);
+    if (pre.length < 3 || !dur.length) continue;
+    const preLow = median(pre) as number, durLow = Math.min(...dur);
+    n++;
+    if (preLow <= 0 || durLow >= preLow * 0.92) continue;
+    dipped++;
+    depths.push(1 - durLow / preLow);
     let found: number | null = null;
-    for (let d = 0; d <= 28; d++) { const v = byDay.get(start + d * DAY); if (v != null && v >= c.pre * BACK_TO_USUAL) { found = d; break; } }
+    for (let d = 3; d <= 28 && found == null; d++) {
+      const w = [at(start, d), at(start, d + 1)].filter((v): v is number => v != null);
+      if (w.length && (median(w) as number) >= preLow * BACK_TO_USUAL) found = d - 2;
+    }
     if (found != null) days.push(found);
-    else if (start + 28 * DAY <= last) days.push(29); // the whole month is recorded and it never got back
+    else if (start + 28 * DAY <= last) days.push(27); // the whole month is recorded and it never got back
   }
-  const n = days.length;
-  return {
-    days: n >= MIN_VISITS ? Math.round(median(days) as number) : null,
-    within8: { hits: days.filter((d) => d <= 8).length, n },
-    within28: { hits: days.filter((d) => d <= 28).length, n },
-  };
+  return { n, dipped, depth: depths.length ? Math.round((median(depths) as number) * 100) / 100 : null, days: days.length >= 3 ? Math.round(median(days) as number) : null };
 }
 
 export type Horizon = "short" | "long";
@@ -150,6 +166,5 @@ export function baroTip(priceNow: number | null, a: BaroAnalysis): string {
   if (s || l) parts.push(`On Baro’s previous visits the price was ${[s, l].filter(Boolean).join(" and ")}.`);
   else parts.push("There aren’t enough past visits with sales to say how it recovers.");
   if (a.confidence === "weak" || a.confidence === "none") parts.push("Very little history — treat as a guess.");
-  else if (a.dipShare != null && a.dipShare < 0.5) parts.push("Its price doesn’t reliably dip while Baro is here, so a discount now may not be Baro’s doing.");
   return parts.join(" ");
 }

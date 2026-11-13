@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Plat } from "@/components/brand";
 import { PriceChart } from "@/components/price-chart";
 import { Segmented } from "@/components/segmented";
-import { backed, baroTip, cycleStats, evidence, platPer100Ducats, projectPrice, recoveryDays, type Confidence, type Horizon, type Recovery } from "@/lib/baro/analysis";
+import { backed, baroTip, cycleStats, evidence, platPer100Ducats, projectPrice, dipRecovery, type Confidence, type Horizon, type DipRecovery } from "@/lib/baro/analysis";
 import { bestBasket } from "@/lib/baro/basket";
 import type { SalesDay } from "@/lib/history-sales";
 
@@ -45,10 +45,10 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
   const [ducats, setDucats] = useState("");
   const [credits, setCredits] = useState("");
 
-  // How long past visits took to get back to the usual price — straight from the sales records.
+  // How far the cheapest trades dipped on past visits and how long they took to come back — straight from the sales records.
   const recovery = useMemo(() => {
-    const out: Record<string, Recovery> = {};
-    for (const r of rows) if (r.slug) out[r.name] = recoveryDays((history[r.slug] ?? []).map((h) => ({ day: h.day, price: h.avg })), arrival);
+    const out: Record<string, DipRecovery> = {};
+    for (const r of rows) if (r.slug) out[r.name] = dipRecovery((history[r.slug] ?? []).map((h) => ({ day: h.day, min: h.min, avg: h.avg })), arrival);
     return out;
   }, [rows, history, arrival]);
 
@@ -189,14 +189,13 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
                   <Bar label="Asking now" value={r.priceNow} max={max} tone="bg-orange" sub={r.priceNow == null ? (r.ready ? "no listings" : "pricing…") : r.listings < 3 ? "thin market" : "5 cheapest online"} />
                   <Bar label="Expected sell price" value={r.sellAt} max={max} tone="bg-ok" active sub={r.sellAt != null ? "sold the week before Baro" : "not enough visits"} />
                   <div className="p-1.5"><p className="text-xs text-dim">vs asking now</p><p className={`h-display text-xl normal-case ${r.gain == null ? "text-dim" : r.gain >= MIN_GAIN ? "text-ok" : r.gain <= -MIN_GAIN ? "text-danger" : "text-ink"}`}>{r.gain == null ? "—" : `${r.gain > 0 ? "+" : ""}${Math.round(r.gain * 100)}%`}</p><p className="mt-1 text-xs text-dim">{r.sellAt != null && r.priceNow != null ? `${fmt(r.priceNow)}p → ${fmt(r.sellAt)}p` : ""}</p></div>
-                  <Recover rec={recovery[r.name] ?? null} horizon={horizon} />
+                  <Recover dip={recovery[r.name] ?? null} />
                 </div>
 
                 <p className="text-sm leading-relaxed text-dim">{r.tip}</p>
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                   <span className="flex flex-wrap items-center gap-2">
                     <span className={`chip ${CONF[r.confidence].cls}`}>{CONF[r.confidence].label}{r.cycles > 0 && ` · ${r.cycles} visits`}</span>
-                    {r.dipShare != null && <span className="chip">dipped in {Math.round(r.dipShare * 100)}% of visits</span>}
                   </span>
                   <span className="flex items-center gap-3">
                     {r.slug && <a className="text-dim hover:text-teal" href={`https://warframe.market/items/${r.slug}`} target="_blank" rel="noopener noreferrer">warframe.market ↗</a>}
@@ -278,16 +277,21 @@ function Bar({ label, value, max, tone, sub, active = false }: { label: string; 
   );
 }
 
-/** How long past visits took to get back to the usual price: one number, with how often it made it within a week and within a month. */
-function Recover({ rec, horizon }: { rec: Recovery | null; horizon: Horizon }) {
-  const e = rec ? (horizon === "short" ? rec.within8 : rec.within28) : null;
+/** How long the price takes to come back after Baro's dip: one number, plus how big and how steady the dip was. */
+function Recover({ dip }: { dip: DipRecovery | null }) {
+  const steady = !!dip && dip.dipped >= 3 && dip.days != null;
   return (
     <div className="p-1.5">
-      <p className="text-xs text-dim">Sold price back to usual in</p>
-      {rec?.days != null ? (
+      <p className="text-xs text-dim">Back to usual after he leaves</p>
+      {steady && dip ? (
         <>
-          <p className="h-display text-xl normal-case text-ink">{rec.days === 0 ? "held steady" : <>~{rec.days}<span className="ml-0.5 text-sm font-normal text-dim"> days</span></>}</p>
-          <p className="mt-1 text-xs text-dim">{rec.days === 0 ? "past sales stayed near usual — it’s the asking prices that fall" : e ? `${horizon === "short" ? "within a week" : "within a month"}: ${e.hits} of ${e.n} visits` : ""}</p>
+          <p className="h-display text-xl normal-case text-ink">~{dip.days}<span className="ml-0.5 text-sm font-normal text-dim"> day{dip.days === 1 ? "" : "s"}</span></p>
+          <p className="mt-1 text-xs text-dim">cheapest trades dipped ~{Math.round((dip.depth ?? 0) * 100)}% in {dip.dipped} of {dip.n} visits</p>
+        </>
+      ) : dip && dip.n >= 4 ? (
+        <>
+          <p className="h-display text-xl normal-case text-dim">no steady dip</p>
+          <p className="mt-1 text-xs text-dim">cheapest trades fell in only {dip.dipped} of {dip.n} visits</p>
         </>
       ) : <p className="h-display text-xl text-dim">—</p>}
     </div>
