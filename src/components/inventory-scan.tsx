@@ -9,6 +9,7 @@ import { READ_EDGE, ScanImage } from "@/lib/image-prep";
 import { InventoryFilter } from "@/components/inventory-filter";
 import { browseRows, type InvSort } from "@/lib/inventory/browse";
 import type { SetDef } from "@/lib/primes/combine-sets";
+import { DucatList } from "@/components/ducat-list";
 import { ducatVerdict } from "@/lib/primes/ducats";
 import { mergeScans, valueScan, type MatchedItem, type ReadItem, type ScanMatch } from "@/lib/primes/scan-match";
 
@@ -65,14 +66,6 @@ export function InventoryScan({ kind = "prime", info, signedIn, sets, setPrices 
     return { items: list, srcOf: src };
   }, [merged, added, edits, rankOverride, info]);
   const value = useMemo(() => valueScan(items, (slug, rank) => (rank > 0 ? info[slug]?.priceMax : info[slug]?.price) ?? null, (slug) => (arcane ? null : info[slug]?.ducats ?? null)), [items, info, arcane]);
-  const plan = useMemo(() => {
-    let ducatParts = 0, ducats = 0, sellPlat = 0;
-    for (const r of value.rows) {
-      if (ducatVerdict(r.unit, r.ducats) === "ducat") { ducatParts += r.qty; ducats += r.qty * (r.ducats ?? 0); }
-      else if (r.total != null) sellPlat += r.total;
-    }
-    return { ducatParts, ducats, sellPlat: Math.round(sellPlat * 10) / 10 };
-  }, [value]);
   const busy = shots.some((s) => s.state === "reading" || s.state === "queued");
 
   async function readOne(id: number, file: File) {
@@ -157,11 +150,7 @@ export function InventoryScan({ kind = "prime", info, signedIn, sets, setPrices 
 
       {listing && signedIn && <ListOnMarket sets={arcane ? [] : sets} setPrices={setPrices} rows={value.rows.map((r) => ({ key: sellKey(kind, r.slug, r.rank), kind, slug: r.slug, rank: r.rank, name: r.rank > 0 ? `${r.name} (max rank)` : r.name, qty: r.qty, unit: r.unit, ducats: r.ducats }))} onClose={() => setListing(false)} />}
 
-      {!arcane && plan.ducatParts > 0 && (
-        <section className="card text-sm text-dim">
-          <p><span className="font-semibold text-ink">Plan:</span> sell the rest for <span className="text-plat">≈ {fmt(plan.sellPlat)}p</span>, and take <span className="font-semibold text-violet">{plan.ducatParts} cheap parts to Baro for {plan.ducats} ducats</span> — they’re worth more as ducats (10+ ducats per platinum) than as platinum.</p>
-        </section>
-      )}
+      {!arcane && value.rows.length > 0 && <DucatList rows={value.rows.map((r) => ({ name: r.name, qty: r.qty, unit: r.unit, ducats: r.ducats }))} />}
 
       <section className="card space-y-3">
         <h2 className="kicker">Your screenshots</h2>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plat } from "@/components/brand";
 import type { SetDef } from "@/lib/primes/combine-sets";
 import { ListOnMarket, sellKey, type SellRow } from "@/components/list-on-market";
+import { DucatList } from "@/components/ducat-list";
 import { InventoryFilter } from "@/components/inventory-filter";
 import { browseRows, type InvSort } from "@/lib/inventory/browse";
 import type { SetAdvice, ValuedRow } from "@/lib/inventory/value";
@@ -71,6 +72,8 @@ export function InventoryManager({ options, rows, total, priced, advice, sets, s
           </div>
         )}
       </section>
+
+      <DucatList rows={rows.filter((r) => r.kind === "prime").map((r) => ({ name: r.name, qty: r.qty, unit: r.unit, ducats: r.ducatsTotal != null ? r.ducatsTotal / r.qty : null }))} />
 
       {listAll && <ListOnMarket sets={sets} setPrices={setPrices} rows={allSellRows} title="List your inventory on Warframe Market" onClose={() => setListAll(false)} />}
 
