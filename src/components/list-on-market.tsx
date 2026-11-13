@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+
+const MIN_KEY = "riven-list-min-price";
 import { Plat } from "@/components/brand";
 import { WfmConnect, useWfmStatus } from "@/components/wfm-connect";
 import { ducatVerdict } from "@/lib/primes/ducats";
@@ -18,6 +20,9 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
   const { status, refresh } = useWfmStatus();
   const [strategy, setStrategy] = useState<PriceStrategy>("market");
   const [skipDucat, setSkipDucat] = useState(true);
+  // only list parts priced at or above this (platinum each); blank = no minimum. Remembered between visits (this panel only mounts in the browser, after a click).
+  const [minPrice, setMinPriceState] = useState(() => { try { return localStorage.getItem(MIN_KEY) ?? ""; } catch { return ""; } });
+  const setMinPrice = (v: string) => { setMinPriceState(v); try { localStorage.setItem(MIN_KEY, v); } catch { /* ignore */ } };
   const [listings, setListings] = useState<Record<string, Fetched>>({});
   const [price, setPrice] = useState<Record<string, string>>({}); // user-typed prices (win over the strategy)
   const [qty, setQty] = useState<Record<string, number>>({});
@@ -53,7 +58,9 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
   const auto = (r: SellRow) => { const l = listings[r.slug]; return Array.isArray(l) ? autoPrice(l, strategy) : null; };
   const priceFor = (r: SellRow) => (price[r.slug] !== undefined ? Number(price[r.slug]) : auto(r));
   const qtyFor = (r: SellRow) => qty[r.slug] ?? r.qty;
-  const included = (r: SellRow) => !off[r.slug] && !skipped(r);
+  const min = Number(minPrice) > 0 ? Number(minPrice) : 0;
+  const belowMin = (r: SellRow) => { const p = priceFor(r); return min > 0 && p != null && p < min; };
+  const included = (r: SellRow) => !off[r.slug] && !skipped(r) && !belowMin(r);
 
   const plan = useMemo(() => {
     let n = 0, total = 0;
@@ -63,7 +70,7 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
     }
     return { n, total };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- priceFor/qtyFor/included read these same inputs
-  }, [rows, listings, strategy, price, qty, off, skipDucat]);
+  }, [rows, listings, strategy, price, qty, off, skipDucat, min]);
 
   async function send(items: { row: SellRow; platinum: number }[]) {
     setBusy(true); setMsg(null);
@@ -123,6 +130,11 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
             </div>
             <label className="flex items-center gap-2 text-sm text-dim"><input type="checkbox" checked={skipDucat} onChange={(e) => setSkipDucat(e.target.checked)} /> Skip parts better as ducats</label>
           </div>
+          <div className="max-w-xs">
+            <label className="label" htmlFor="min-price">Only list parts worth at least (platinum each)</label>
+            <input id="min-price" className="input" type="number" min={0} inputMode="numeric" placeholder="No minimum" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
+            <p className="mt-1 text-xs text-dim">Parts priced below this stay off Warframe Market. It applies to the price each part would be listed at, in both list buttons.{min > 0 && ` ${rows.filter((r) => belowMin(r)).length} part(s) are below ${min}p right now.`}</p>
+          </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button className="btn-primary" onClick={() => listPlanned(true)} disabled={busy || loadingCount === rows.length}>
@@ -141,13 +153,15 @@ export function ListOnMarket({ rows, onClose }: { rows: SellRow[]; onClose: () =
           const p = priceFor(r);
           const o = out[r.slug];
           const skip = skipped(r);
+          const low = belowMin(r);
           return (
-            <li key={r.slug} className={`space-y-2 py-3 ${skip || off[r.slug] ? "opacity-60" : ""}`}>
+            <li key={r.slug} className={`space-y-2 py-3 ${skip || low || off[r.slug] ? "opacity-60" : ""}`}>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <label className="flex min-w-0 items-center gap-2">
-                  <input type="checkbox" checked={!off[r.slug] && !skip} disabled={skip || o?.ok} onChange={(e) => setOff((x) => ({ ...x, [r.slug]: !e.target.checked }))} aria-label={`Include ${r.name}`} />
+                  <input type="checkbox" checked={!off[r.slug] && !skip && !low} disabled={skip || low || o?.ok} onChange={(e) => setOff((x) => ({ ...x, [r.slug]: !e.target.checked }))} aria-label={`Include ${r.name}`} />
                   <span className="min-w-0 truncate text-sm text-ink">{r.name}</span>
                   {skip && <span className="shrink-0 text-xs font-semibold text-violet">ducat it</span>}
+                  {!skip && low && <span className="shrink-0 text-xs font-semibold text-orange">below {min}p</span>}
                 </label>
                 <div className="flex items-center gap-2 text-sm">
                   <span className="text-dim">×</span>
