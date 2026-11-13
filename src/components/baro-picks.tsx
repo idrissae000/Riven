@@ -66,6 +66,9 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
   const needle = q.trim().toLowerCase();
   const key = (r: (typeof enriched)[number]) => (sort === "price" ? r.sellAt : sort === "ducats" ? r.per100 : r.gain);
   const list = tradable.filter((r) => !needle || r.name.toLowerCase().includes(needle)).sort((a, b) => (key(b) ?? -Infinity) - (key(a) ?? -Infinity) || a.name.localeCompare(b.name));
+  // best use of ducats, whatever the filters say: platinum back per 100 ducats at the expected (usual) sell price
+  const byDucats = tradable.filter((r) => r.per100 != null && r.ducats).sort((a, b) => (b.per100 as number) - (a.per100 as number)).slice(0, 8);
+  const topPer100 = byDucats[0]?.per100 ?? 1;
   const picks = list.filter((r) => r.verdict === "buy").slice(0, 3);
   const pending = tradable.filter((r) => !r.ready).length;
   const discounted = tradable.filter((r) => r.pre != null && r.priceNow != null && r.priceNow <= r.pre * 0.85).length;
@@ -137,6 +140,29 @@ export function BaroPicks({ rows, history, arrival }: { rows: BaroRow[]; history
               </li>
             ))}
           </ol>
+        )}
+      </section>
+
+      {/* best ducat value */}
+      <section className="space-y-3">
+        <h2 className="kicker">Best value for your ducats</h2>
+        {byDucats.length === 0 ? (
+          <p className="card text-sm text-dim">{pending > 0 ? "Working these out…" : "Not enough sales records to rank the items yet."}</p>
+        ) : (
+          <div className="card space-y-3">
+            <ol className="space-y-2">
+              {byDucats.map((r, i) => (
+                <li key={r.name} className="space-y-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                    <p className="text-sm text-ink"><span className="mr-2 font-mono text-dim">{i + 1}</span>{r.name}</p>
+                    <p className="text-sm text-dim"><span className="h-display normal-case text-plat">{fmt(r.per100 as number)}p</span> per 100 ducats · {r.ducats} ducats → ≈ {fmt(r.sellAt as number)}p <span className="text-xs">({fmt(Math.round(((r.ducats as number) / (r.sellAt as number)) * 10) / 10)} ducats per plat{r.credits != null ? `, ${cr(r.credits)} credits` : ""})</span></p>
+                  </div>
+                  <div className="h-1.5 w-full bg-line/60" aria-hidden="true"><div className="h-full bg-teal" style={{ width: `${Math.max(4, ((r.per100 as number) / (topPer100 as number)) * 100)}%` }} /></div>
+                </li>
+              ))}
+            </ol>
+            <p className="text-xs text-dim">Platinum you’d get back for every 100 ducats spent, at each item’s expected sell price (what it sold for in the week before Baro arrived — only items with enough sales records are ranked). For scale, Prime parts are only worth turning into ducats at about 10 ducats per platinum, so anything here at 10p per 100 ducats or better is in that league; higher is better. It ignores credits — check the credit cost too.</p>
+          </div>
         )}
       </section>
 
