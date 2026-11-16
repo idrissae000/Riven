@@ -88,7 +88,7 @@ export default async function BaroPage() {
       <>
         <section className="card flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm">
-            <p className="text-ink">{baro ? <>Baro is away — back in <Countdown to={baro.arrives} />{baro.location ? <> at <b>{baro.location}</b></> : null}.</> : "Baro is away."}</p>
+            <p className="text-ink">{!state ? "Baro’s status is unavailable right now." : baro ? <>Baro is away — back in <Countdown to={baro.arrives} />{baro.location ? <> at <b>{baro.location}</b></> : null}.</> : "Baro is away."}</p>
             <p className="text-dim">Until then, here’s how what he brought last time is selling compared to the days he was here.</p>
           </div>
         </section>
@@ -109,7 +109,8 @@ export default async function BaroPage() {
       <PageHeader kicker="Void Trader" title="Baro Ki’Teer">
         <Link href="/live" className="btn">Live world state</Link>
       </PageHeader>
-      {state ? body : <p className="card text-sm text-dim">Couldn’t load Baro’s status from the world-state feed right now. Try again in a minute.</p>}
+      {!state ? <p className="card text-sm text-dim">Couldn’t reach the live world-state feed, so we can’t say whether Baro is here right now. Showing what we’ve recorded from his last visit — it refreshes on its own.</p> : null}
+      {body}
       <DucatParts rows={ducatParts} />
     </div>
   );
