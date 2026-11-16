@@ -1,6 +1,8 @@
+import { IndexChart } from "@/components/index-chart";
 import { PageHeader } from "@/components/page-header";
 import { listArcanes, listItemPrices } from "@/lib/data";
 import type { SalesDay } from "@/lib/history-sales";
+import { indexStats, smooth, type IndexPoint } from "@/lib/insights/index-stats";
 import { isReal, itemWeekdays, WEEKDAYS, type MarketWeekday } from "@/lib/insights/weekday";
 import { scoreBaro, scoreDeals, type BaroPast, type Prediction } from "@/lib/insights/score";
 import { askBaseline, type Level } from "@/lib/primes/deals";
@@ -19,9 +21,15 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
   const sb = await createClient();
   const today = new Date().toISOString().slice(0, 10);
 
+  const arcaneList = await listArcanes();
+  const idxOf = async (slugs: string[]): Promise<IndexPoint[]> => {
+    const { data } = await sb.rpc("market_index", { slugs, n: 60 });
+    return ((data ?? []) as { day: string; idx: number | string }[]).map((r) => ({ day: r.day, idx: Number(r.idx) }));
+  };
+  const [primePts, arcanePts] = await Promise.all([idxOf(primeCatalogue.parts.map((p) => p.slug)), idxOf(arcaneList.map((a) => a.slug))]);
   const [{ data: stats }, arcanes, prices, { data: lv }, { data: preds }, { data: baroRows }] = await Promise.all([
     sb.from("accuracy_stats").select("key,data,computed_at"),
-    listArcanes(), listItemPrices(), sb.rpc("price_levels"),
+    Promise.resolve(arcaneList), listItemPrices(), sb.rpc("price_levels"),
     sb.from("prediction_log").select("slug,name,made_on,ask,typical").eq("kind", "buy_low").order("made_on", { ascending: false }).limit(600),
     sb.from("baro_items").select("visit,name,wfm_slug,pre_price,ratio_short,ratio_long").not("wfm_slug", "is", null).not("pre_price", "is", null),
   ]);
@@ -58,6 +66,15 @@ export default async function InsightsPage({ searchParams }: { searchParams: Pro
   return (
     <div className="space-y-8">
       <PageHeader kicker="How sure are we" title="Insights" />
+
+      <section className="space-y-3">
+        <h2 className="kicker">Market index — is everything cheap or expensive right now?</h2>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <IndexChart title="Prime parts & sets" points={smooth(primePts)} stats={indexStats(primePts)} note="The 60 Prime parts and sets with the most platinum traded, each against its own price 90 days ago, weighted by how much trades." />
+          <IndexChart title="Arcanes" points={smooth(arcanePts)} stats={indexStats(arcanePts)} note="The 60 arcanes with the most platinum traded (rank 0), each against its own price 90 days ago, weighted by how much trades." />
+        </div>
+        <p className="text-xs text-dim">Weights are the last 30 days’ turnover, fixed for the whole chart, and each price is a day’s completed trades (3-day average on the line). It shows the market’s direction, not what any one item will do.</p>
+      </section>
 
       <section className="space-y-3">
         <h2 className="kicker">Seasonality — do prices follow the day of the week?</h2>

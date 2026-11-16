@@ -8,6 +8,9 @@ import { currentUserId, listArcanePrices, listArcanes, listItemPrices } from "@/
 import { priceView } from "@/lib/arcanes/price-view";
 import type { SalesDay } from "@/lib/history-sales";
 import { type OwnedItem } from "@/lib/inventory/value";
+import { askBaseline, type Level } from "@/lib/primes/deals";
+import { planSets } from "@/lib/primes/set-plan";
+import { SIGNAL_LABEL, signalFor, type Signal } from "@/lib/portfolio/signals";
 import { allocation, insights, marketSpeed, priceChange7d, profit, vsMarket, type Holding, type HoldingRow, type Sale } from "@/lib/portfolio/metrics";
 import { primeCatalogue } from "@/lib/primes/catalogue";
 import { createClient } from "@/lib/supabase/server";
@@ -33,13 +36,14 @@ export default async function PortfolioPage() {
 
   const now = new Date().getTime();
   const sb = await createClient();
-  const [{ data: inv }, { data: rivenRows }, { data: saleRows }, { data: watchRows }, { data: snapRows }, itemPrices, arcanes, arcanePrices] = await Promise.all([
+  const [{ data: inv }, { data: rivenRows }, { data: saleRows }, { data: watchRows }, { data: snapRows }, itemPrices, arcanes, arcanePrices, { data: lv }] = await Promise.all([
     sb.from("inventory_items").select("id,kind,slug,rank,qty,cost_each"),
     sb.from("rivens").select("id,est_median"),
     sb.from("sales_log").select("item_name,qty,price_each,cost_each,sold_at,status").neq("status", "dismissed").order("sold_at", { ascending: false }).limit(2000),
     sb.from("watchlist").select("slug,kind,name").order("added_at", { ascending: false }),
     sb.from("portfolio_snapshots").select("day,total").order("day", { ascending: false }).limit(90),
     listItemPrices(), listArcanes(), listArcanePrices(),
+    sb.rpc("price_levels"),
   ]);
 
   const owned = (inv ?? []) as (OwnedItem & { cost_each: number | null })[];
@@ -63,8 +67,14 @@ export default async function PortfolioPage() {
   }
   const hist = (slug: string) => history.get(slug) ?? [];
 
+  // how each item's price sits against its own 30-day record (asking prices are compared with asking-equivalent "normal", not raw sold prices)
+  const levels: Level[] = ((lv ?? []) as Record<string, unknown>[]).map((r) => ({ slug: r.slug as string, typical: r.typical == null ? null : Number(r.typical), recent: r.recent == null ? null : Number(r.recent), prev: r.prev == null ? null : Number(r.prev), per_day: r.per_day == null ? null : Number(r.per_day), days: Number(r.days ?? 0) }));
+  const levelBy = new Map(levels.map((l) => [l.slug, l]));
+  const askOf = (slug: string) => { const p = itemPrice.get(slug); if (p) return { avg5: p.avg5, listings: p.listings }; const a = arcanePrice.get(slug); return a ? { avg5: a.avg5, listings: a.listings } : undefined; };
+  const baseline = askBaseline(levels, askOf);
+
   // holdings, one row per item (arcanes per rank), valued like the Inventory page
-  const holdings: (HoldingRow & { id: string; qty: number; unit: number | null; cost: number | null; key: string; kind: Holding["kind"]; rankLabel: string })[] = [];
+  const holdings: (HoldingRow & { premiumPct: number | null; momentumPct: number | null; id: string; qty: number; unit: number | null; cost: number | null; key: string; kind: Holding["kind"]; rankLabel: string })[] = [];
   for (const o of owned) {
     let name: string, unit: number | null, kind: Holding["kind"], rankLabel = "";
     if (o.kind === "prime") {
@@ -78,13 +88,29 @@ export default async function PortfolioPage() {
     }
     if (unit == null) continue;
     const sp = marketSpeed(hist(o.slug), now);
-    holdings.push({ id: o.id, cost: o.cost_each, key: `${o.slug}:${o.rank}`, kind, name: name + rankLabel, qty: o.qty, unit, value: Math.round(unit * o.qty * 10) / 10, share: 0, change7d: priceChange7d(hist(o.slug), now), liquidity: sp.liquidity, perDay: sp.perDay, rankLabel });
+    // a signal needs a like-for-like price: the asking average of the item itself (rank 0), against its own normal
+    const lvl = levelBy.get(o.slug), ask = o.rank === 0 ? askOf(o.slug) : undefined;
+    const normal = lvl?.typical != null && lvl.days >= 15 ? lvl.typical * baseline : null;
+    const premiumPct = normal && ask?.avg5 != null && ask.listings >= 3 ? Math.round((ask.avg5 / normal - 1) * 1000) / 10 : null;
+    const momentumPct = lvl?.recent != null && lvl.prev != null && lvl.prev > 0 ? Math.round(((lvl.recent - lvl.prev) / lvl.prev) * 1000) / 10 : null;
+    holdings.push({ premiumPct, momentumPct, id: o.id, cost: o.cost_each, key: `${o.slug}:${o.rank}`, kind, name: name + rankLabel, qty: o.qty, unit, value: Math.round(unit * o.qty * 10) / 10, share: 0, change7d: priceChange7d(hist(o.slug), now), liquidity: sp.liquidity, perDay: sp.perDay, rankLabel });
   }
   const rivenWorth = ((rivenRows ?? []) as { est_median: number | null }[]).reduce((s, r) => s + (r.est_median ?? 0), 0);
   const rivenCount = (rivenRows ?? []).length;
   const all: Holding[] = [...holdings.map((h) => ({ key: h.key, name: h.name, value: h.value, kind: h.kind, liquidity: h.liquidity })), ...(rivenWorth > 0 ? [{ key: "rivens", name: "Your rivens", value: rivenWorth, kind: "riven" as const, liquidity: "slow" as const }] : [])];
   const alloc = allocation(all);
-  const rows = [...holdings].sort((a, b) => b.value - a.value).map((h) => ({ ...h, share: alloc.total > 0 ? Math.round((h.value / alloc.total) * 1000) / 10 : 0 }));
+  const rows = [...holdings].sort((a, b) => b.value - a.value).map((h) => {
+    const share = alloc.total > 0 ? Math.round((h.value / alloc.total) * 1000) / 10 : 0;
+    return { ...h, share, sig: signalFor({ premiumPct: h.premiumPct, momentumPct: h.momentumPct, liquidity: h.liquidity, sharePct: share }) };
+  });
+  const sellNow = rows.filter((r) => r.sig.signal === "sell" || r.sig.signal === "dump");
+  const sellValue = Math.round(sellNow.reduce((s, r) => s + r.value, 0));
+
+  // sets you could finish
+  const primeQty = new Map<string, number>();
+  for (const o of owned) if (o.kind === "prime") primeQty.set(o.slug, (primeQty.get(o.slug) ?? 0) + o.qty);
+  const setPlans = planSets(primeQty, primeCatalogue.parts, (s) => { const p = itemPrice.get(s); return p ? { price: p.avg5, listings: p.listings } : undefined; });
+  const SIGNAL_CLS: Record<Signal, string> = { sell: "text-ok", trim: "text-orange", hold: "text-dim", "buy-more": "text-teal", dump: "text-danger", none: "text-dim" };
 
   // today's snapshot (one a day), then the series
   const partsTotal = holdings.filter((h) => h.kind === "part").reduce((s, h) => s + h.value, 0), arcanesTotal = holdings.filter((h) => h.kind === "arcane").reduce((s, h) => s + h.value, 0);
@@ -176,12 +202,28 @@ export default async function PortfolioPage() {
             </div>
           </section>
 
+          <section className="card space-y-2">
+            <h2 className="kicker">Sell signals</h2>
+            <p className="text-xs text-dim">Rules, not predictions: <b className="text-ink">Sell now</b> = 10%+ above its normal price; <b className="text-ink">Get out</b> = slow seller, under its normal price and still falling; <b className="text-ink">Hold — cheap</b> = 10%+ under normal but a steady or fast seller, so don’t sell it at a discount; <b className="text-ink">Trim</b> = 35%+ of your portfolio. “Normal” is the item’s own 30-day record, adjusted for how asking prices sit against sold prices. Hover a signal for why. Rank 1+ arcanes get no signal (we only keep rank-0 history).</p>
+            {sellNow.length === 0 ? <p className="text-sm text-dim">Nothing is flagged to sell right now.</p> : (
+              <ul className="divide-y divide-line text-sm">
+                {sellNow.slice(0, 8).map((r) => (
+                  <li key={r.key} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-1.5">
+                    <span className="text-ink"><b className={SIGNAL_CLS[r.sig.signal]}>{SIGNAL_LABEL[r.sig.signal]}</b> · {r.name} <span className="text-xs text-dim">× {r.qty}</span></span>
+                    <span className="text-xs text-dim">{r.sig.reasons[0]} <b className="text-plat">{fmt(Math.round(r.value))}p</b></span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {sellNow.length > 0 && <p className="text-xs text-dim">{sellNow.length} holding{sellNow.length === 1 ? "" : "s"} flagged, worth {fmt(sellValue)}p together.</p>}
+          </section>
+
           <section className="card space-y-3">
             <h2 className="kicker">Holdings — how fast each one sells</h2>
             <p className="text-xs text-dim">“Per day” is how many units of that item sell across all of Warframe Market, averaged over the last two weeks. The higher it is, the sooner you can turn your stack into platinum. 7-day change compares sold prices this week with last week.</p>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[42rem] text-sm">
-                <thead><tr className="text-left text-xs text-dim"><th className="py-1 font-normal">Item</th><th className="font-normal">Qty</th><th className="text-right font-normal">Each</th><th className="text-right font-normal">Total</th><th className="pl-3 font-normal">Paid</th><th className="text-right font-normal">Profit</th><th className="pl-3 font-normal">7 days</th><th className="font-normal">Sells</th><th className="text-right font-normal">Share</th></tr></thead>
+              <table className="w-full min-w-[48rem] text-sm">
+                <thead><tr className="text-left text-xs text-dim"><th className="py-1 font-normal">Item</th><th className="font-normal">Qty</th><th className="text-right font-normal">Each</th><th className="text-right font-normal">Total</th><th className="pl-3 font-normal">Paid</th><th className="text-right font-normal">Profit</th><th className="pl-3 font-normal">7 days</th><th className="font-normal">Sells</th><th className="text-right font-normal">Share</th><th className="pl-3 font-normal">Signal</th></tr></thead>
                 <tbody className="divide-y divide-line">
                   {rows.map((h) => (
                     <tr key={h.key}>
@@ -194,11 +236,30 @@ export default async function PortfolioPage() {
                       <td className="pl-3"><Change pct={h.change7d} /></td>
                       <td><LiquidityBadge liquidity={h.liquidity} perDay={h.perDay} /></td>
                       <td className="text-right text-xs text-dim">{h.share}%</td>
+                      <td className="pl-3"><span className={`whitespace-nowrap text-xs font-semibold ${SIGNAL_CLS[h.sig.signal]}`} title={h.sig.reasons.join(" ")}>{SIGNAL_LABEL[h.sig.signal]}</span></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </section>
+          <section className="card space-y-3">
+            <h2 className="kicker">Sets you could finish</h2>
+            <p className="text-xs text-dim">For each Prime set you hold at least one part of: what the missing parts cost at today’s asking prices, what the parts you hold are worth sold separately, and what the finished set sells for. <b className="text-ink">Gain</b> = set price − missing parts − your parts sold loose. Each missing part is one trade, so a long list costs time. Asking prices only; check the listings before you buy.</p>
+            {setPlans.length === 0 ? <p className="text-sm text-dim">No Prime sets with enough priced parts to plan. Add parts in your inventory.</p> : (
+              <ul className="space-y-2">
+                {setPlans.filter((p) => p.gain > 0 || p.complete).slice(0, 10).map((p) => (
+                  <li key={p.setSlug} className="rounded-sm border border-line p-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <p className="text-sm text-ink">{p.name.replace(/ Set$/, "")} <span className="text-xs text-dim">· {p.completePct}% complete{p.thin ? " · thin market" : ""}</span></p>
+                      <span className={`h-display text-lg ${p.gain >= 0 ? "text-ok" : "text-danger"}`}>{p.gain >= 0 ? "+" : "−"}{fmt(Math.abs(p.gain))}p</span>
+                    </div>
+                    <p className="text-xs text-dim">{p.complete ? <>You hold every part — selling it assembled gets <b className="text-plat">{fmt(p.setPrice)}p</b> against {fmt(p.ownedValue)}p loose.</> : <>Buy {p.missing.map((m) => `${m.qty > 1 ? `${m.qty}× ` : ""}${m.name.replace(/^.* Prime /, "")} (${fmt(m.price)}p)`).join(", ")} = <b className="text-plat">{fmt(p.missingCost)}p</b> in {p.trades} trade{p.trades === 1 ? "" : "s"}; the set sells for <b className="text-plat">{fmt(p.setPrice)}p</b>, your parts alone for {fmt(p.ownedValue)}p.</>}</p>
+                  </li>
+                ))}
+                {setPlans.filter((p) => p.gain > 0 || p.complete).length === 0 && <li className="text-sm text-dim">Finishing any of your partial sets would cost more than it earns right now.</li>}
+              </ul>
+            )}
           </section>
         </>
       )}
