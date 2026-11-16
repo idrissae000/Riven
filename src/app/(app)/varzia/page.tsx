@@ -1,10 +1,12 @@
 import { Countdown } from "@/components/countdown";
 import { PageHeader } from "@/components/page-header";
+import { VarziaPast, type PastRotation } from "@/components/varzia-past";
 import { VarziaPicks, type VarziaRow } from "@/components/varzia-picks";
 import { listItemPrices } from "@/lib/data";
 import type { SalesDay } from "@/lib/history-sales";
 import { primeCatalogue } from "@/lib/primes/catalogue";
 import { createClient } from "@/lib/supabase/server";
+import { rotationOutcome } from "@/lib/varzia/history";
 import { setNameFor } from "@/lib/varzia/map";
 import { getWorldState } from "@/lib/worldstate";
 
@@ -51,10 +53,30 @@ export default async function VarziaPage() {
     );
   }
 
+  // earlier rotations (every one is saved while it runs), with how each set's price moved after she left
+  const sb = await createClient();
+  const { data: past } = await sb.from("varzia_items").select("visit,ends,name,regal,slug,set_name").order("visit", { ascending: false }).limit(600);
+  const finished = ((past ?? []) as { visit: string; ends: string | null; name: string; regal: number | null; slug: string | null; set_name: string | null }[]).filter((r) => r.ends && Date.parse(r.ends) < new Date().getTime());
+  const pastSlugs = [...new Set(finished.flatMap((r) => (r.slug ? [r.slug] : [])))];
+  const pastSales = new Map<string, SalesDay[]>();
+  if (pastSlugs.length) {
+    const { data } = await sb.from("sales_history").select("slug,day,avg_price,min_price,max_price,volume").in("slug", pastSlugs).order("day").limit(5000);
+    for (const x of (data ?? []) as Record<string, unknown>[]) { const l = pastSales.get(x.slug as string) ?? []; l.push({ day: x.day as string, avg: Number(x.avg_price), min: x.min_price == null ? null : Number(x.min_price), max: x.max_price == null ? null : Number(x.max_price), volume: Number(x.volume ?? 0) }); pastSales.set(x.slug as string, l); }
+  }
+  const nowMs = new Date().getTime();
+  const rotations: PastRotation[] = [];
+  for (const r of finished) {
+    let rot = rotations.find((x) => x.visit === r.visit);
+    if (!rot) { rot = { visit: r.visit, ends: r.ends, sets: [] }; rotations.push(rot); }
+    if (r.slug && r.set_name) rot.sets.push({ name: r.set_name, regal: r.regal, outcome: rotationOutcome(pastSales.get(r.slug) ?? [], r.ends as string, nowMs) });
+  }
+  for (const r of rotations) r.sets.sort((a, b) => (b.outcome?.changePct ?? -999) - (a.outcome?.changePct ?? -999));
+
   return (
     <div className="space-y-5">
       <PageHeader kicker="Prime Resurgence" title="Varzia" />
       {body}
+      <VarziaPast rotations={rotations.filter((r) => r.sets.length > 0)} />
     </div>
   );
 }

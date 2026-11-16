@@ -25,11 +25,11 @@ export default async function SalesPage() {
   }
   const sb = await createClient();
   const [{ data }, arcanes, session] = await Promise.all([
-    sb.from("sales_log").select("id,item_name,qty,price_each,sold_at,source,status").neq("status", "dismissed").order("sold_at", { ascending: false }).limit(1000),
+    sb.from("sales_log").select("id,item_name,qty,price_each,cost_each,sold_at,source,status").neq("status", "dismissed").order("sold_at", { ascending: false }).limit(1000),
     listArcanes(),
     wfmConfigured() ? sessionInfo(uid) : Promise.resolve({ connected: false }),
   ]);
-  const sales = ((data ?? []) as Record<string, unknown>[]).map((r): SaleItem => ({ id: r.id as string, item_name: r.item_name as string, qty: Number(r.qty), price_each: Number(r.price_each), sold_at: r.sold_at as string, source: r.source as string, status: r.status as string }));
+  const sales = ((data ?? []) as Record<string, unknown>[]).map((r): SaleItem => ({ id: r.id as string, item_name: r.item_name as string, qty: Number(r.qty), price_each: Number(r.price_each), cost_each: r.cost_each == null ? null : Number(r.cost_each), sold_at: r.sold_at as string, source: r.source as string, status: r.status as string }));
   const names = [...primeCatalogue.parts.map((p) => p.name), ...arcanes.map((a) => a.name)];
   return (
     <div className="space-y-5">

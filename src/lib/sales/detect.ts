@@ -16,7 +16,7 @@ export function detectSales(prev: OrderSnap[], now: OrderSnap[]): SaleCandidate[
   return out;
 }
 
-export interface SaleRow { id: string; item_name: string; qty: number; price_each: number; sold_at: string; status: string }
+export interface SaleRow { id: string; item_name: string; qty: number; price_each: number; cost_each?: number | null; sold_at: string; status: string }
 
 const DAY = 86_400_000;
 export interface SalesSummary {

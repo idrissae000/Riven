@@ -16,6 +16,7 @@ export function SalesTracker({ sales, itemNames, now, connected }: { sales: Sale
   const [name, setName] = useState("");
   const [qty, setQty] = useState("1");
   const [price, setPrice] = useState("");
+  const [cost, setCost] = useState("");
   const [when, setWhen] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -39,8 +40,8 @@ export function SalesTracker({ sales, itemNames, now, connected }: { sales: Sale
     e.preventDefault();
     const q = Number(qty), p = Number(price);
     if (!name.trim() || !Number.isInteger(q) || q < 1 || !Number.isInteger(p) || p < 1) return setMsg("Enter what you sold, how many, and the price each (whole platinum).");
-    const ok = await call("/api/sales", "POST", { item_name: name.trim(), qty: q, price_each: p, ...(when ? { sold_at: new Date(when + "T12:00:00").toISOString() } : {}) });
-    if (ok) { setName(""); setQty("1"); setPrice(""); setWhen(""); }
+    const ok = await call("/api/sales", "POST", { item_name: name.trim(), qty: q, price_each: p, ...(cost.trim() !== "" && Number.isInteger(Number(cost)) && Number(cost) >= 0 ? { cost_each: Number(cost) } : {}), ...(when ? { sold_at: new Date(when + "T12:00:00").toISOString() } : {}) });
+    if (ok) { setName(""); setQty("1"); setPrice(""); setCost(""); setWhen(""); }
   }
 
   async function check() {
@@ -98,10 +99,12 @@ export function SalesTracker({ sales, itemNames, now, connected }: { sales: Sale
 
       <form onSubmit={add} className="card space-y-3">
         <h2 className="kicker">Add a sale by hand</h2>
-        <div className="grid gap-3 sm:grid-cols-[1fr_5rem_6rem_9rem]">
+        <p className="text-xs text-dim">Enter what you paid for it (a Baro buy, a relic you cracked, another player) and My portfolio shows your real profit, not just revenue.</p>
+        <div className="grid gap-3 sm:grid-cols-[1fr_5rem_6rem_6rem_9rem]">
           <div><label className="label" htmlFor="s-name">What you sold</label><input id="s-name" className="input" list="s-items" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Primed Flow" autoComplete="off" /><datalist id="s-items">{itemNames.map((n) => <option key={n} value={n} />)}</datalist></div>
           <div><label className="label" htmlFor="s-qty">Qty</label><input id="s-qty" className="input" type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} /></div>
           <div><label className="label" htmlFor="s-price">Price each</label><input id="s-price" className="input" type="number" min={1} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="plat" /></div>
+          <div><label className="label" htmlFor="s-cost">Cost each <span className="text-dim">(optional)</span></label><input id="s-cost" className="input" type="number" min={0} value={cost} onChange={(e) => setCost(e.target.value)} placeholder="plat paid" /></div>
           <div><label className="label" htmlFor="s-when">Date <span className="text-dim">(optional)</span></label><input id="s-when" className="input" type="date" max={new Date(now + ONE_DAY).toISOString().slice(0, 10)} value={when} onChange={(e) => setWhen(e.target.value)} /></div>
         </div>
         <button className="btn-primary" disabled={busy}>Add sale</button>
@@ -120,7 +123,7 @@ export function SalesTracker({ sales, itemNames, now, connected }: { sales: Sale
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="h-display flex items-center gap-1 text-lg text-plat">{fmt(s.qty * s.price_each)} <Plat size={13} /></span>
-                  <span className="text-xs text-dim">{s.qty > 1 ? `${s.price_each} each` : ""}</span>
+                  <span className="text-xs text-dim">{s.qty > 1 ? `${s.price_each} each` : ""}{s.cost_each != null ? ` · profit ${fmt(s.qty * (s.price_each - s.cost_each))}p` : ""}</span>
                   <button className="text-xs text-dim hover:text-danger" disabled={busy} onClick={() => { if (confirm(`Remove this sale of ${s.item_name}?`)) void call(`/api/sales/${s.id}`, "DELETE"); }} aria-label={`Remove sale of ${s.item_name}`}>remove</button>
                 </div>
               </li>

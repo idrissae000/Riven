@@ -8,6 +8,7 @@ const patch = z.object({
   status: z.enum(["confirmed", "dismissed"]).optional(),
   qty: z.number().int().min(1).max(9999).optional(),
   price_each: z.number().int().min(1).max(99_999_999).optional(),
+  cost_each: z.number().int().min(0).max(99_999_999).nullable().optional(),
 }).refine((b) => Object.keys(b).length > 0, "Nothing to change");
 
 /** Confirm / dismiss a detected sale, or correct its quantity / price. (RLS: own rows only.) */

@@ -123,3 +123,14 @@ export function IconMarket({ size = 22 }: { size?: number }) {
     </svg>
   );
 }
+
+export function IconPortfolio({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+      <path d="M3.5 20.5h17" />
+      <path d="M6 20.5v-5M11 20.5v-9M16 20.5v-6" />
+      <path d="m4 9 5-4 4 3 7-5" />
+      <path d="M16.5 3.5H20V7" />
+    </svg>
+  );
+}

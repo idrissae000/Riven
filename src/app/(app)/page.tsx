@@ -22,6 +22,7 @@ const TOOLS = [
   { href: "/primes", title: "Prime parts & relics", body: "The most valuable parts, the best relics to run, and sets that sell for more than their parts." },
   { href: "/baro", title: "Baro Ki’Teer picks", body: "What Baro is selling, what it costs, and which items have historically rebounded after his visits — to hold for a week or for a month." },
   { href: "/varzia", title: "Varzia — Prime Resurgence", body: "Her Prime sets, what they cost in Regal Aya, what they sell for, and how their prices moved since her rotation began." },
+  { href: "/portfolio", title: "My portfolio", body: "What everything you own is worth, how it’s moving, where your platinum is tied up, your profit and a watchlist." },
   { href: "/live", title: "Live world state", body: "Fissures split into normal, Steel Path and Railjack, plus cycles, invasions and what’s on." },
 ];
 
@@ -83,6 +84,7 @@ export default async function HomePage() {
               <p className="text-sm text-dim">{mine.count === 0 ? "Nothing saved yet — scan or add your Prime parts and arcanes." : `${mine.priced} of ${mine.count} items priced.`}</p>
               <div className="flex flex-wrap gap-2 pt-1">
                 <Link href="/inventory" className="btn">Open inventory</Link>
+                <Link href="/portfolio" className="btn">My portfolio</Link>
                 <Link href="/inventory/listings" className="btn">My listings</Link>
               </div>
             </>

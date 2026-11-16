@@ -3,7 +3,6 @@
  * `normalizeWorldState` keeps only what the Live page shows and tolerates missing pieces, so a change in the feed
  * degrades a section instead of breaking the page.
  */
-const SOURCE = "https://api.warframestat.us/pc?language=en";
 
 export interface Cycle { id: string; name: string; state: string; expiry: string }
 export interface Fissure { id: string; node: string; planet: string; missionType: string; tier: string; tierNum: number; enemy: string; expiry: string; steelPath: boolean; storm: boolean }
@@ -117,18 +116,64 @@ export function normalizeWorldState(raw: Raw, now: number = Date.now()): WorldSt
   return { fetchedAt: new Date(now).toISOString(), cycles, duviri, fissures, baro, varzia, sortie, archon, teshin, invasions, darvo, nightwave };
 }
 
-let cache: { at: number; value: WorldState } | null = null;
+/** Puts the two traders from a small, separate fetch onto an older copy of the world state (everything else is left as it was). */
+export function withTraders(base: WorldState | null, raw: Raw, now: number = Date.now()): WorldState {
+  const t = normalizeWorldState(raw, now);
+  const keep = base ?? t;
+  return { ...keep, baro: t.baro, varzia: t.varzia, fetchedAt: new Date(now).toISOString() };
+}
 
-/** The world state, cached for 60 seconds per server instance; if the feed is down, the last good copy is returned (flagged by its fetchedAt). */
+const HEADERS = { Accept: "application/json", "User-Agent": "WarframeEconomist/0.1 (live page)" };
+const BASE = "https://api.warframestat.us/pc";
+const getJson = async (url: string, ms: number) => {
+  const res = await fetch(url, { headers: HEADERS, cache: "no-store", signal: AbortSignal.timeout(ms) });
+  if (!res.ok) throw new Error(`world state ${res.status}`);
+  return (await res.json()) as Raw;
+};
+
+let cache: { at: number; value: WorldState } | null = null;
+let lastSaved = 0;
+const SAVED_MAX_AGE_MS = 12 * 3_600_000;
+
+async function saveCopy(value: WorldState) {
+  if (Date.now() - lastSaved < 120_000) return;
+  lastSaved = Date.now();
+  try {
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    await createAdminClient().from("world_state_cache").upsert({ id: "pc", data: value, fetched_at: value.fetchedAt }, { onConflict: "id" });
+  } catch { /* the saved copy is a bonus */ }
+}
+
+async function savedCopy(): Promise<WorldState | null> {
+  try {
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const { data } = await createAdminClient().from("world_state_cache").select("data,fetched_at").eq("id", "pc").maybeSingle();
+    if (!data || Date.now() - Date.parse(data.fetched_at as string) > SAVED_MAX_AGE_MS) return null;
+    return data.data as WorldState;
+  } catch { return null; }
+}
+
+/**
+ * The world state. Order of attempts: a 60-second in-memory copy; the full feed (twice); the two small trader-only requests laid over the
+ * last good copy (kept in memory, else in the database, up to 12 hours old); that last good copy as it is. `stale` is true for the last two.
+ */
 export async function getWorldState(): Promise<{ state: WorldState | null; stale: boolean }> {
   if (cache && Date.now() - cache.at < 60_000) return { state: cache.value, stale: false };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const value = normalizeWorldState(await getJson(`${BASE}?language=en`, attempt ? 10_000 : 6000));
+      cache = { at: Date.now(), value };
+      void saveCopy(value);
+      return { state: value, stale: false };
+    } catch { /* retry, then fall back */ }
+  }
+  const base = cache?.value ?? (await savedCopy());
   try {
-    const res = await fetch(SOURCE, { headers: { Accept: "application/json", "User-Agent": "WarframeEconomist/0.1 (live page)" }, cache: "no-store", signal: AbortSignal.timeout(8000) });
-    if (!res.ok) throw new Error(`world state ${res.status}`);
-    const value = normalizeWorldState((await res.json()) as Raw);
-    cache = { at: Date.now(), value };
-    return { state: value, stale: false };
+    const [voidTrader, vaultTrader] = await Promise.all([getJson(`${BASE}/voidTrader?language=en`, 6000), getJson(`${BASE}/vaultTrader?language=en`, 6000).catch(() => null)]);
+    const state = withTraders(base, { voidTrader, vaultTrader });
+    cache = { at: Date.now() - 30_000, value: state }; // reuse for ~30s, then try the full feed again
+    return { state, stale: true };
   } catch {
-    return { state: cache?.value ?? null, stale: !!cache };
+    return { state: base, stale: !!base };
   }
 }
