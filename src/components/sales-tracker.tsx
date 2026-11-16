@@ -20,6 +20,7 @@ export function SalesTracker({ sales, itemNames, now, connected }: { sales: Sale
   const [when, setWhen] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [week, setWeek] = useState<number | null>(null);
 
   const sum = useMemo(() => summarizeSales(sales, now), [sales, now]);
   const pending = sales.filter((s) => s.status === "pending");
@@ -64,15 +65,16 @@ export function SalesTracker({ sales, itemNames, now, connected }: { sales: Sale
 
       <section className="card space-y-3">
         <h2 className="kicker">Platinum per week</h2>
-        <div className="flex h-32 items-end gap-2" role="img" aria-label="Platinum earned per week, last 8 weeks">
-          {sum.weekly.map((w) => (
-            <div key={w.start} className="flex flex-1 flex-col items-center justify-end gap-1">
+        <div className="flex h-32 items-end gap-2" role="group" aria-label="Platinum earned per week, last 8 weeks" onPointerLeave={(e) => { if (e.pointerType === "mouse") setWeek(null); }}>
+          {sum.weekly.map((w, i) => (
+            <div key={w.start} className={`flex flex-1 cursor-pointer flex-col items-center justify-end gap-1 ${week != null && week !== i ? "opacity-60" : ""}`} onPointerEnter={() => setWeek(i)} onPointerDown={() => setWeek(i)} tabIndex={0} onFocus={() => setWeek(i)} onBlur={() => setWeek(null)}>
               <span className="text-xs text-plat">{w.plat ? fmt(w.plat) : ""}</span>
               <div className="w-full bg-plat/70" style={{ height: `${w.plat ? Math.max(4, (w.plat / maxWeek) * 88) : 2}px`, opacity: w.plat ? 1 : 0.3 }} />
               <span className="text-[0.7rem] text-dim">{w.start.slice(5)}</span>
             </div>
           ))}
         </div>
+        <p className="min-h-4 text-xs text-ink">{week != null ? <>Week of {sum.weekly[week].start}: <b>{fmt(sum.weekly[week].plat)}p</b></> : <span className="text-dim">Hover or tap a bar for that week’s number</span>}</p>
         {sum.top.length > 0 && <p className="text-xs text-dim">Top earners: {sum.top.map((t) => `${t.name} (${fmt(t.plat)}p)`).join(" · ")}</p>}
       </section>
 

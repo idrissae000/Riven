@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { LineChart } from "@/components/line-chart";
 import { PriceChart } from "@/components/price-chart";
 import { trackSinceBaro, trackingNote, type Tracking } from "@/lib/baro/tracking";
 import type { AskingDay } from "@/lib/chart";
@@ -114,25 +115,19 @@ function TrackChart({ sales, asking, arrival, usual }: { sales: SalesDay[]; aski
   const pts = sales.filter((s) => dayMs(s.day) >= from).sort((a, b) => a.day.localeCompare(b.day));
   const ask = asking.filter((s) => dayMs(s.day) >= from).sort((a, b) => a.day.localeCompare(b.day));
   if (pts.length < 2) return <p className="text-xs text-dim">Not enough days of sales to draw a chart yet.</p>;
-  const t1 = Math.max(dayMs(pts[pts.length - 1].day), ask.length ? dayMs(ask[ask.length - 1].day) : 0);
-  const W = 600, H = 120;
   const vals = [...pts.map((p) => p.avg), ...ask.map((p) => p.price), ...(usual != null ? [usual] : [])];
-  const lo = Math.min(...vals), hi = Math.max(...vals), pad = (hi - lo || hi || 1) * 0.12;
-  const x = (t: number) => ((t - from) / Math.max(1, t1 - from)) * W;
-  const y = (v: number) => H - 6 - ((v - (lo - pad)) / (hi + pad - (lo - pad) || 1)) * (H - 12);
-  const line = (xs: { t: number; v: number }[]) => xs.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join("");
+  const lo = Math.min(...vals), hi = Math.max(...vals);
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-28 w-full" role="img" aria-label="Price since Baro's visit">
-        <rect x={x(a0)} y={0} width={Math.max(3, x(a0 + 3 * DAY) - x(a0))} height={H} className="fill-current text-gold" opacity="0.14" />
-        {usual != null && <line x1={0} x2={W} y1={y(usual)} y2={y(usual)} stroke="currentColor" className="text-dim" strokeDasharray="5 5" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />}
-        {ask.length > 1 && <path d={line(ask.map((p) => ({ t: dayMs(p.day), v: p.price })))} fill="none" stroke="currentColor" className="text-teal" strokeWidth="2" strokeDasharray="4 3" vectorEffect="non-scaling-stroke" />}
-        <path d={line(pts.map((p) => ({ t: dayMs(p.day), v: p.avg })))} fill="none" stroke="currentColor" className="text-plat" strokeWidth="2.4" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-      </svg>
+      <LineChart
+        ariaLabel="Price since Baro's visit" unit="p" height={130}
+        series={[{ name: "Price paid", cls: "text-plat", width: 2.4, points: pts.map((p) => ({ t: dayMs(p.day), v: p.avg })) }, ...(ask.length > 1 ? [{ name: "Asking", cls: "text-teal", dash: true, points: ask.map((p) => ({ t: dayMs(p.day), v: p.price })) }] : [])]}
+        bands={[{ from: a0, to: a0 + 3 * DAY, label: "Baro here" }]}
+        refs={usual != null ? [{ v: usual, label: "usual" }] : []}
+      />
       <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-dim">
-        <span>{short(new Date(from).toISOString())}</span>
         <span className="flex flex-wrap items-center gap-3"><span><span className="text-plat">━</span> price paid</span>{ask.length > 1 && <span><span className="text-teal">┅</span> asking</span>}{usual != null && <span>┅ usual {fmt(usual)}p</span>}<span className="text-gold">▮ Baro here</span></span>
-        <span>{short(new Date(t1).toISOString())} · {fmt(lo)}–{fmt(hi)}p</span>
+        <span>{fmt(lo)}–{fmt(hi)}p</span>
       </div>
     </div>
   );

@@ -143,7 +143,7 @@ export default async function PortfolioPage() {
     const price = w.kind === "prime" ? itemPrice.get(w.slug)?.avg5 ?? null : (() => { const a = arcaneBy.get(w.slug); return a ? priceView(arcanePrice.get(w.slug), a.max_rank)?.price ?? null : null; })();
     const listings = w.kind === "prime" ? itemPrice.get(w.slug)?.listings ?? 0 : arcanePrice.get(w.slug)?.listings ?? 0;
     const sp = marketSpeed(h, now);
-    return { slug: w.slug, name: w.name, kind: w.kind, price, listings, change7d: priceChange7d(h, now), liquidity: sp.liquidity, perDay: sp.perDay, spark: h.slice(-14).map((d) => d.avg) };
+    return { slug: w.slug, name: w.name, kind: w.kind, price, listings, change7d: priceChange7d(h, now), liquidity: sp.liquidity, perDay: sp.perDay, spark: h.slice(-14).map((d) => ({ label: new Date(d.day + "T00:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }), v: d.avg })) };
   });
   const options: WatchOption[] = [
     ...primeCatalogue.parts.map((p): WatchOption => ({ slug: p.slug, name: p.name, kind: "prime" })),
@@ -188,7 +188,7 @@ export default async function PortfolioPage() {
 
           <section className="card space-y-4">
             <h2 className="kicker">Where your platinum is</h2>
-            <SplitBar parts={[{ label: "Prime parts", pct: alloc.parts, cls: "bg-gold" }, { label: "Arcanes", pct: alloc.arcanes, cls: "bg-cyan-400" }, { label: "Rivens", pct: alloc.rivens, cls: "bg-plat" }]} />
+            <SplitBar parts={[{ label: "Prime parts", pct: alloc.parts, cls: "bg-gold", value: partsTotal }, { label: "Arcanes", pct: alloc.arcanes, cls: "bg-cyan-400", value: arcanesTotal }, { label: "Rivens", pct: alloc.rivens, cls: "bg-plat", value: rivenWorth }]} />
             <div>
               <p className="mb-1 text-xs text-dim">Biggest holdings — {alloc.top3}% of the value is in the top 3</p>
               <ul className="space-y-1.5">

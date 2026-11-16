@@ -6,7 +6,7 @@ import { Plat } from "@/components/brand";
 import { Change, LiquidityBadge, Spark } from "@/components/portfolio";
 import type { Liquidity } from "@/lib/portfolio/metrics";
 
-export interface WatchRow { slug: string; name: string; kind: "prime" | "arcane"; price: number | null; listings: number; change7d: number | null; liquidity: Liquidity; perDay: number | null; spark: number[] }
+export interface WatchRow { slug: string; name: string; kind: "prime" | "arcane"; price: number | null; listings: number; change7d: number | null; liquidity: Liquidity; perDay: number | null; spark: { label: string; v: number }[] }
 export interface WatchOption { slug: string; name: string; kind: "prime" | "arcane" }
 
 /** Items you're keeping an eye on: price, 7-day move, how fast they sell. Add anything from the Prime parts or arcane lists. */
@@ -48,7 +48,7 @@ export function Watchlist({ rows, options }: { rows: WatchRow[]; options: WatchO
             <li key={r.slug} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5">
               <div className="min-w-0"><p className="truncate text-sm text-ink">{r.name}</p><p className="text-xs text-dim">{r.kind === "arcane" ? "Arcane (rank 0)" : "Prime"}{r.listings > 0 && r.listings < 3 ? " · thin market" : ""}</p></div>
               <div className="flex items-center gap-3">
-                <Spark values={r.spark} />
+                <Spark points={r.spark} />
                 <Change pct={r.change7d} />
                 <LiquidityBadge liquidity={r.liquidity} perDay={r.perDay} />
                 <span className="h-display flex min-w-14 items-center justify-end gap-1 text-lg text-plat">{r.price != null ? r.price : "—"}{r.price != null && <Plat size={13} />}</span>
