@@ -1,13 +1,13 @@
 import { Countdown } from "@/components/countdown";
 import { PageHeader } from "@/components/page-header";
 import { VarziaPast, type PastRotation } from "@/components/varzia-past";
-import { VarziaPicks, type VarziaRow } from "@/components/varzia-picks";
+import { VarziaRelics, type PackRow } from "@/components/varzia-relics";
 import { listItemPrices } from "@/lib/data";
 import type { SalesDay } from "@/lib/history-sales";
 import { primeCatalogue } from "@/lib/primes/catalogue";
 import { createClient } from "@/lib/supabase/server";
 import { rotationOutcome } from "@/lib/varzia/history";
-import { setNameFor } from "@/lib/varzia/map";
+import { parseRelicPack, relicPool, valuePool } from "@/lib/varzia/relics";
 import { getWorldState } from "@/lib/worldstate";
 
 export const metadata = { title: "Varzia — Prime Resurgence" };
@@ -26,21 +26,17 @@ export default async function VarziaPage() {
     </div>
   );
   else {
-    const sets = new Map(primeCatalogue.parts.filter((p) => p.kind === "set").map((p) => [p.name.toLowerCase(), p]));
-    const prices = new Map((await listItemPrices()).map((p) => [p.slug, p]));
-    const rows: VarziaRow[] = vz.items.map((i) => {
-      const wanted = setNameFor(i.item);
-      const set = wanted ? sets.get(wanted.toLowerCase()) : undefined;
-      const ip = set ? prices.get(set.slug) : undefined;
-      return { name: i.item, regal: i.regal, aya: i.aya, slug: set?.slug ?? null, setName: set?.name ?? null, askNow: ip?.avg5 ?? null, listings: ip?.listings ?? 0 };
-    });
-    const history: Record<string, SalesDay[]> = {};
-    const slugs = rows.flatMap((r) => (r.slug ? [r.slug] : []));
-    if (slugs.length) {
-      const sb = await createClient();
-      const since = new Date(Date.parse(vz.activation) - 100 * 86_400_000).toISOString().slice(0, 10);
-      const { data } = await sb.from("sales_history").select("slug,day,avg_price,min_price,max_price,volume").in("slug", slugs).gte("day", since).order("day").limit(5000);
-      for (const s of (data ?? []) as Record<string, unknown>[]) (history[s.slug as string] ??= []).push({ day: s.day as string, avg: Number(s.avg_price), min: s.min_price == null ? null : Number(s.min_price), max: s.max_price == null ? null : Number(s.max_price), volume: Number(s.volume ?? 0) });
+    const priceBy = new Map((await listItemPrices()).map((p) => [p.slug, p]));
+    // a part counts only with 3+ online sellers: one lonely listing says nothing about its price
+    const priceOf = (slug: string) => { const p = priceBy.get(slug); return p && p.listings >= 3 ? p.avg5 : null; };
+    const packs: PackRow[] = [];
+    const others: { name: string; cost: string }[] = [];
+    for (const i of vz.items) {
+      const pack = parseRelicPack(i.item);
+      if (!pack) { others.push({ name: i.item, cost: i.regal != null ? `${i.regal} Regal Aya` : i.aya != null ? `${i.aya} Aya` : "—" }); continue; }
+      const pool = relicPool(primeCatalogue.relics, primeCatalogue.parts, pack.era, pack.frames);
+      const v = valuePool(pool, primeCatalogue.parts, pack.refinement, priceOf);
+      packs.push({ name: i.item, era: pack.era, vault: pack.vault, colour: pack.colour, refinement: pack.refinement, aya: i.aya, pool: v.relics, avg: v.avg });
     }
     body = (
       <>
@@ -48,7 +44,7 @@ export default async function VarziaPage() {
           <p className="text-sm"><b>{vz.location}</b> <span className="text-dim">· this rotation ends in <Countdown to={vz.expiry} /></span></p>
           <p className="text-xs text-dim">{vz.items.length} items</p>
         </section>
-        <VarziaPicks rows={rows} history={history} activation={vz.activation} expiry={vz.expiry} />
+        <VarziaRelics packs={packs} others={others} />
       </>
     );
   }
