@@ -7,6 +7,8 @@ import { analyseBaro, type DayPrice } from "./analysis";
 
 export const BARO_TTL_MS = 15 * 60_000; // a tradable item's live price + analysis is re-checked every 15 minutes while Baro is here
 
+/** How old Baro items' sales history may get before it is re-copied (the general rule is a day; these are the items people are watching). */
+export const SALES_REFRESH_MS = 3 * 60 * 60_000;
 export const TRACK_TTL_MS = 60 * 60_000; // while he's away, last visit's items are re-priced hourly
 
 export interface BaroRefreshResult { active: boolean; /** true = Baro is away and we're keeping up with his last visit's items */ tracking?: boolean; refreshed: number; remaining: number; rateLimited: boolean }
@@ -31,7 +33,7 @@ async function trackLastVisit(sb: SupabaseClient, get: WfmGet, now: number, limi
   const nowIso = new Date(now).toISOString();
   try {
     for (const r of due.slice(0, limit)) {
-      await refreshSalesBatch(sb, get, [{ slug: r.wfm_slug, wfm_slug: r.wfm_slug }], { limit: 1, now });
+      await refreshSalesBatch(sb, get, [{ slug: r.wfm_slug, wfm_slug: r.wfm_slug }], { limit: 1, now, ttlMs: SALES_REFRESH_MS }); // keep sold prices current (hourly feed fills in today)
       const top = reduceTopOrders(await fetchOrders(get, r.wfm_slug), 5, 0);
       const { error: e } = await sb.from("baro_items").update({ price_now: top.avg5, listings: top.listings, computed_at: nowIso }).eq("visit", visit).eq("name", r.name);
       if (e) throw new Error(e.message);
@@ -83,7 +85,7 @@ export async function refreshBaro(
   try {
     for (const r of due.slice(0, limit)) {
       const slug = r.wfm_slug as string;
-      await refreshSalesBatch(sb, get, [{ slug, wfm_slug: slug }], { limit: 1, now }); // copies the 90-day sales history if it's missing or a day old
+      await refreshSalesBatch(sb, get, [{ slug, wfm_slug: slug }], { limit: 1, now, ttlMs: SALES_REFRESH_MS }); // copies the 90-day sales history if it's missing or a few hours old
       const since = new Date(now - 100 * 86_400_000).toISOString().slice(0, 10);
       const { data: hist } = await sb.from("sales_history").select("day,avg_price").eq("slug", slug).gte("day", since).order("day").limit(200);
       const history: DayPrice[] = ((hist ?? []) as { day: string; avg_price: number | string }[]).map((h) => ({ day: h.day, price: Number(h.avg_price) }));

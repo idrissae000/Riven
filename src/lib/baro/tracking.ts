@@ -33,7 +33,7 @@ export interface Tracking {
  * How an item has behaved since Baro's visit (arrival ISO → leaving 2 days later), from its daily sales: price versus while he was
  * here and versus its usual price, and how fast it's been selling. Days without sales are skipped, not counted as zero price.
  */
-export function trackSinceBaro(sales: SalesDay[], arrival: string): Tracking {
+export function trackSinceBaro(sales: SalesDay[], arrival: string, today: string = new Date().toISOString().slice(0, 10)): Tracking {
   const a0 = dayMs(arrival);
   const inRange = (lo: number, hi: number) => sales.filter((s) => { const d = (dayMs(s.day) - a0) / DAY; return d >= lo && d <= hi; });
   const pre = inRange(-7, -1), during = inRange(0, 2), since = inRange(3, 10_000).sort((a, b) => a.day.localeCompare(b.day));
@@ -45,7 +45,8 @@ export function trackSinceBaro(sales: SalesDay[], arrival: string): Tracking {
   const avgVol = (rows: SalesDay[], days: number) => (rows.length ? rows.reduce((s, x) => s + x.volume, 0) / days : null);
   const duringVolume = avgVol(during, Math.max(1, during.length));
   const sinceDays = since.length ? Math.round((dayMs(since[since.length - 1].day) - (a0 + 2 * DAY)) / DAY) : 0;
-  const sinceVolume = avgVol(since, Math.max(1, since.length));
+  const complete = since.filter((x) => x.day !== today); // today is only part of a day, so it would drag the units-per-day average down
+  const sinceVolume = avgVol(complete, Math.max(1, complete.length));
   return {
     usual: usual == null ? null : r1(usual), during: dur == null ? null : r1(dur), duringVolume: duringVolume == null ? null : r1(duringVolume),
     latest: since.length ? since[since.length - 1].avg : null, recent: recent == null ? null : r1(recent),

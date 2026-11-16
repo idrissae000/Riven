@@ -26,23 +26,45 @@ export function reduceSales(rows: StatRow[] | null | undefined): SalesDay[] {
   return [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
 }
 
+/**
+ * The last 48 hours come as hourly rows. Their days that the daily feed doesn't have yet (today, so far) are turned into one partial day:
+ * volume-weighted price, lowest/highest trade, units so far. Days the daily feed already has are left to it (it is complete).
+ */
+export function recentDays(hourly: StatRow[] | null | undefined, daily: SalesDay[]): SalesDay[] {
+  const have = new Set(daily.map((d) => d.day));
+  const byDay = new Map<string, { vol: number; weighted: number; min: number | null; max: number | null }>();
+  for (const r of hourly ?? []) {
+    if ((r.mod_rank ?? 0) !== 0 || !r.datetime) continue;
+    const day = r.datetime.slice(0, 10);
+    const price = r.wa_price ?? r.avg_price, vol = Math.max(0, r.volume ?? 0);
+    if (have.has(day) || typeof price !== "number" || !(price > 0) || vol <= 0) continue;
+    const e = byDay.get(day) ?? { vol: 0, weighted: 0, min: null, max: null };
+    e.vol += vol; e.weighted += price * vol;
+    if (typeof r.min_price === "number") e.min = e.min == null ? r.min_price : Math.min(e.min, r.min_price);
+    if (typeof r.max_price === "number") e.max = e.max == null ? r.max_price : Math.max(e.max, r.max_price);
+    byDay.set(day, e);
+  }
+  return [...byDay.entries()].map(([day, e]) => ({ day, avg: Math.round((e.weighted / e.vol) * 10) / 10, min: e.min, max: e.max, volume: Math.round(e.vol) })).sort((a, b) => a.day.localeCompare(b.day));
+}
+
 export async function fetchSales(get: WfmGet, wfmSlug: string): Promise<SalesDay[]> {
   const path = `/v1/items/${encodeURIComponent(wfmSlug)}/statistics`;
   const res = await get(path);
   if (!res.ok) throw new WfmFetchError(`Warframe Market ${res.status} for ${path}`, res.status);
-  const json = (await res.json()) as { payload?: { statistics_closed?: { "90days"?: StatRow[] } } };
-  return reduceSales(json.payload?.statistics_closed?.["90days"]);
+  const json = (await res.json()) as { payload?: { statistics_closed?: { "90days"?: StatRow[]; "48hours"?: StatRow[] } } };
+  const daily = reduceSales(json.payload?.statistics_closed?.["90days"]);
+  return [...daily, ...recentDays(json.payload?.statistics_closed?.["48hours"], daily)];
 }
 
 export interface SalesBatchResult { refreshed: number; remaining: number; rateLimited: boolean }
 
 /** Copies the 90-day sales history of the stalest items (oldest sync first, never-synced first). `sb` must be a service-role client. */
-export async function refreshSalesBatch(sb: SupabaseClient, get: WfmGet, universe: { slug: string; wfm_slug: string }[], opts: { limit?: number; now?: number } = {}): Promise<SalesBatchResult> {
-  const { limit = 12, now = Date.now() } = opts;
+export async function refreshSalesBatch(sb: SupabaseClient, get: WfmGet, universe: { slug: string; wfm_slug: string }[], opts: { limit?: number; now?: number; ttlMs?: number } = {}): Promise<SalesBatchResult> {
+  const { limit = 12, now = Date.now(), ttlMs = SALES_TTL_MS } = opts;
   const { data, error } = await sb.from("history_sync").select("slug,synced_at").limit(5000);
   if (error) throw new Error(error.message);
   const have = new Map((data ?? []).map((r) => [r.slug as string, r.synced_at as string]));
-  const due = pickStale(universe, (u) => have.get(u.slug), now, SALES_TTL_MS, Infinity);
+  const due = pickStale(universe, (u) => have.get(u.slug), now, ttlMs, Infinity);
   const out: SalesBatchResult = { refreshed: 0, remaining: due.length, rateLimited: false };
   const nowIso = new Date(now).toISOString();
   try {

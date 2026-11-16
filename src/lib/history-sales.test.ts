@@ -13,3 +13,14 @@ describe("reduceSales", () => {
   });
   it("handles nothing", () => expect(reduceSales(undefined)).toEqual([]));
 });
+
+import { recentDays } from "./history-sales";
+describe("recentDays", () => {
+  const h = (datetime: string, volume: number, wa: number, min: number, max: number, rank = 0) => ({ datetime, volume, wa_price: wa, avg_price: wa, min_price: min, max_price: max, mod_rank: rank });
+  it("turns the hourly rows of days the daily feed lacks into one partial day", () => {
+    const daily = [{ day: "2026-11-15", avg: 24.5, min: 20, max: 30, volume: 99 }];
+    const r = recentDays([h("2026-11-15T22:00:00.000+00:00", 5, 24, 20, 25), h("2026-11-16T03:00:00.000+00:00", 2, 20, 18, 22), h("2026-11-16T09:00:00.000+00:00", 6, 26, 24, 30), h("2026-11-16T10:00:00.000+00:00", 1, 40, 40, 40, 5)], daily);
+    expect(r).toEqual([{ day: "2026-11-16", avg: 24.5, min: 18, max: 30, volume: 8 }]); // (2×20 + 6×26)/8; rank-5 trade and the already-covered day ignored
+  });
+  it("is empty without hourly data", () => expect(recentDays(undefined, [])).toEqual([]));
+});

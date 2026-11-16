@@ -9,7 +9,7 @@ const row = (off: number, avg: number, volume = 50) => ({ day: new Date(a0 + off
 describe("trackSinceBaro", () => {
   // usual 40, dipped to 25 while he was here, recovering since
   const sales = [row(-3, 40), row(-2, 40), row(-1, 40), row(0, 28, 90), row(1, 25, 100), row(2, 26, 80), row(3, 30, 60), row(4, 34, 55), row(5, 36, 40), row(6, 38, 45)];
-  const t = trackSinceBaro(sales, ARRIVAL);
+  const t = trackSinceBaro(sales, ARRIVAL, "2099-01-01");
   it("compares the price since he left with while he was here and with the usual", () => {
     expect(t).toMatchObject({ usual: 40, during: 26, latest: 38, recent: 36, vsDuring: 38, vsUsual: -10, days: 4 });
     expect(t.peak).toEqual({ price: 38, day: "2026-11-19" });
