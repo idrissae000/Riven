@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { IconArcane, IconBaro, IconInventory, IconLive, IconPortfolio, IconPrime, IconRiven, IconVarzia, Wordmark } from "@/components/brand";
+import { IconArcane, IconBaro, IconInsights, IconInventory, IconLive, IconPortfolio, IconPrime, IconRiven, IconVarzia, Wordmark } from "@/components/brand";
 
 const TABS = [
   { href: "/inventory", label: "Inventory", Icon: IconInventory },
@@ -13,6 +13,7 @@ const TABS = [
   { href: "/primes", label: "Primes", Icon: IconPrime },
   { href: "/baro", label: "Baro", Icon: IconBaro },
   { href: "/varzia", label: "Varzia", Icon: IconVarzia },
+  { href: "/insights", label: "Insights", Icon: IconInsights },
   { href: "/live", label: "Live", Icon: IconLive },
 ];
 

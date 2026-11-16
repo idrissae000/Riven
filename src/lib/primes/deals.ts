@@ -47,19 +47,29 @@ export function findDeals(levels: Level[], parts: PrimePart[], ask: (slug: strin
 
 const vwap = (rows: SalesDay[]) => { const v = rows.reduce((s, r) => s + r.volume, 0); return v > 0 ? rows.reduce((s, r) => s + r.avg * r.volume, 0) / v : null; };
 
+export interface DipEvent { /** how far under its usual the 3-day selling price fell, in % */ depth: number; recovered: boolean }
+
 /**
  * From the item's own history: each time its 3-day selling price fell 10% or more below its usual (the median of the 30 days before), did it get back
- * to within 5% of that usual within the next 14 days? Counts separate dips (three weeks apart, so one long slump is one dip); dips with less than 14 days after them are left out.
+ * to within 5% of that usual within the next 14 days? Separate dips are three weeks apart (one long slump is one dip); dips with less than 14 days after them are left out.
  */
-export function reboundStats(sales: SalesDay[]): { dips: number; recovered: number } {
-  let dips = 0, recovered = 0, skipUntil = -1;
+export function reboundEvents(sales: SalesDay[]): DipEvent[] {
+  const out: DipEvent[] = [];
+  let skipUntil = -1;
   for (let i = 30; i < sales.length - 14; i++) {
     if (i < skipUntil) continue;
     const usual = median(sales.slice(i - 30, i - 2).map((r) => r.avg));
     const now = vwap(sales.slice(i - 2, i + 1));
     if (usual == null || now == null || now > usual * 0.9) continue;
-    dips++; skipUntil = i + 21;
-    for (let j = i + 1; j <= i + 14; j++) { const v = vwap(sales.slice(j - 2, j + 1)); if (v != null && v >= usual * 0.95) { recovered++; break; } }
+    skipUntil = i + 21;
+    let recovered = false;
+    for (let j = i + 1; j <= i + 14; j++) { const v = vwap(sales.slice(j - 2, j + 1)); if (v != null && v >= usual * 0.95) { recovered = true; break; } }
+    out.push({ depth: Math.round((1 - now / usual) * 1000) / 10, recovered });
   }
-  return { dips, recovered };
+  return out;
+}
+
+export function reboundStats(sales: SalesDay[]): { dips: number; recovered: number } {
+  const e = reboundEvents(sales);
+  return { dips: e.length, recovered: e.filter((x) => x.recovered).length };
 }
