@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plat } from "@/components/brand";
+import { CostCell } from "@/components/cost-cell";
 import { Change, LiquidityBadge, SplitBar, Tile, ValueLine } from "@/components/portfolio";
 import { PageHeader } from "@/components/page-header";
 import { Watchlist, type WatchOption, type WatchRow } from "@/components/watchlist";
@@ -33,7 +34,7 @@ export default async function PortfolioPage() {
   const now = new Date().getTime();
   const sb = await createClient();
   const [{ data: inv }, { data: rivenRows }, { data: saleRows }, { data: watchRows }, { data: snapRows }, itemPrices, arcanes, arcanePrices] = await Promise.all([
-    sb.from("inventory_items").select("id,kind,slug,rank,qty"),
+    sb.from("inventory_items").select("id,kind,slug,rank,qty,cost_each"),
     sb.from("rivens").select("id,est_median"),
     sb.from("sales_log").select("item_name,qty,price_each,cost_each,sold_at,status").neq("status", "dismissed").order("sold_at", { ascending: false }).limit(2000),
     sb.from("watchlist").select("slug,kind,name").order("added_at", { ascending: false }),
@@ -41,7 +42,7 @@ export default async function PortfolioPage() {
     listItemPrices(), listArcanes(), listArcanePrices(),
   ]);
 
-  const owned = (inv ?? []) as OwnedItem[];
+  const owned = (inv ?? []) as (OwnedItem & { cost_each: number | null })[];
   const partBy = new Map(primeCatalogue.parts.map((p) => [p.slug, p]));
   const itemPrice = new Map(itemPrices.map((p) => [p.slug, p]));
   const arcaneBy = new Map(arcanes.map((a) => [a.slug, a]));
@@ -63,7 +64,7 @@ export default async function PortfolioPage() {
   const hist = (slug: string) => history.get(slug) ?? [];
 
   // holdings, one row per item (arcanes per rank), valued like the Inventory page
-  const holdings: (HoldingRow & { qty: number; unit: number | null; key: string; kind: Holding["kind"]; rankLabel: string })[] = [];
+  const holdings: (HoldingRow & { id: string; qty: number; unit: number | null; cost: number | null; key: string; kind: Holding["kind"]; rankLabel: string })[] = [];
   for (const o of owned) {
     let name: string, unit: number | null, kind: Holding["kind"], rankLabel = "";
     if (o.kind === "prime") {
@@ -77,7 +78,7 @@ export default async function PortfolioPage() {
     }
     if (unit == null) continue;
     const sp = marketSpeed(hist(o.slug), now);
-    holdings.push({ key: `${o.slug}:${o.rank}`, kind, name: name + rankLabel, qty: o.qty, unit, value: Math.round(unit * o.qty * 10) / 10, share: 0, change7d: priceChange7d(hist(o.slug), now), liquidity: sp.liquidity, perDay: sp.perDay, rankLabel });
+    holdings.push({ id: o.id, cost: o.cost_each, key: `${o.slug}:${o.rank}`, kind, name: name + rankLabel, qty: o.qty, unit, value: Math.round(unit * o.qty * 10) / 10, share: 0, change7d: priceChange7d(hist(o.slug), now), liquidity: sp.liquidity, perDay: sp.perDay, rankLabel });
   }
   const rivenWorth = ((rivenRows ?? []) as { est_median: number | null }[]).reduce((s, r) => s + (r.est_median ?? 0), 0);
   const rivenCount = (rivenRows ?? []).length;
@@ -95,6 +96,12 @@ export default async function PortfolioPage() {
   if (alloc.total > 0) series.push({ day: today, total: Math.round(alloc.total) });
   const weekAgo = series.length > 1 ? series.filter((s) => s.day <= new Date(now - 7 * 86_400_000).toISOString().slice(0, 10)).at(-1) ?? series[0] : null;
   const weekMove = weekAgo && weekAgo.day !== today ? Math.round(alloc.total) - weekAgo.total : null;
+
+  // unrealised profit: only on holdings where you entered what you paid
+  const costed = holdings.filter((h) => h.cost != null);
+  const costPaid = costed.reduce((s, h) => s + (h.cost as number) * h.qty, 0);
+  const costedValue = costed.reduce((s, h) => s + h.value, 0);
+  const unrealised = Math.round(costedValue - costPaid);
 
   // profit
   const sales: Sale[] = ((saleRows ?? []) as Record<string, unknown>[]).map((r) => ({ item_name: r.item_name as string, qty: Number(r.qty), price_each: Number(r.price_each), cost_each: r.cost_each == null ? null : Number(r.cost_each), sold_at: r.sold_at as string, status: r.status as string }));
@@ -126,10 +133,11 @@ export default async function PortfolioPage() {
         <Link href="/inventory" className="btn">Edit inventory</Link>
       </PageHeader>
 
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Tile label="Portfolio value" value={fmt(Math.round(alloc.total))} plat sub={`${holdings.reduce((s, h) => s + h.qty, 0)} items${rivenCount ? ` + ${rivenCount} riven${rivenCount === 1 ? "" : "s"}` : ""}`} />
         <Tile label="Vs a week ago" value={weekMove == null ? "—" : signed(weekMove)} tone={weekMove == null ? undefined : weekMove >= 0 ? "up" : "down"} sub={weekMove == null ? "needs a week of visits" : "platinum"} />
         <Tile label="Earned, 30 days" value={fmt(p30.revenue)} plat sub={p30.cost > 0 ? `profit ${signed(p30.profit)}p on costed sales` : `${p30.units} units sold`} />
+        <Tile label="Unrealised profit" value={costed.length ? signed(unrealised) : "—"} plat={costed.length > 0} tone={costed.length ? (unrealised >= 0 ? "up" : "down") : undefined} sub={costed.length ? `on ${costed.length} holding${costed.length === 1 ? "" : "s"} you entered a cost for (${costPaid > 0 ? `${signed(Math.round((unrealised / costPaid) * 100))}%` : "—"})` : "add what you paid in the table below"} />
         <Tile label="Tied up in slow items" value={`${alloc.slowShare}%`} sub={`${fmt(alloc.slowValue)}p that sells under 1 a day`} tone={alloc.slowShare >= 30 ? "down" : undefined} />
       </section>
 
@@ -172,8 +180,8 @@ export default async function PortfolioPage() {
             <h2 className="kicker">Holdings — how fast each one sells</h2>
             <p className="text-xs text-dim">“Per day” is how many units of that item sell across all of Warframe Market, averaged over the last two weeks. The higher it is, the sooner you can turn your stack into platinum. 7-day change compares sold prices this week with last week.</p>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[34rem] text-sm">
-                <thead><tr className="text-left text-xs text-dim"><th className="py-1 font-normal">Item</th><th className="font-normal">Qty</th><th className="text-right font-normal">Each</th><th className="text-right font-normal">Total</th><th className="pl-3 font-normal">7 days</th><th className="font-normal">Sells</th><th className="text-right font-normal">Share</th></tr></thead>
+              <table className="w-full min-w-[42rem] text-sm">
+                <thead><tr className="text-left text-xs text-dim"><th className="py-1 font-normal">Item</th><th className="font-normal">Qty</th><th className="text-right font-normal">Each</th><th className="text-right font-normal">Total</th><th className="pl-3 font-normal">Paid</th><th className="text-right font-normal">Profit</th><th className="pl-3 font-normal">7 days</th><th className="font-normal">Sells</th><th className="text-right font-normal">Share</th></tr></thead>
                 <tbody className="divide-y divide-line">
                   {rows.map((h) => (
                     <tr key={h.key}>
@@ -181,6 +189,8 @@ export default async function PortfolioPage() {
                       <td className="text-dim">{h.qty}</td>
                       <td className="text-right text-dim">{h.unit}</td>
                       <td className="text-right text-plat">{fmt(Math.round(h.value))}</td>
+                      <td className="pl-3"><CostCell id={h.id} cost={h.cost} /></td>
+                      <td className={`text-right text-xs ${h.cost == null ? "text-dim" : h.value - h.cost * h.qty >= 0 ? "text-ok" : "text-danger"}`}>{h.cost == null ? "—" : signed(Math.round(h.value - h.cost * h.qty))}</td>
                       <td className="pl-3"><Change pct={h.change7d} /></td>
                       <td><LiquidityBadge liquidity={h.liquidity} perDay={h.perDay} /></td>
                       <td className="text-right text-xs text-dim">{h.share}%</td>

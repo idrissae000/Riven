@@ -5,7 +5,19 @@ import { inventoryQtySchema } from "@/lib/inventory/schema";
 // RLS guarantees each user can only touch their own rows.
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const parsed = inventoryQtySchema.safeParse(await request.json().catch(() => null));
+  const body = await request.json().catch(() => null);
+  // what you paid per unit (blank clears it)
+  if (body && typeof body === "object" && "cost_each" in body) {
+    const raw = (body as { cost_each: unknown }).cost_each;
+    const cost = raw === null || raw === "" ? null : Number(raw);
+    if (cost !== null && (!Number.isInteger(cost) || cost < 0 || cost > 99_999_999)) return NextResponse.json({ error: "Enter the platinum you paid each, as a whole number." }, { status: 400 });
+    const sbc = await createClient();
+    if (!(await sbc.auth.getUser()).data.user) return NextResponse.json({ error: "Sign in to track your inventory." }, { status: 401 });
+    const { data, error } = await sbc.from("inventory_items").update({ cost_each: cost }).eq("id", id).select("id").maybeSingle();
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    return data ? NextResponse.json({ id: data.id }) : NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+  const parsed = inventoryQtySchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid quantity" }, { status: 400 });
   const sb = await createClient();
   if (!(await sb.auth.getUser()).data.user) return NextResponse.json({ error: "Sign in to track your inventory." }, { status: 401 });

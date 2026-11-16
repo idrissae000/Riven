@@ -15,6 +15,7 @@
     "sync:rivencalc": "tsx scripts/sync-rivencalc.ts",
     "sync:arcane-prices": "tsx scripts/sync-arcane-prices.ts",
     "sync:primes": "tsx scripts/sync-primes.ts",
+    "sync:mission-rewards": "tsx scripts/sync-mission-rewards.ts",
     "sync:item-prices": "tsx scripts/sync-item-prices.ts",
     "verify:rivencalc": "node scripts/verify-rivencalc.mjs"
   },
