@@ -138,9 +138,34 @@ export function IconPortfolio({ size = 22 }: { size?: number }) {
 export function IconInsights({ size = 22 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
-      <circle cx="12" cy="12" r="8.5" />
-      <path d="M12 12 12 6.5M12 12l4 2.4" />
-      <path d="M3.5 12h2M18.5 12h2M12 3.5v2M12 18.5v2" />
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="m15.4 15.4 5.1 5.1" />
+      <path d="M7.8 12.6v-1.6M10.5 12.6V8.4M13.2 12.6v-2.9" />
+    </svg>
+  );
+}
+
+export function IconSell({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+      <path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7L20.5 11.8a1 1 0 0 1 0 1.4l-7.3 7.3a1 1 0 0 1-1.4 0L3.5 12.2Z" />
+      <circle cx="8" cy="8" r="1.4" />
+      <path d="M12.2 11.6h3.4a1.7 1.7 0 0 1 0 3.4h-3.4m0-3.4v5.4" />
+    </svg>
+  );
+}
+export function IconListings({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+      <path d="M8.5 6.5h11M8.5 12h11M8.5 17.5h11" />
+      <path d="M4 6.5h.01M4 12h.01M4 17.5h.01" strokeWidth="2.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+export function IconMore({ size = 22 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+      <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth="3" strokeLinecap="round" />
     </svg>
   );
 }

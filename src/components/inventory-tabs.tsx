@@ -8,5 +8,5 @@ export function InventoryTabs({ active }: { active: "items" | "scan" | "rivens" 
       {label}
     </Link>
   );
-  return <nav className="flex flex-wrap gap-1 border-b border-line" aria-label="Inventory sections">{tab("/inventory", "Prime parts & arcanes", active === "items")}{tab("/inventory/scan", "Scan screenshots", active === "scan")}{tab("/inventory/rivens", "Rivens", active === "rivens")}{tab("/inventory/listings", "My listings", active === "listings")}{tab("/inventory/sales", "Sales", active === "sales")}</nav>;
+  return <div className="flex flex-wrap items-center justify-between gap-x-4 border-b border-line"><nav className="flex flex-wrap gap-1" aria-label="Inventory sections">{tab("/inventory", "Prime parts & arcanes", active === "items")}{tab("/inventory/scan", "Scan screenshots", active === "scan")}{tab("/inventory/rivens", "Rivens", active === "rivens")}{tab("/inventory/listings", "My listings", active === "listings")}{tab("/inventory/sales", "Sales", active === "sales")}</nav><Link href="/sell" className="py-2 text-xs text-gold hover:underline">Want to sell? Start here →</Link></div>;
 }

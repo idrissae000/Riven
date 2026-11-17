@@ -14,16 +14,29 @@ export const metadata = { title: { absolute: "Warframe Economist — the all-in-
 
 const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
-const TOOLS = [
-  { href: "/inventory/scan", title: "Scan your inventory", body: "Drop in screenshots of your Prime parts or arcanes — or a mission’s rewards — and it reads, prices and ranks them." },
-  { href: "/inventory/listings", title: "Sell on Warframe Market", body: "List everything in bulk with auto-pricing, see who’s undercut you and reprice your orders without leaving the site." },
-  { href: "/rivens/new", title: "Check a riven", body: "A grade for every roll and what comparable rivens are really listed for. No account needed." },
-  { href: "/arcanes", title: "Arcane prices", body: "Live prices from online sellers, 90-day charts, and which Vosfor packs are worth opening." },
-  { href: "/primes", title: "Prime parts & relics", body: "The most valuable parts, the best relics to run, and sets that sell for more than their parts." },
-  { href: "/baro", title: "Baro Ki’Teer picks", body: "What Baro is selling, what it costs, and which items have historically rebounded after his visits — to hold for a week or for a month." },
-  { href: "/varzia", title: "Varzia — Prime Resurgence", body: "Her Prime sets, what they cost in Regal Aya, what they sell for, and how their prices moved since her rotation began." },
-  { href: "/portfolio", title: "My portfolio", body: "What everything you own is worth, how it’s moving, where your platinum is tied up, your profit and a watchlist." },
-  { href: "/live", title: "Live world state", body: "Fissures split into normal, Steel Path and Railjack, plus cycles, invasions and what’s on." },
+/** The three things the site is for. */
+const CORE = [
+  { n: "1", href: "/rivens/new", title: "Check a riven", body: "Enter its stats. Get a grade for every roll and what similar rivens really sell for.", cta: "Check a riven" },
+  { n: "2", href: "/sell", title: "Sell everything in bulk", body: "Scan screenshots of your parts and arcanes, let the site price them, and list the lot on Warframe Market in a few clicks.", cta: "Start selling" },
+  { n: "3", href: "/inventory/listings", title: "Keep prices competitive", body: "See who’s undercut you, reprice in one click, or switch on undercut protection and let the site do it.", cta: "Open my listings" },
+];
+
+/** Everything else, grouped by what it's for. */
+const MORE: { label: string; tools: { href: string; title: string; body: string }[] }[] = [
+  { label: "Your stuff", tools: [
+    { href: "/inventory", title: "Inventory", body: "Your Prime parts, arcanes, rivens and sales, with what each is worth." },
+    { href: "/portfolio", title: "My portfolio", body: "Total value, profit, sell signals, sets you could finish and a watchlist." },
+  ] },
+  { label: "Price markets", tools: [
+    { href: "/arcanes", title: "Arcane prices", body: "Live prices, 90-day charts, and which Vosfor packs are worth opening." },
+    { href: "/primes", title: "Prime parts & relics", body: "The priciest parts, best relics, set flips, buy-low deals and where to farm." },
+    { href: "/baro", title: "Baro Ki’Teer", body: "What he sells and which items have historically rebounded after his visit." },
+    { href: "/varzia", title: "Varzia", body: "Her relic packs ranked by plat per Aya." },
+  ] },
+  { label: "Tools", tools: [
+    { href: "/insights", title: "Insights", body: "Is the market cheap or expensive today? And how have our calls held up?" },
+    { href: "/live", title: "Live world state", body: "Fissures, cycles, invasions and what’s on right now." },
+  ] },
 ];
 
 /** The home page: what the site does, today's best platinum moves from live data, and (signed in) a snapshot of your own stuff. */
@@ -69,9 +82,8 @@ export default async function HomePage() {
             Real prices from players who are online right now. Scan your inventory, see what’s worth selling, and list it on Warframe Market in a couple of clicks.
           </p>
           <div className="flex flex-wrap gap-3 pt-1">
-            <Link href="/inventory/scan" className="btn-primary">Scan my inventory</Link>
+            <Link href="/sell" className="btn-primary">Start selling</Link>
             <Link href="/rivens/new" className="btn">Check a riven</Link>
-            <Link href="/arcanes" className="btn">Browse arcanes</Link>
           </div>
           {updated && <p className="text-xs text-dim">Prices updated {timeAgo(updated)} · only online and in-game sellers count</p>}
         </div>
@@ -95,6 +107,20 @@ export default async function HomePage() {
               <Link href="/login" className="btn-primary">Sign in</Link>
             </>
           )}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="kicker">What this site is for</h2>
+        <div className="grid gap-4 md:grid-cols-3">
+          {CORE.map((c) => (
+            <Link key={c.href} href={c.href} className="tile group flex h-full flex-col gap-3 border-gold/30 hover:border-gold">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-gold font-display text-base font-bold text-gold">{c.n}</span>
+              <h3 className="font-display text-lg font-bold uppercase tracking-[0.06em]">{c.title}</h3>
+              <p className="flex-1 text-sm leading-relaxed text-dim">{c.body}</p>
+              <span className="font-display text-xs font-semibold uppercase tracking-[0.1em] text-gold group-hover:underline">{c.cta} →</span>
+            </Link>
+          ))}
         </div>
       </section>
 
@@ -124,16 +150,21 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="kicker">Everything in one place</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {TOOLS.map((t) => (
-            <Link key={t.href} href={t.href} className="tile block h-full">
-              <h3 className="font-display text-base font-bold uppercase tracking-[0.08em] text-gold">{t.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-dim">{t.body}</p>
-            </Link>
-          ))}
-        </div>
+      <section className="space-y-5">
+        <h2 className="kicker">And when you want more</h2>
+        {MORE.map((g) => (
+          <div key={g.label} className="space-y-2">
+            <h3 className="font-display text-xs font-semibold uppercase tracking-[0.16em] text-dim">{g.label}</h3>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {g.tools.map((t) => (
+                <Link key={t.href} href={t.href} className="tile block h-full">
+                  <h4 className="font-display text-sm font-bold uppercase tracking-[0.08em] text-ink">{t.title}</h4>
+                  <p className="mt-1.5 text-sm leading-relaxed text-dim">{t.body}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
       </section>
     </div>
   );
