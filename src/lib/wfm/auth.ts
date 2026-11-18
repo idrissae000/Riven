@@ -131,4 +131,7 @@ export async function wfmAuthedV2(userId: string, path: string, init: RequestIni
   return res;
 }
 
+/** The user's stored session token, for the few calls that don't go through wfmRequest (the status WebSocket). Never send it to the browser. */
+export const sessionToken = loadToken;
+
 export const wfmConfigured = () => !!process.env.WFM_TOKEN_ENCRYPTION_KEY && !!process.env.SUPABASE_SERVICE_ROLE_KEY;

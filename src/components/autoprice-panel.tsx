@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { REPRICE_RULES, type RepriceRule } from "@/lib/wfm/reprice";
 
 export interface AutoLogRow { id: string; item_name: string; old_price: number; new_price: number; cheapest: number | null; note: string | null; at: string }
-export interface AutoSettingsRow { enabled: boolean; rule: RepriceRule; floor: number; max_drop_pct: number; last_run_at: string | null; note: string | null }
+export interface AutoSettingsRow { enabled: boolean; rule: RepriceRule; floor: number; max_drop_pct: number; follow_up: boolean; ceiling: number | null; last_run_at: string | null; note: string | null; status_seen: string | null; status_seen_at: string | null }
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
@@ -16,16 +16,18 @@ export function AutoPricePanel({ settings, log }: { settings: AutoSettingsRow | 
   const [rule, setRule] = useState<RepriceRule>(settings?.rule ?? "undercut");
   const [floor, setFloor] = useState(settings?.floor ? String(settings.floor) : "");
   const [drop, setDrop] = useState(String(settings?.max_drop_pct ?? 15));
+  const [follow, setFollow] = useState(settings?.follow_up ?? false);
+  const [ceiling, setCeiling] = useState(settings?.ceiling ? String(settings.ceiling) : "");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   async function save(next: boolean) {
     setBusy(true); setMsg(null);
-    const res = await fetch("/api/autoprice", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: next, rule, floor: Number(floor), max_drop_pct: Number(drop) }) });
+    const res = await fetch("/api/autoprice", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: next, rule, floor: Number(floor), max_drop_pct: Number(drop), follow_up: follow, ceiling: ceiling.trim() === "" ? null : Number(ceiling) }) });
     const json = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) return setMsg(json.error ?? "Couldn’t save.");
-    setEnabled(next); setMsg(next ? "Auto-repricing is on. It checks every 10 minutes." : "Saved. Auto-repricing is off.");
+    setEnabled(next); setMsg(next ? "Auto-repricing is on. It works while you show as online in game." : "Saved. Auto-repricing is off.");
     router.refresh();
   }
 
@@ -35,7 +37,10 @@ export function AutoPricePanel({ settings, log }: { settings: AutoSettingsRow | 
         <h2 className="kicker">Undercut protection</h2>
         <span className={`text-xs ${enabled ? "text-ok" : "text-dim"}`}>{enabled ? "● On" : "○ Off"}</span>
       </div>
-      <p className="text-xs text-dim">When another online seller goes below you, the site lowers your sell order for you, every 10 minutes, even when you’re not on the site. It only ever <b className="text-ink">lowers</b> a price you’ve been undercut on — never raises, never goes under your floor, never drops more than the cap in one step, leaves hidden orders and buy orders alone, and waits an hour after any change to an order. It ignores a market with fewer than 2 other online sellers. Every change is listed below.</p>
+      <div className="rounded-sm border border-gold/40 p-3 text-sm text-ink">
+        <p><b>Only works while you show as “online in game”.</b> Every 2 minutes it checks your status; if you’re invisible, online (not in game) or offline it does nothing, so it never touches your account or Warframe Market while you’re away. Set your status above.</p>
+      </div>
+      <p className="text-xs text-dim">While you’re in game, the site watches the cheapest online sellers and, when someone goes below you, lowers your sell order to <b className="text-ink">undercut or match them</b> (your choice), never below your floor and never by more than the cap in one step. It leaves hidden orders and buy orders alone, waits 10 minutes after changing an order, and ignores a market with fewer than 2 other online sellers. Every change is listed below.</p>
       <div className="grid gap-3 sm:grid-cols-3">
         <div><label className="label" htmlFor="ap-rule">Price to</label>
           <select id="ap-rule" className="input" value={rule} onChange={(e) => setRule(e.target.value as RepriceRule)}>{REPRICE_RULES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}</select></div>
@@ -44,12 +49,15 @@ export function AutoPricePanel({ settings, log }: { settings: AutoSettingsRow | 
         <div><label className="label" htmlFor="ap-drop">Biggest drop in one step (%)</label>
           <input id="ap-drop" className="input" type="number" min={1} max={50} inputMode="numeric" value={drop} onChange={(e) => setDrop(e.target.value)} /></div>
       </div>
+      <label className="flex items-start gap-2 text-sm text-ink"><input type="checkbox" className="mt-1" checked={follow} onChange={(e) => setFollow(e.target.checked)} /><span>Also raise my price again when the cheapest seller raises theirs <span className="block text-xs text-dim">So you keep matching them both ways. It never goes above the highest price you set here.</span></span></label>
+      {follow && <div className="max-w-xs"><label className="label" htmlFor="ap-ceil">Never go above (platinum)</label><input id="ap-ceil" className="input" type="number" min={1} inputMode="numeric" value={ceiling} onChange={(e) => setCeiling(e.target.value)} placeholder="Required" /></div>}
       <p className="text-xs text-dim">The floor applies to <b className="text-ink">every</b> order. Set it at or below the cheapest price you’d accept for your cheapest item; for items you’d price lower than that, reprice by hand.</p>
       <div className="flex flex-wrap gap-2">
         <button className="btn-primary" disabled={busy} onClick={() => save(true)}>{enabled ? "Save changes" : "Turn on"}</button>
         {enabled && <button className="btn" disabled={busy} onClick={() => save(false)}>Turn off</button>}
       </div>
       {msg && <p role="status" className="text-sm text-ink">{msg}</p>}
+      {settings?.status_seen && <p className="text-xs text-dim">Last check: you showed as <b className="text-ink">{settings.status_seen === "ingame" ? "online in game" : settings.status_seen}</b>{settings.status_seen_at ? ` · ${when(settings.status_seen_at)}` : ""}.</p>}
       {settings?.note && <p className="text-sm text-orange">{settings.note}</p>}
       {log.length > 0 && (
         <div>

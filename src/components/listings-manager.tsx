@@ -24,6 +24,7 @@ export function ListingsManager() {
   const [loading, setLoading] = useState(true);
   const [mkt, setMkt] = useState<Record<string, Mkt>>({});
   const [price, setPrice] = useState<Record<string, string>>({});
+  const [qty, setQty] = useState<Record<string, string>>({});
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [rule, setRule] = useState<RepriceRule>("undercut");
   const [floor, setFloor] = useState(() => { try { return localStorage.getItem(MIN_KEY) ?? ""; } catch { return ""; } });
@@ -46,7 +47,7 @@ export function ListingsManager() {
       if (!mounted.current) return;
       if (!res.ok) { setErr(json.error ?? "Couldn’t load your listings."); if (json.reauth) refresh(); }
       else {
-        setData(json as Data); setPrice({}); setSel({});
+        setData(json as Data); setPrice({}); setQty({}); setSel({});
         // note orders that disappeared or shrank since the last look (probable sales) — the Sales tab asks you to confirm them
         fetch("/api/sales/sync", { method: "POST" }).then((r) => (r.ok ? r.json() : null)).then((j) => { if (mounted.current && j?.pending > 0) setSalesNote(j.pending); }).catch(() => {});
       }
@@ -92,11 +93,22 @@ export function ListingsManager() {
   const note = (id: string, ok: boolean, text: string) => setRowMsg((m) => ({ ...m, [id]: { ok, text } }));
   const patchLocal = (id: string, p: Partial<MyOrder>) => setData((d) => d && { ...d, orders: d.orders.map((o) => (o.id === id ? { ...o, ...p } : o)) });
 
-  async function save(o: MyOrder, change: { platinum?: number; visible?: boolean }) {
+  async function save(o: MyOrder, change: { platinum?: number; visible?: boolean; quantity?: number }) {
     const r = await call(`/api/market/orders/${o.id}`, "PATCH", change);
-    if (r.ok) { patchLocal(o.id, { ...change, updatedAt: new Date().toISOString() }); setPrice((p) => { const { [o.id]: _x, ...rest } = p; void _x; return rest; }); note(o.id, true, change.platinum != null ? `Price set to ${change.platinum}p` : change.visible ? "Now visible" : "Now hidden"); }
+    if (r.ok) { patchLocal(o.id, { ...change, updatedAt: new Date().toISOString() }); setPrice((p) => { const { [o.id]: _x, ...rest } = p; void _x; return rest; }); setQty((p) => { const { [o.id]: _y, ...rest } = p; void _y; return rest; }); note(o.id, true, change.quantity != null ? `Quantity set to ${change.quantity}` : change.platinum != null ? `Price set to ${change.platinum}p` : change.visible ? "Now visible" : "Now hidden"); }
     else note(o.id, false, r.error ?? "Failed");
     return r.ok;
+  }
+  /** "I sold some": lowers the quantity (or removes the order when none are left) and logs the sale. */
+  async function sold(o: MyOrder, n: number) {
+    setBusy(true);
+    const res = await fetch(`/api/market/orders/${o.id}/sold`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ from: o.quantity, sold: n, item_name: o.item.name, price: o.platinum }) });
+    const json = await res.json().catch(() => ({}));
+    setBusy(false);
+    if (json.reauth) refresh();
+    if (!res.ok) return note(o.id, false, json.error ?? "Couldn’t update that order.");
+    if (json.left > 0) { patchLocal(o.id, { quantity: json.left, updatedAt: new Date().toISOString() }); note(o.id, true, `Logged ${n} sold (${fmt(n * o.platinum)}p) · ${json.left} left`); }
+    else setData((d) => d && { ...d, orders: d.orders.filter((x) => x.id !== o.id) });
   }
   async function remove(o: MyOrder, ask = true) {
     if (ask && !confirm(`Remove your ${o.type} order for ${o.item.name} from Warframe Market?`)) return false;
@@ -151,10 +163,15 @@ export function ListingsManager() {
             {o.item.thumb && <span aria-hidden="true" className="size-7 shrink-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${o.item.thumb})` }} />}
             <span className="min-w-0">
               <span className="block truncate text-sm text-ink">{o.item.name}{o.rank > 0 && <span className="ml-1.5 text-xs text-dim">rank {o.rank}</span>}{!o.visible && <span className="ml-1.5 text-xs text-orange">hidden</span>}</span>
-              <span className="block text-xs text-dim">×{o.quantity} · updated {ago(o.updatedAt)}</span>
+              <span className="block text-xs text-dim">updated {ago(o.updatedAt)}</span>
             </span>
           </label>
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="flex items-center gap-1 text-xs text-dim">
+              ×<input className="input w-16 text-center" type="number" min={1} max={9999} inputMode="numeric" value={qty[o.id] ?? o.quantity} onChange={(e) => setQty((x) => ({ ...x, [o.id]: e.target.value }))} aria-label={`Quantity for ${o.item.name}`} />
+              {qty[o.id] !== undefined && Number(qty[o.id]) !== o.quantity && <button className="btn min-h-9 px-2 text-xs" disabled={busy || !Number.isInteger(Number(qty[o.id])) || Number(qty[o.id]) < 1} onClick={() => save(o, { quantity: Number(qty[o.id]) })}>Set</button>}
+              {o.type === "sell" && <button className="btn min-h-9 px-2 text-xs" disabled={busy} title="Lowers the quantity by 1 and logs the sale" onClick={() => sold(o, 1)}>Sold 1</button>}
+            </span>
             <input className="input w-20 text-center" type="number" min={1} inputMode="numeric" value={price[o.id] ?? o.platinum} onChange={(e) => setPrice((x) => ({ ...x, [o.id]: e.target.value }))} aria-label={`Price for ${o.item.name}`} />
             <Plat size={13} />
             <button className="btn min-h-9 px-3 text-xs" disabled={busy || !dirty || !Number.isInteger(p) || p < 1} onClick={() => save(o, { platinum: p })}>Save</button>
