@@ -9,12 +9,12 @@ export interface AutoSettingsRow { enabled: boolean; rule: RepriceRule; floor: n
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-/** Opt-in: the site lowers undercut sell orders for you, every 10 minutes, within a floor you set. */
+/** Opt-in: the site lowers undercut sell orders for you, every 2 minutes while you are online in game, optionally above a minimum price you set. */
 export function AutoPricePanel({ settings, log }: { settings: AutoSettingsRow | null; log: AutoLogRow[] }) {
   const router = useRouter();
   const [enabled, setEnabled] = useState(settings?.enabled ?? false);
   const [rule, setRule] = useState<RepriceRule>(settings?.rule ?? "undercut");
-  const [floor, setFloor] = useState(settings?.floor ? String(settings.floor) : "");
+  const [floor, setFloor] = useState(settings && settings.floor > 1 ? String(settings.floor) : "");
   const [drop, setDrop] = useState(String(settings?.max_drop_pct ?? 15));
   const [follow, setFollow] = useState(settings?.follow_up ?? false);
   const [ceiling, setCeiling] = useState(settings?.ceiling ? String(settings.ceiling) : "");
@@ -23,7 +23,7 @@ export function AutoPricePanel({ settings, log }: { settings: AutoSettingsRow | 
 
   async function save(next: boolean) {
     setBusy(true); setMsg(null);
-    const res = await fetch("/api/autoprice", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: next, rule, floor: Number(floor), max_drop_pct: Number(drop), follow_up: follow, ceiling: ceiling.trim() === "" ? null : Number(ceiling) }) });
+    const res = await fetch("/api/autoprice", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: next, rule, floor: floor.trim() === "" ? null : Number(floor), max_drop_pct: Number(drop), follow_up: follow, ceiling: ceiling.trim() === "" ? null : Number(ceiling) }) });
     const json = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) return setMsg(json.error ?? "Couldn’t save.");
@@ -40,18 +40,18 @@ export function AutoPricePanel({ settings, log }: { settings: AutoSettingsRow | 
       <div className="rounded-sm border border-gold/40 p-3 text-sm text-ink">
         <p><b>Only works while you show as “online in game”.</b> Every 2 minutes it checks your status; if you’re invisible, online (not in game) or offline it does nothing, so it never touches your account or Warframe Market while you’re away. Set your status above.</p>
       </div>
-      <p className="text-xs text-dim">While you’re in game, the site watches the cheapest online sellers and, when someone goes below you, lowers your sell order to <b className="text-ink">undercut or match them</b> (your choice), never below your floor and never by more than the cap in one step. It leaves hidden orders and buy orders alone, waits 10 minutes after changing an order, and ignores a market with fewer than 2 other online sellers. Every change is listed below.</p>
+      <p className="text-xs text-dim">While you’re in game, the site watches the cheapest online sellers and, when someone goes below you, lowers your sell order to <b className="text-ink">undercut or match them</b> (your choice), never below your minimum price (if you set one) and never by more than the cap in one step. It leaves hidden orders and buy orders alone, waits 10 minutes after changing an order, and ignores a market with fewer than 2 other online sellers. Every change is listed below.</p>
       <div className="grid gap-3 sm:grid-cols-3">
         <div><label className="label" htmlFor="ap-rule">Price to</label>
           <select id="ap-rule" className="input" value={rule} onChange={(e) => setRule(e.target.value as RepriceRule)}>{REPRICE_RULES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}</select></div>
-        <div><label className="label" htmlFor="ap-floor">Never go below (platinum)</label>
-          <input id="ap-floor" className="input" type="number" min={1} inputMode="numeric" value={floor} onChange={(e) => setFloor(e.target.value)} placeholder="Required" /></div>
+        <div><label className="label" htmlFor="ap-floor">Never go below <span className="text-dim">(optional)</span></label>
+          <input id="ap-floor" className="input" type="number" min={1} inputMode="numeric" value={floor} onChange={(e) => setFloor(e.target.value)} placeholder="No minimum" /></div>
         <div><label className="label" htmlFor="ap-drop">Biggest drop in one step (%)</label>
           <input id="ap-drop" className="input" type="number" min={1} max={50} inputMode="numeric" value={drop} onChange={(e) => setDrop(e.target.value)} /></div>
       </div>
       <label className="flex items-start gap-2 text-sm text-ink"><input type="checkbox" className="mt-1" checked={follow} onChange={(e) => setFollow(e.target.checked)} /><span>Also raise my price again when the cheapest seller raises theirs <span className="block text-xs text-dim">So you keep matching them both ways. It never goes above the highest price you set here.</span></span></label>
       {follow && <div className="max-w-xs"><label className="label" htmlFor="ap-ceil">Never go above (platinum)</label><input id="ap-ceil" className="input" type="number" min={1} inputMode="numeric" value={ceiling} onChange={(e) => setCeiling(e.target.value)} placeholder="Required" /></div>}
-      <p className="text-xs text-dim">The floor applies to <b className="text-ink">every</b> order. Set it at or below the cheapest price you’d accept for your cheapest item; for items you’d price lower than that, reprice by hand.</p>
+      <p className="text-xs text-dim">A minimum price is optional. If you set one it applies to <b className="text-ink">every</b> order, so keep it at or below the cheapest price you’d accept for your cheapest item. With none, the only limit is the cap on how far one step can move a price (and 1 platinum, the lowest Warframe Market allows).</p>
       <div className="flex flex-wrap gap-2">
         <button className="btn-primary" disabled={busy} onClick={() => save(true)}>{enabled ? "Save changes" : "Turn on"}</button>
         {enabled && <button className="btn" disabled={busy} onClick={() => save(false)}>Turn off</button>}
