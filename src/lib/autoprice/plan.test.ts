@@ -30,13 +30,12 @@ describe("planAutoprice", () => {
   it("matches the cheapest when asked to", () => {
     expect(planAutoprice(base, [L(36, "a"), L(38, "b")], "me", { ...s, rule: "match" }, NOW)).toMatchObject({ action: "change", to: 36 });
   });
-  it("raises again when the cheapest goes up, only with follow-up on, and never above the ceiling", () => {
+  it("raises again to the target when the cheapest goes up, only with follow-up on", () => {
     const cheap = { ...base, platinum: 30 };
     expect(planAutoprice(cheap, [L(40, "a"), L(41, "b")], "me", s, NOW)).toEqual({ action: "skip", why: "not-undercut" });
-    expect(planAutoprice(cheap, [L(40, "a"), L(41, "b")], "me", { ...s, followUp: true, ceiling: 36 }, NOW)).toMatchObject({ action: "change", direction: "up", to: 34, note: expect.stringContaining("rise") });
-    expect(planAutoprice({ ...base, platinum: 34 }, [L(40, "a"), L(41, "b")], "me", { ...s, followUp: true, ceiling: 36, maxDropPct: 50 }, NOW)).toMatchObject({ to: 36 });
-    expect(planAutoprice({ ...base, platinum: 36 }, [L(40, "a"), L(41, "b")], "me", { ...s, followUp: true, ceiling: 36 }, NOW)).toEqual({ action: "skip", why: "at-ceiling" });
-    expect(planAutoprice(cheap, [L(40, "a"), L(41, "b")], "me", { ...s, followUp: true }, NOW)).toEqual({ action: "skip", why: "at-ceiling" });
+    expect(planAutoprice(cheap, [L(40, "a"), L(41, "b")], "me", { ...s, followUp: true }, NOW)).toEqual({ action: "change", to: 39, cheapest: 40, note: null, direction: "up" });
+    expect(planAutoprice(cheap, [L(40, "a"), L(41, "b")], "me", { ...s, followUp: true, rule: "match" }, NOW)).toMatchObject({ to: 40 });
+    expect(planAutoprice({ ...base, platinum: 39 }, [L(40, "a"), L(41, "b")], "me", { ...s, followUp: true }, NOW)).toEqual({ action: "skip", why: "not-undercut" });
   });
   it("does not count your own listings against you", () => {
     expect(planAutoprice(base, [L(10, "Me"), L(45, "a"), L(46, "b")], "me", s, NOW)).toEqual({ action: "skip", why: "not-undercut" });

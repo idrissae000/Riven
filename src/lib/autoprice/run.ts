@@ -20,8 +20,8 @@ export interface AutoRunResult { users: number; changed: number; errors: number 
 export async function runAutoprice(sb: SupabaseClient, now = Date.now(), maxUsers = 5): Promise<AutoRunResult> {
   const out: AutoRunResult = { users: 0, changed: 0, errors: 0 };
   const due = new Date(now - RUN_INTERVAL_MS).toISOString();
-  const { data } = await sb.from("autoprice_settings").select("user_id,rule,floor,max_drop_pct,follow_up,ceiling").eq("enabled", true).or(`last_run_at.is.null,last_run_at.lt.${due}`).order("last_run_at", { ascending: true, nullsFirst: true }).limit(maxUsers);
-  for (const row of (data ?? []) as { user_id: string; rule: AutoSettings["rule"]; floor: number; max_drop_pct: number; follow_up: boolean; ceiling: number | null }[]) {
+  const { data } = await sb.from("autoprice_settings").select("user_id,rule,floor,max_drop_pct,follow_up").eq("enabled", true).or(`last_run_at.is.null,last_run_at.lt.${due}`).order("last_run_at", { ascending: true, nullsFirst: true }).limit(maxUsers);
+  for (const row of (data ?? []) as { user_id: string; rule: AutoSettings["rule"]; floor: number; max_drop_pct: number; follow_up: boolean }[]) {
     out.users++;
     const uid = row.user_id;
     const setNote = (note: string | null, extra: Record<string, unknown> = {}) => sb.from("autoprice_settings").update({ last_run_at: new Date(now).toISOString(), note, ...extra }).eq("user_id", uid);
@@ -38,7 +38,7 @@ export async function runAutoprice(sb: SupabaseClient, now = Date.now(), maxUser
       }
       const mine = await fetchMyOrders(uid);
       if ("status" in mine) { await setNote(`Warframe Market answered ${mine.status}; will try again.`); out.errors++; continue; }
-      const settings: AutoSettings = { rule: row.rule, floor: row.floor, maxDropPct: row.max_drop_pct, followUp: row.follow_up, ceiling: row.ceiling };
+      const settings: AutoSettings = { rule: row.rule, floor: row.floor, maxDropPct: row.max_drop_pct, followUp: row.follow_up };
       const markets = new Map<string, Listing[]>();
       const sells = mine.orders.filter((o) => o.type === "sell" && o.visible).sort((a, b) => Date.parse(a.updatedAt ?? "0") - Date.parse(b.updatedAt ?? "0"));
       let changes = 0;

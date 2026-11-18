@@ -1,18 +1,18 @@
 import { repriceSellOrder, repricedValue, type RepriceRule } from "@/lib/wfm/reprice";
 import type { Listing } from "@/lib/wfm/listings";
 
-export interface AutoSettings { rule: RepriceRule; floor: number; maxDropPct: number; /** also raise a price when the cheapest seller raises theirs */ followUp?: boolean; /** the most it may ever raise a price to (needed for followUp) */ ceiling?: number | null }
+export interface AutoSettings { rule: RepriceRule; floor: number; maxDropPct: number; /** also raise a price when the cheapest seller raises theirs */ followUp?: boolean; }
 export interface AutoOrder { id: string; platinum: number; visible: boolean; type: "sell" | "buy"; updatedAt: string | null }
 
 /** After changing an order, leave it alone this long (so two bots can't chase each other down every minute). */
 export const COOLDOWN_MS = 10 * 60_000;
 export const MIN_OTHER_SELLERS = 2;
 
-export type AutoPlan = { action: "change"; to: number; cheapest: number; note: string | null; direction: "down" | "up" } | { action: "skip"; why: "not-sell" | "hidden" | "cooldown" | "thin-market" | "not-undercut" | "at-floor" | "at-ceiling" | "no-change" };
+export type AutoPlan = { action: "change"; to: number; cheapest: number; note: string | null; direction: "down" | "up" } | { action: "skip"; why: "not-sell" | "hidden" | "cooldown" | "thin-market" | "not-undercut" | "at-floor" | "no-change" };
 
 /**
  * Decides whether to move one sell order. It LOWERS a price you've been undercut on (to match / undercut the cheapest, never below your floor), and, only if
- * "follow up" is on, RAISES it again when the cheapest seller goes up (never above your ceiling). It only acts when the order is visible, hasn't changed in
+ * "follow up" is on, RAISES it again to match/undercut the cheapest when they go up (it can never go above what the rule targets, i.e. the cheapest seller). It only acts when the order is visible, hasn't changed in
  * the last 10 minutes, and at least 2 other online sellers set the market (one lone listing isn't a market). One step moves a price by at most `maxDropPct`.
  */
 export function planAutoprice(order: AutoOrder, market: Listing[], mine: string | null, s: AutoSettings, now: number): AutoPlan {
@@ -35,16 +35,6 @@ export function planAutoprice(order: AutoOrder, market: Listing[], mine: string 
     return to >= order.platinum ? { action: "skip", why: "no-change" } : { action: "change", to, cheapest, note, direction: "down" };
   }
 
-  if (s.followUp && r.target > order.platinum) {
-    const ceiling = s.ceiling ?? null;
-    if (ceiling == null) return { action: "skip", why: "at-ceiling" };
-    if (order.platinum >= ceiling) return { action: "skip", why: "at-ceiling" };
-    let to = Math.min(r.target, ceiling);
-    let note: string | null = null;
-    const highest = Math.floor(order.platinum * (1 + s.maxDropPct / 100));
-    if (to > highest) { to = Math.max(highest, order.platinum + 1); note = `capped at a ${s.maxDropPct}% rise per step`; }
-    if (to > ceiling) to = ceiling;
-    return to > order.platinum ? { action: "change", to, cheapest, note, direction: "up" } : { action: "skip", why: "no-change" };
-  }
+  if (s.followUp && r.target > order.platinum) return { action: "change", to: r.target, cheapest, note: null, direction: "up" };
   return { action: "skip", why: "not-undercut" };
 }

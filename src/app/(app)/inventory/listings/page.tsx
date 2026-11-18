@@ -16,7 +16,7 @@ export default async function ListingsPage() {
   if (signedIn) {
     const sb = await createClient();
     const [{ data: s }, { data: l }] = await Promise.all([
-      sb.from("autoprice_settings").select("enabled,rule,floor,max_drop_pct,follow_up,ceiling,last_run_at,note,status_seen,status_seen_at").maybeSingle(),
+      sb.from("autoprice_settings").select("enabled,rule,floor,max_drop_pct,follow_up,last_run_at,note,status_seen,status_seen_at").maybeSingle(),
       sb.from("autoprice_log").select("id,item_name,old_price,new_price,cheapest,note,at").order("at", { ascending: false }).limit(15),
     ]);
     settings = (s as AutoSettingsRow | null) ?? null;

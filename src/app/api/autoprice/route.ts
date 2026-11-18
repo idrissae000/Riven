@@ -9,8 +9,7 @@ const body = z.object({
   floor: z.number().int().min(1).max(99_999).nullable().default(null).transform((f) => f ?? 1),
   max_drop_pct: z.number().int().min(1).max(50),
   follow_up: z.boolean().default(false),
-  ceiling: z.number().int().min(1).max(99_999).nullable().default(null),
-}).refine((b) => !b.follow_up || (b.ceiling != null && b.ceiling >= b.floor), "To raise prices again, set the highest price it may go to (at least your lowest price).");
+});
 
 /** Save the signed-in user's auto-repricing settings. (RLS: own row only.) */
 export async function PUT(request: Request) {
